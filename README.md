@@ -1,7 +1,8 @@
 ![metalworking: the craft of making Apple Silicon GPUs go fast](banner.png)
 
-A structured learning track for Apple Metal GPU performance. Instead of a course with toy
-examples, you read the real thing: ~20 of the best open-source Metal kernels and tools
+A structured learning track for Apple Metal GPU performance. 
+
+Instead of a course with toy examples, you read the real thing: ~20 of the best open-source Metal kernels and tools
 (llama.cpp's Metal backend, MLX's steel kernels, metal-flash-attention, luminal's kernel
 compiler) at exact file/line coordinates, in an order that starts at "what is this
 hardware" and ends at "why did my hand-written kernel lose to stock MLX."
