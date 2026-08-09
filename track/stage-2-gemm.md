@@ -13,6 +13,14 @@ Read the companion essay first:
 the canonical naive-to-fast Metal GEMM walkthrough, written by the author of
 `metal-matmul`.
 
+![Three Metal GEMM kernels benchmarked across matrix sizes, showing the fastest one changes with the problem size](../gemm-ladder.gif)
+
+The punchline of this stage, up front: there is no single fastest kernel. Double
+buffering wins at 1024, the simpler single-buffered version wins at 4096, and Apple's
+MPS takes it back at 8192 where everything is bandwidth bound. Numbers are from
+[m5-gemm's benchmark table](https://github.com/yaroslavvb/m5-gemm) on an M5 Max, not
+measured here. Reproduce them on your own machine; that's the exercise.
+
 ## Rung 1: naive tiled, single buffered
 
 `code/m5-gemm/sync_copy.metal` is the baseline: cooperative loads into threadgroup
