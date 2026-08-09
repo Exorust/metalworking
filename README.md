@@ -1,6 +1,4 @@
-# metalworking
-
-**The craft of making Apple Silicon GPUs go fast.**
+![metalworking: the craft of making Apple Silicon GPUs go fast](banner.png)
 
 A structured learning track for Apple Metal GPU performance. Instead of a course with toy
 examples, you read the real thing: ~20 of the best open-source Metal kernels and tools
