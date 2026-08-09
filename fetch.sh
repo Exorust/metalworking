@@ -50,8 +50,8 @@ get openevolve               https://github.com/algorithmicsuperintelligence/ope
 get ane-reverse-engineering  https://github.com/maderix/ANE                     d91c9845c0784dec7753048954fc6d0e8411fe29
 get drawthings-mfa           https://github.com/liuliu/ccv                      4701446c87aefc9ad13a4aa88a1d915d652f88c8 lib/nnc/mfa
 
-# drawthings-mfa ships 147MB of precompiled shader blobs — build artifacts, not
-# source. Delete them; `git -C code/drawthings-mfa checkout .` restores if needed.
+# drawthings-mfa ships 147MB of precompiled shader blobs (build artifacts, not
+# source). Delete them; `git -C code/drawthings-mfa checkout .` restores if needed.
 rm -f code/drawthings-mfa/lib/nnc/mfa/kernels/*Precompiled.inc
 
 echo "done. start reading: track/stage-0-hardware.md"
