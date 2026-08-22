@@ -16,6 +16,7 @@
 
 :root, [data-theme="light"] {
   --bg: #eaeae7;
+  --bg-side: #e1e1dd;
   --fg: #191919;
   --muted: #62625e;
   --line: #191919;
@@ -31,43 +32,70 @@
   --sel-fg: #f2f2ef;
   --tint: #2f9e4433;      /* ::selection + accent washes */
   --code-bg: #e0e0db;
+  --head: #191919;        /* headings; brighter than body in dark themes */
 }
-/* Terminal: brand-true — banner black, banner white, one green for the live parts */
+/* Terminal: phosphor — deep green-black, everything lives in green */
 [data-theme="terminal"] {
-  --bg: #0a0a0a;
-  --fg: #ededea;
-  --muted: #8f8f8a;
-  --line: #ededea;
-  --dash: #ededea;
-  --hl: #232323;
-  --hover: #ffffff17;
-  --chip-fg: #8f8f8a;
-  --chip-border: #3d3d3a;
-  --accent: #56e849;
-  --accent-soft: #0f1a0d;
-  --px: #ffffff;
-  --sel-bg: #ffffff;
-  --sel-fg: #0a0a0a;
-  --tint: #56e84940;
-  --code-bg: #141414;
+  --bg: #0d180a;
+  --bg-side: #111f0d;
+  --fg: #a6cc97;
+  --muted: #648c58;
+  --line: #3d6633;
+  --dash: #3d6633;
+  --hl: #1f3517;
+  --hover: #77ef5e1c;
+  --chip-fg: #8fb583;
+  --chip-border: #3d6633;
+  --accent: #77ef5e;
+  --accent-soft: #142a0e;
+  --px: #77ef5e;
+  --sel-bg: #77ef5e;
+  --sel-fg: #0d180a;
+  --tint: #77ef5e33;
+  --code-bg: #132410;
+  --head: #77ef5e;
 }
+/* Light green: dark sage — muted gray-green, cream text */
 [data-theme="green"] {
-  --bg: #e4ecdf;
-  --fg: #1c231a;
-  --muted: #5b6a57;
-  --line: #1c231a;
-  --dash: #6f8069;
-  --hl: #d0dcc9;
-  --hover: #1c231a12;
-  --chip-fg: #5b6a57;
-  --chip-border: #a9b8a2;
-  --accent: #2b7a3b;
-  --accent-soft: #d8e8d2;
-  --px: #2c3d28;
-  --sel-bg: #1c231a;
-  --sel-fg: #eef3ea;
-  --tint: #2b7a3b33;
-  --code-bg: #d9e3d2;
+  --bg: #2d342c;
+  --bg-side: #293027;
+  --fg: #dde5d3;
+  --muted: #9aa892;
+  --line: #b9c6ae;
+  --dash: #71806a;
+  --hl: #3d463b;
+  --hover: #ffffff12;
+  --chip-fg: #b5c2ab;
+  --chip-border: #5b6952;
+  --accent: #a9dc92;
+  --accent-soft: #38402f;
+  --px: #e7efdc;
+  --sel-bg: #dde5d3;
+  --sel-fg: #2d342c;
+  --tint: #a9dc9233;
+  --code-bg: #272e26;
+  --head: #f2f7ea;
+}
+/* Violet Midnight: the house special */
+[data-theme="violet"] {
+  --bg: #0d0a1a;
+  --bg-side: #120e24;
+  --fg: #c7bde6;
+  --muted: #7d72a8;
+  --line: #5b4d96;
+  --dash: #4a3f7d;
+  --hl: #251c46;
+  --hover: #a78bfa1f;
+  --chip-fg: #a89dd4;
+  --chip-border: #4a3f7d;
+  --accent: #b18cff;
+  --accent-soft: #1b1236;
+  --px: #c3a1ff;
+  --sel-bg: #b18cff;
+  --sel-fg: #0d0a1a;
+  --tint: #b18cff3d;
+  --code-bg: #171031;
+  --head: #d3b8ff;
 }
 
 * { box-sizing: border-box; }
@@ -88,6 +116,7 @@ body {
   display: flex; align-items: center; gap: 1.3rem;
   padding: 0.85rem 1.4rem;
   border-bottom: 1px solid var(--line);
+  background: var(--bg-side);
 }
 .wordmark { font-weight: 700; font-size: 1.05rem; color: var(--fg); text-decoration: none; letter-spacing: 0.02em; }
 .site-title { display: flex; align-items: center; margin-left: 2.2rem; flex: none; }
@@ -121,6 +150,7 @@ body {
 .toc {
   width: 330px; flex: none; padding: 1.3rem 0 2rem 0;
   position: sticky; top: 0; overflow-y: auto; max-height: calc(100vh - 92px);
+  background: var(--bg-side);
 }
 /* dashed divider with a deliberate rhythm */
 .toc { border-right: none; position: relative; }
@@ -132,7 +162,7 @@ body {
 .toc-section { margin-top: 0.35rem; }
 .toc-head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0.35rem 1.5rem; font-size: 0.9rem; cursor: pointer;
+  padding: 0.35rem 1.5rem; font-size: 0.95rem; cursor: pointer;
 }
 .toc-head:hover { background: var(--hover); }
 .toc-head .fold { background: none; border: none; color: var(--muted); font: inherit; cursor: pointer; }
@@ -140,7 +170,7 @@ body {
 .toc-section.folded > ul { display: none; }
 .toc-section a {
   display: flex; align-items: center; gap: 0.6rem;
-  color: var(--fg); text-decoration: none; font-size: 0.9rem;
+  color: var(--fg); text-decoration: none; font-size: 0.95rem;
   padding: 0.34rem 1.1rem 0.34rem 2.5rem; line-height: 1.4;
 }
 .toc-section a:hover { background: var(--hover); }
@@ -156,9 +186,10 @@ body {
 /* ---- content ---- */
 .content { flex: 1; min-width: 0; padding: 1.8rem 3.4rem 3.5rem; max-width: 960px; }
 .crumb { color: var(--muted); font-size: 0.9rem; margin-bottom: 0.5rem; }
-.content h1 { font-size: 1.65rem; letter-spacing: 0.08em; text-transform: uppercase; margin: 0.2rem 0 1.5rem; font-weight: 700; }
-.content h2 { font-size: 1.15rem; margin-top: 2.4rem; letter-spacing: 0.03em; font-weight: 700; }
-.content h3 { font-size: 1rem; margin-top: 1.9rem; font-weight: 700; }
+.content h1 { font-size: 1.75rem; margin: 0.3rem 0 1.5rem; font-weight: 400; color: var(--head); }
+.content h2 { font-size: 1.25rem; margin-top: 2.4rem; font-weight: 500; color: var(--head); }
+.content h3 { font-size: 1.05rem; margin-top: 1.9rem; font-weight: 700; color: var(--head); }
+.wordmark { color: var(--head); }
 .content p, .content li { font-size: 1rem; line-height: 1.5; }
 .content li { margin: 0.3rem 0; }
 .content a { color: var(--fg); }

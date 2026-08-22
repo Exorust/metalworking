@@ -136,6 +136,11 @@ function render(md, fromDir) {
   // Drop the generated-nav source lines; the template provides prev/next.
   md = md.replace(/^Next(?: section)?: \[.*$\n?/gm, "");
   const renderer = new marked.Renderer();
+  // This glossary uses "~" for "approximately"; marked's GFM would tokenize
+  // ~a ... ~b spans as strikethrough (and break emphasis crossing them).
+  // Nothing here wants strikethrough, so turn the del tokenizer off.
+  const tokenizer = new marked.Tokenizer();
+  tokenizer.del = () => undefined;
   renderer.link = function ({ href, tokens }) {
     const text = this.parser.parseInline(tokens);
     const r = rewriteHref(href, fromDir);
@@ -147,7 +152,7 @@ function render(md, fromDir) {
     const name = href.split("/").pop();
     return `<img src="/assets/${name}" alt="${text}">`;
   };
-  return marked.parse(md, { renderer });
+  return marked.parse(md, { renderer, tokenizer });
 }
 
 // ---- template ---------------------------------------------------------------
@@ -190,6 +195,7 @@ function page({ route, title, content, prev, next }) {
     <button data-theme="terminal">Terminal</button>
     <button data-theme="green">Light green</button>
     <button data-theme="light">Light</button>
+    <button data-theme="violet">Violet Midnight</button>
   </nav>
   <button class="searchbox" id="search-open"><span class="mag">&#8981;</span> Search <kbd>&#8984;K</kbd></button>
   <a class="gh-btn" href="${REPO}" target="_blank" rel="noopener">GitHub <span class="ext">&#8599;</span></a>
