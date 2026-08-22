@@ -1,30 +1,45 @@
 # Stage 0: Hardware reality
 
-Needs `code/metal-benchmarks`. Time: an evening of reading.
+Time: an evening of reading. Self-contained; links go deeper.
 
 Before writing any Metal Shading Language, learn what the machine actually is. Apple
-never published a microarchitecture guide for the M-series GPU, so the community reverse
-engineered one: [philipturner/metal-benchmarks](https://github.com/philipturner/metal-benchmarks).
-Most of the numbers the rest of the track leans on (why F16 wins, why your register
-budget is the real constraint) come from this one document.
+never published a microarchitecture guide for the M-series GPU, so the community
+reverse engineered one:
+[philipturner/metal-benchmarks](https://github.com/philipturner/metal-benchmarks)
+(MIT). Every number below comes from it, and the rest of the track leans on them
+constantly.
 
-## Read
+## The numbers that run the rest of this track
 
-`code/metal-benchmarks/README.md`, in this order of sections:
+**The memory you can program** ([On-Chip Memory](https://github.com/philipturner/metal-benchmarks/blob/dc2adc640a1588246f4471d415aa6873cb6e3499/README.md#on-chip-memory)):
 
-| Line | Section | Why it matters |
-|---|---|---|
-| 80 | On-Chip Memory | ~208 KB register file per core; 32 KB threadgroup memory (not CUDA's 48+). Register pressure is the budget you'll actually blow. |
-| 118 | Operations per Second | The theoretical ceilings you'll benchmark against. |
-| 159 | ALU Bottlenecks | ALU saturates at 24 SIMDs/core; F16 wins because register-dependency stalls are 1.56 cycles vs 1.84 for F32. |
-| 212 | ALU Layout | How the pipes are arranged; FFMA32 dual-dispatches 2 instructions/cycle. |
-| 281 | Instruction Throughputs | The big per-instruction latency/throughput table. You'll come back to this constantly. |
-| 676 | SIMD Futures | The async-copy / `simdgroup_event` discussion; background for stage 2. |
-| 754 | Power Efficiency | Why perf/watt is the metric Apple actually optimized. |
+- **~208 KB register file per core.** This is the budget you'll actually blow. Stage
+  2's fastest kernel lives or dies on whether its accumulators stay in registers; the
+  documented failure mode is a 10× slowdown from spilling.
+- **32 KB threadgroup memory per threadgroup** (~60 KB physically per core) — smaller
+  than CUDA's 48-100 KB. Tile-size instincts imported from CUDA will overshoot.
+- Small caches (8 KB L1 data, 12 KB instruction per core). Apple's design trades
+  cache for that huge register file. Plan on registers, not cache locality.
 
-If you want to see how those numbers were measured,
-`code/metal-benchmarks/InstructionThroughput/Kernels.metal` holds the ILP-sweep shaders
-that produced the throughput table.
+**Why F16 wins** ([ALU Bottlenecks](https://github.com/philipturner/metal-benchmarks/blob/dc2adc640a1588246f4471d415aa6873cb6e3499/README.md#alu-bottlenecks)):
+a back-to-back dependent multiply pays **1.84 cycles with F32 registers vs 1.56 with
+F16** — and at low occupancy the latency gap widens to 11.3 vs 3.9 cycles for FMA.
+F16 isn't faster math; it's shorter stalls and half the register pressure. The ALU
+saturates around 24 simdgroups/core, so anything that raises occupancy (smaller
+registers) also fills the pipes.
+
+**Cheap and expensive, contra CUDA instinct:** threadgroup barriers cost ~2 cycles
+(on NVIDIA they're a big deal — here, sync freely); scattered threadgroup-memory
+access is comparatively expensive; there's a fast hardware `exp2` path (stage 4's
+kernels compute softmax in base-2 for exactly this reason); FP32 atomics are
+emulated and slow (stage 4 shows a backward pass split into two kernels just to
+avoid them).
+
+For the full per-instruction latency/throughput tables — which you'll come back to
+whenever a kernel underperforms — see
+[Instruction Throughputs](https://github.com/philipturner/metal-benchmarks/blob/dc2adc640a1588246f4471d415aa6873cb6e3499/README.md#instruction-throughputs);
+`InstructionThroughput/Kernels.metal` in the same repo holds the ILP-sweep shaders
+that measured them.
 
 ## Also worth knowing
 
