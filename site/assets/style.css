@@ -247,8 +247,14 @@ body {
   content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
   background: repeating-linear-gradient(to right, var(--dash) 0 9px, transparent 9px 17px);
 }
-.pager { color: var(--fg); text-decoration: none; font-size: 0.95rem; font-weight: 500; }
+.pager {
+  display: inline-flex; align-items: center; gap: 0.6rem;
+  color: var(--fg); text-decoration: none; font-size: 0.95rem; font-weight: 500;
+}
+.pager .arr { color: var(--accent); flex: none; transition: transform 0.15s ease; }
 .pager:hover { color: var(--accent); }
+.pager.next:hover .arr { transform: translateX(5px); }
+.pager.prev:hover .arr { transform: translateX(-5px); }
 .pagefoot { margin-top: 1.6rem; font-size: 0.8rem; }
 .pagefoot a { color: var(--muted); }
 .pagefoot a:hover { color: var(--accent); }
