@@ -247,15 +247,30 @@ body {
   content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
   background: repeating-linear-gradient(to right, var(--dash) 0 9px, transparent 9px 17px);
 }
+.pager, .pager-empty { flex: 1; min-width: 0; }
 .pager {
-  display: inline-flex; align-items: center; gap: 0.5rem;
-  color: var(--accent); text-decoration: none; font-size: 1rem; font-weight: 500;
+  display: flex; flex-direction: column; gap: 0.45rem;
+  border: 1px solid var(--chip-border);
+  padding: 1.1rem 1.3rem 1.2rem;
+  text-decoration: none; color: var(--fg);
 }
+.pager.next { align-items: flex-end; text-align: right; border-color: var(--accent); background: var(--accent-soft); }
+.pager-kicker {
+  display: inline-flex; align-items: center; gap: 0.55rem;
+  font-size: 0.8rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent);
+}
+.pager-title { font-size: 1.2rem; font-weight: 700; line-height: 1.3; }
 .pager .arr { flex: none; transition: transform 0.15s ease; }
 .pager.prev .arr { transform: scaleX(-1); }
-.pager:hover span { text-decoration: underline; text-underline-offset: 3px; }
+.pager:hover { background: var(--sel-bg); border-color: var(--sel-bg); }
+.pager:hover .pager-kicker, .pager:hover .pager-title { color: var(--sel-fg); }
 .pager.next:hover .arr { transform: translateX(5px); }
 .pager.prev:hover .arr { transform: scaleX(-1) translateX(5px); }
+@media (max-width: 700px) {
+  .pagenav { flex-direction: column; }
+  .pager-empty { display: none; }
+}
 .pagefoot { margin-top: 1.6rem; font-size: 0.8rem; }
 .pagefoot a { color: var(--muted); }
 .pagefoot a:hover { color: var(--accent); }
