@@ -35,6 +35,8 @@ without [the dead async-DMA primitive](gemm-async-ghost.md) this is not true
 overlap — it's [ILP-based latency hiding](../techniques/double-buffering.md), the
 same threads issuing independent loads and math for the scheduler to interleave.
 
+![Three Metal GEMM kernels benchmarked across matrix sizes, showing the fastest one changes with the problem size](../../gemm-ladder.gif)
+
 **The payoff table** (author's numbers, M5 Max, fp32, best of 3×5 — from the
 [repo README](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/README.md)):
 
