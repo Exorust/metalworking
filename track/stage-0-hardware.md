@@ -2,44 +2,82 @@
 
 Time: an evening of reading. Self-contained; links go deeper.
 
-Before writing any Metal Shading Language, learn what the machine actually is. Apple
-never published a microarchitecture guide for the M-series GPU, so the community
-reverse engineered one:
-[philipturner/metal-benchmarks](https://github.com/philipturner/metal-benchmarks)
-(MIT). Every number below comes from it, and the rest of the track leans on them
-constantly.
+This page assumes you know your way around a CUDA GPU — warps, shared memory,
+occupancy, coalescing — and translates. That's the fastest route, because the M-series
+GPU is *almost* familiar: your instincts about tiling and coalescing transfer
+directly, and then a handful of numbers are different enough to invert specific
+habits. This page is the list of those numbers.
 
-## The numbers that run the rest of this track
+Apple never published a microarchitecture guide, so the community reverse engineered
+one: [philipturner/metal-benchmarks](https://github.com/philipturner/metal-benchmarks)
+(MIT). Everything below comes from it.
 
-**The memory you can program** ([On-Chip Memory](https://github.com/philipturner/metal-benchmarks/blob/dc2adc640a1588246f4471d415aa6873cb6e3499/README.md#on-chip-memory)):
+## The dictionary
 
-- **~208 KB register file per core.** This is the budget you'll actually blow. Stage
-  2's fastest kernel lives or dies on whether its accumulators stay in registers; the
-  documented failure mode is a 10× slowdown from spilling.
-- **32 KB threadgroup memory per threadgroup** (~60 KB physically per core) — smaller
-  than CUDA's 48-100 KB. Tile-size instincts imported from CUDA will overshoot.
-- Small caches (8 KB L1 data, 12 KB instruction per core). Apple's design trades
-  cache for that huge register file. Plan on registers, not cache locality.
+| CUDA | Metal | Notes |
+|---|---|---|
+| SM | GPU core | Same role: the unit that owns registers, shared memory, ALUs |
+| warp (32 threads) | simdgroup (32 threads) | Identical width. Shuffles, votes, and reductions all exist |
+| thread block | threadgroup | Same concept, same scheduling role |
+| shared memory | threadgroup memory | **32 KB max**, vs your 48-228 KB. See below |
+| tensor core / `mma` | `simdgroup_matrix` (8×8) | Closer to a fast wide-FMA path than a separate unit |
+| `cp.async` / TMA | `simdgroup_async_copy` | Existed, undocumented, **dead on Metal 4** (stage 2 tells the story) |
+| PTX → SASS | AIR → G13/G14 ISA | AIR is the portable IR; the ISA is reverse engineered (stage 5) |
+| Nsight Compute | — | Nothing comparable. Xcode's GPU capture GUI, and timestamps. That's it |
+| `__syncthreads()` | `threadgroup_barrier()` | Same semantics, wildly different cost — see below |
 
-**Why F16 wins** ([ALU Bottlenecks](https://github.com/philipturner/metal-benchmarks/blob/dc2adc640a1588246f4471d415aa6873cb6e3499/README.md#alu-bottlenecks)):
-a back-to-back dependent multiply pays **1.84 cycles with F32 registers vs 1.56 with
-F16** — and at low occupancy the latency gap widens to 11.3 vs 3.9 cycles for FMA.
-F16 isn't faster math; it's shorter stalls and half the register pressure. The ALU
-saturates around 24 simdgroups/core, so anything that raises occupancy (smaller
-registers) also fills the pipes.
+## Five differences that will actually change your code
 
-**Cheap and expensive, contra CUDA instinct:** threadgroup barriers cost ~2 cycles
-(on NVIDIA they're a big deal — here, sync freely); scattered threadgroup-memory
-access is comparatively expensive; there's a fast hardware `exp2` path (stage 4's
-kernels compute softmax in base-2 for exactly this reason); FP32 atomics are
-emulated and slow (stage 4 shows a backward pass split into two kernels just to
-avoid them).
+**1. The register file is huge and shared memory is small — so tile in registers,
+not in shared memory.** Per core: **~208 KB of registers** (vs ~256 KB on an SM)
+but only **32 KB of threadgroup memory** and tiny caches (8 KB L1). On NVIDIA you
+stage big tiles in shared memory and keep register blocking moderate. Here the ratio
+flips: threadgroup memory is a thin staging buffer, and the serious blocking happens
+in registers (stage 2's kernel holds a 32×32 output patch per simdgroup in registers,
+full stop). The corollary: **register spilling is the #1 performance cliff.** The
+stage-2 repo documents a 2× bigger register tile running 10× *slower* — spilled
+accumulators. When an Apple kernel is mysteriously slow, suspect spills first, the
+way you'd suspect uncoalesced loads first on NVIDIA.
+([On-Chip Memory](https://github.com/philipturner/metal-benchmarks/blob/dc2adc640a1588246f4471d415aa6873cb6e3499/README.md#on-chip-memory))
 
-For the full per-instruction latency/throughput tables — which you'll come back to
-whenever a kernel underperforms — see
-[Instruction Throughputs](https://github.com/philipturner/metal-benchmarks/blob/dc2adc640a1588246f4471d415aa6873cb6e3499/README.md#instruction-throughputs);
-`InstructionThroughput/Kernels.metal` in the same repo holds the ILP-sweep shaders
-that measured them.
+**2. Barriers are nearly free.** `threadgroup_barrier` costs **~2 cycles**. The
+CUDA reflex of restructuring algorithms to avoid `__syncthreads()` buys you nothing
+here — sync as often as the logic wants. The thing that *is* expensive, relative to
+NVIDIA, is scattered access within threadgroup memory (bank behavior is less
+forgiving than a modern SM's). Straight-line coalesced staging + frequent barriers
+is the house style, and now you know why every kernel in this track looks that way.
+
+**3. F16 is about stalls and registers, not about a faster unit.** On NVIDIA you
+chase fp16 for tensor-core throughput. Here, a dependent F32 multiply stalls
+**1.84 cycles vs 1.56 for F16**, and the gap explodes at low occupancy (11.3 vs 3.9
+cycles for dependent FMA). Half-precision also halves register pressure, which —
+see point 1 — is the actual budget. So "use F16 everywhere" is the local wisdom
+even where throughput looks identical on paper.
+([ALU Bottlenecks](https://github.com/philipturner/metal-benchmarks/blob/dc2adc640a1588246f4471d415aa6873cb6e3499/README.md#alu-bottlenecks))
+Related: occupancy saturates the ALUs around **24 simdgroups (~768 threads) per
+core** — you don't need anywhere near SM-style 2048-thread residency to fill the
+machine.
+
+**4. Unified memory: no transfers, modest bandwidth, and that's the whole design.**
+No PCIe, no `cudaMemcpy`, CPU and GPU share one pool — capacity is enormous (a Mac
+Studio holds models no consumer NVIDIA card can). The price: bandwidth is a fraction
+of an H100's HBM, and Apple tuned the whole chip for perf/watt at low clocks. Hence
+the track's one recurring idea (below): you are bandwidth bound long before you are
+compute bound, more often and more severely than CUDA experience suggests.
+
+**5. FP32 atomics are emulated and slow.** `atomicAdd` on floats has been cheap on
+NVIDIA since Kepler; here it's a trap. Real consequence in stage 4:
+metal-flash-attention splits its backward pass into two kernels (dQ separate from
+dK/dV) purely so no threadgroup ever needs cross-threadgroup float accumulation.
+One free gift in the other direction: the hardware `exp2` path is fast, which is why
+every softmax in this track is computed in base-2.
+
+## The one idea to internalize
+
+**Apple Silicon is bandwidth bound, not compute bound.** Unified memory gives huge
+capacity at moderate bandwidth, so the win usually comes from touching less memory,
+not doing arithmetic faster: fuse kernels, skip work, keep data in registers. Every
+later stage is a variation on this theme.
 
 ## Also worth knowing
 
@@ -49,17 +87,14 @@ that measured them.
 - [Alyssa Rosenzweig's M1 GPU series](https://alyssarosenzweig.ca/blog/asahi-gpu-part-n.html),
   the AGX reverse-engineering canon from the Asahi Linux driver work. The hardware has no
   native geometry or tessellation support at all.
-
-## The one idea to internalize
-
-**Apple Silicon is bandwidth bound, not compute bound.** Unified memory gives you huge
-capacity at moderate bandwidth, so the win usually comes from touching less memory rather
-than doing arithmetic faster: fuse kernels, skip work, keep data in registers. Every
-later stage is a variation on this theme.
+- The full per-instruction latency/throughput tables live in
+  [Instruction Throughputs](https://github.com/philipturner/metal-benchmarks/blob/dc2adc640a1588246f4471d415aa6873cb6e3499/README.md#instruction-throughputs);
+  you'll come back to them whenever a kernel underperforms.
 
 ## Done when
 
-- You can explain why F16 beats F32 on this hardware even when both are "fast".
+- You can name the three CUDA habits this page told you to invert (shared-memory-first
+  tiling, barrier avoidance, fp16-for-throughput) and the number behind each.
 - You can state the register file and threadgroup memory sizes from memory, and say
   which one usually kills occupancy first.
 - Given a kernel's arithmetic intensity, you can predict whether it's bandwidth or
