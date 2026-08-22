@@ -198,8 +198,8 @@ function sidebar(activeRoute) {
 function page({ route, title, content, prev, next }) {
   const crumb = route === "/" ? "/readme" : route.replace(/\/$/, "");
   const nav = [
-    prev ? `<a class="pager prev" href="${prev.route}">${pixelArrow()}<span>${prev.title}</span></a>` : "<span></span>",
-    next ? `<a class="pager next" href="${next.route}"><span>${next.title}</span>${pixelArrow()}</a>` : "<span></span>",
+    prev ? `<a class="pager prev" href="${prev.route}"><span class="pager-kicker">${pixelArrow()} Previous</span><span class="pager-title">${prev.title}</span></a>` : `<span class="pager-empty"></span>`,
+    next ? `<a class="pager next" href="${next.route}"><span class="pager-kicker">Next ${pixelArrow()}</span><span class="pager-title">${next.title}</span></a>` : `<span class="pager-empty"></span>`,
   ].join("");
   const srcPath = route === "/" ? "README.md" : `glossary${route.replace(/\/$/, "")}.md`;
   return `<!doctype html>

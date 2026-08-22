@@ -187,7 +187,7 @@ body {
 .toc-section a.active .chip { color: var(--sel-fg); border-color: var(--sel-fg); }
 
 /* ---- content ---- */
-.content { flex: 1; min-width: 0; padding: 1.8rem 3.4rem 3.5rem; max-width: 960px; }
+.content { flex: 1; min-width: 0; padding: 1.8rem 3.4rem 3.5rem; max-width: 1150px; margin: 0 auto; }
 .crumb { color: var(--muted); font-size: 0.9rem; margin-bottom: 0.5rem; }
 .content h1 { font-size: 1.75rem; margin: 0.3rem 0 1.5rem; font-weight: 400; color: var(--head); }
 .content h2 { font-size: 1.25rem; margin-top: 2.4rem; font-weight: 500; color: var(--head); }
