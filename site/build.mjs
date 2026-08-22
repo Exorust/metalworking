@@ -252,12 +252,12 @@ for (const f of ["style.css", "app.js"])
   copyFileSync(join(root, "site/assets", f), join(dist, "assets", f));
 for (const f of ["banner.png", "gemm-ladder.gif"])
   copyFileSync(join(root, f), join(dist, "assets", f));
-// Fira Mono (SIL OFL) — self-hosted with its license alongside.
-const fira = join(root, "node_modules/@fontsource/fira-mono");
+// Azeret Mono (SIL OFL) — self-hosted with its license alongside.
+const azeret = join(root, "node_modules/@fontsource/azeret-mono");
 for (const w of [400, 500, 700])
-  copyFileSync(join(fira, `files/fira-mono-latin-${w}-normal.woff2`),
-    join(dist, "assets/fonts", `fira-mono-latin-${w}-normal.woff2`));
-copyFileSync(join(fira, "LICENSE"), join(dist, "assets/fonts", "LICENSE"));
+  copyFileSync(join(azeret, `files/azeret-mono-latin-${w}-normal.woff2`),
+    join(dist, "assets/fonts", `azeret-mono-latin-${w}-normal.woff2`));
+copyFileSync(join(azeret, "LICENSE"), join(dist, "assets/fonts", "LICENSE"));
 
 const searchIndex = [];
 let count = 0;
