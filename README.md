@@ -1,5 +1,7 @@
 ![metalworking: the craft of making Apple Silicon GPUs go fast](banner.png)
 
+**Read it as a website: [metalworking.vercel.app](https://metalworking.vercel.app)**
+
 A hyperlinked glossary of Apple Metal GPU performance — the machine, the Metal
 stack, MLX's architecture, the techniques, and real production kernels read line
 by line.
