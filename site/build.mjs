@@ -117,6 +117,27 @@ function pixelLine(word, cls = "px-art") {
     `<g class="px-letter" data-x="${L.x}"><g class="px-shadow" transform="translate(3.5,3.5)">${L.body}</g><g class="px-fill">${L.body}</g></g>`).join("");
   return `<svg class="${cls}" viewBox="-3 -3 ${w + 6} ${h + 6}" role="img" aria-label="${word}" preserveAspectRatio="xMinYMin meet">${body}</svg>`;
 }
+// Pixel arrow on the same grid language as the letters: 1-cell shaft, stepped head.
+const ARROW_GRID = [
+  "0000001000",
+  "0000001100",
+  "0000001110",
+  "1111111111",
+  "0000001110",
+  "0000001100",
+  "0000001000",
+];
+function pixelArrow() {
+  const U = 3; // unit cell px
+  const rects = [];
+  ARROW_GRID.forEach((row, r) => {
+    for (let c = 0; c < row.length; c++)
+      if (row[c] === "1") rects.push(`<rect x="${c * U}" y="${r * U}" width="${U}" height="${U}"/>`);
+  });
+  const w = ARROW_GRID[0].length * U, h = ARROW_GRID.length * U;
+  return `<svg class="arr" viewBox="0 0 ${w} ${h}" width="${w * 0.66}" height="${h * 0.66}" aria-hidden="true" fill="currentColor">${rects.join("")}</svg>`;
+}
+
 // Landing composition mirrors banner.png: big METAL, smaller WORKING, tagline.
 const TITLE_ART = `<div class="pixel-title">${pixelLine("METAL", "px-art px-big")}${pixelLine("WORKING", "px-art px-small")}<div class="tagline">The craft of making Apple Silicon GPUs go fast.</div></div>`;
 const HEADER_ART = pixelLine("METAL GLOSSARY", "px-mini");
@@ -177,8 +198,8 @@ function sidebar(activeRoute) {
 function page({ route, title, content, prev, next }) {
   const crumb = route === "/" ? "/readme" : route.replace(/\/$/, "");
   const nav = [
-    prev ? `<a class="pager prev" href="${prev.route}"><svg class="arr" viewBox="0 0 26 10" width="26" height="10" aria-hidden="true"><path d="M26 5H3M7 1L2 5l5 4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span>${prev.title}</span></a>` : "<span></span>",
-    next ? `<a class="pager next" href="${next.route}"><span>${next.title}</span><svg class="arr" viewBox="0 0 26 10" width="26" height="10" aria-hidden="true"><path d="M0 5h23M19 1l5 4-5 4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></a>` : "<span></span>",
+    prev ? `<a class="pager prev" href="${prev.route}">${pixelArrow()}<span>${prev.title}</span></a>` : "<span></span>",
+    next ? `<a class="pager next" href="${next.route}"><span>${next.title}</span>${pixelArrow()}</a>` : "<span></span>",
   ].join("");
   const srcPath = route === "/" ? "README.md" : `glossary${route.replace(/\/$/, "")}.md`;
   return `<!doctype html>

@@ -248,13 +248,14 @@ body {
   background: repeating-linear-gradient(to right, var(--dash) 0 9px, transparent 9px 17px);
 }
 .pager {
-  display: inline-flex; align-items: center; gap: 0.6rem;
-  color: var(--fg); text-decoration: none; font-size: 0.95rem; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  color: var(--accent); text-decoration: none; font-size: 1rem; font-weight: 500;
 }
-.pager .arr { color: var(--accent); flex: none; transition: transform 0.15s ease; }
-.pager:hover { color: var(--accent); }
+.pager .arr { flex: none; transition: transform 0.15s ease; }
+.pager.prev .arr { transform: scaleX(-1); }
+.pager:hover span { text-decoration: underline; text-underline-offset: 3px; }
 .pager.next:hover .arr { transform: translateX(5px); }
-.pager.prev:hover .arr { transform: translateX(-5px); }
+.pager.prev:hover .arr { transform: scaleX(-1) translateX(5px); }
 .pagefoot { margin-top: 1.6rem; font-size: 0.8rem; }
 .pagefoot a { color: var(--muted); }
 .pagefoot a:hover { color: var(--accent); }
