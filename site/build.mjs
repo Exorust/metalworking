@@ -94,11 +94,14 @@ const FONT = {
   I: ["11111","00100","00100","00100","11111"],
   N: ["10001","11001","10101","10011","10001"],
   G: ["01111","10000","10111","10001","01110"],
+  S: ["01111","10000","01110","00001","11110"],
+  Y: ["10001","01010","00100","00100","00100"],
 };
-function pixelLine(word) {
+function pixelLine(word, cls = "px-art") {
   const P = 8, GAP = 1, LGAP = 6; // px per cell, cell gap, letter gap
   let x = 0; const rects = [];
   for (const ch of word) {
+    if (ch === " ") { x += 3 * (P + GAP); continue; }
     const g = FONT[ch];
     for (let r = 0; r < 5; r++)
       for (let c = 0; c < 5; c++)
@@ -107,9 +110,11 @@ function pixelLine(word) {
     x += 5 * (P + GAP) + LGAP;
   }
   const w = x - LGAP, h = 5 * (P + GAP) - GAP;
-  return `<svg class="px-art" viewBox="-3 -3 ${w + 6} ${h + 6}" role="img" aria-label="${word}"><g class="px-shadow" transform="translate(3,3)">${rects.join("")}</g><g class="px-fill">${rects.join("")}</g></svg>`;
+  return `<svg class="${cls}" viewBox="-3 -3 ${w + 6} ${h + 6}" role="img" aria-label="${word}" preserveAspectRatio="xMinYMin meet"><g class="px-shadow" transform="translate(3.5,3.5)">${rects.join("")}</g><g class="px-fill">${rects.join("")}</g></svg>`;
 }
-const TITLE_ART = `<div class="pixel-title">${pixelLine("METAL")}${pixelLine("WORKING")}</div>`;
+// Landing composition mirrors banner.png: big METAL, smaller WORKING, tagline.
+const TITLE_ART = `<div class="pixel-title">${pixelLine("METAL", "px-art px-big")}${pixelLine("WORKING", "px-art px-small")}<div class="tagline">The craft of making Apple Silicon GPUs go fast.</div></div>`;
+const HEADER_ART = pixelLine("METAL GLOSSARY", "px-mini");
 
 // ---- markdown ---------------------------------------------------------------
 function rewriteHref(href, fromDir) {
@@ -180,7 +185,7 @@ function page({ route, title, content, prev, next }) {
 <header class="top">
   <button class="burger" aria-label="menu">&#9776;</button>
   <a class="wordmark" href="/">metalworking</a>
-  <span class="site-title">Metal Glossary</span>
+  <span class="site-title" title="Metal Glossary">${HEADER_ART}</span>
   <nav class="themes" aria-label="theme">
     <button data-theme="terminal">Terminal</button>
     <button data-theme="green">Light green</button>
@@ -210,11 +215,17 @@ function page({ route, title, content, prev, next }) {
 }
 
 // ---- emit -------------------------------------------------------------------
-mkdirSync(join(dist, "assets"), { recursive: true });
+mkdirSync(join(dist, "assets", "fonts"), { recursive: true });
 for (const f of ["style.css", "app.js"])
   copyFileSync(join(root, "site/assets", f), join(dist, "assets", f));
 for (const f of ["banner.png", "gemm-ladder.gif"])
   copyFileSync(join(root, f), join(dist, "assets", f));
+// Fira Mono (SIL OFL) — self-hosted with its license alongside.
+const fira = join(root, "node_modules/@fontsource/fira-mono");
+for (const w of [400, 500, 700])
+  copyFileSync(join(fira, `files/fira-mono-latin-${w}-normal.woff2`),
+    join(dist, "assets/fonts", `fira-mono-latin-${w}-normal.woff2`));
+copyFileSync(join(fira, "LICENSE"), join(dist, "assets/fonts", "LICENSE"));
 
 const searchIndex = [];
 let count = 0;

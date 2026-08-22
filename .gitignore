@@ -3,3 +3,4 @@ code/
 dist/
 node_modules/
 .gstack/
+.vercel
