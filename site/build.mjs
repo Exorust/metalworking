@@ -135,7 +135,7 @@ function pixelArrow() {
       if (row[c] === "1") rects.push(`<rect x="${c * U}" y="${r * U}" width="${U}" height="${U}"/>`);
   });
   const w = ARROW_GRID[0].length * U, h = ARROW_GRID.length * U;
-  return `<svg class="arr" viewBox="0 0 ${w} ${h}" width="${w * 0.66}" height="${h * 0.66}" aria-hidden="true" fill="currentColor">${rects.join("")}</svg>`;
+  return `<svg class="arr" viewBox="0 0 ${w} ${h}" width="${w * 0.9}" height="${h * 0.9}" aria-hidden="true" fill="currentColor">${rects.join("")}</svg>`;
 }
 
 // Landing composition mirrors banner.png: big METAL, smaller WORKING, tagline.
