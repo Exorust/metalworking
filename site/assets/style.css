@@ -1,0 +1,200 @@
+/* metalworking glossary — original stylesheet */
+:root, [data-theme="light"] {
+  --bg: #eaeae7;
+  --fg: #191919;
+  --muted: #5c5c58;
+  --line: #191919;
+  --dash: #8a8a85;
+  --hl: #d7d7d2;          /* inline term highlight */
+  --chip-bg: #dcdcd7;
+  --accent: #2f9e44;
+  --accent-soft: #e2efe0;
+  --px: #4a4a46;          /* pixel-art fill */
+  --px-shadow: transparent;
+  --sel-bg: #191919;
+  --sel-fg: #f2f2ef;
+  --code-bg: #e0e0db;
+}
+[data-theme="terminal"] {
+  --bg: #0c0f0c;
+  --fg: #cfd8cc;
+  --muted: #7c887a;
+  --line: #2c342b;
+  --dash: #3a453a;
+  --hl: #1d241c;
+  --chip-bg: #1a201a;
+  --accent: #4cc255;
+  --accent-soft: #12200f;
+  --px: #4cc255;
+  --px-shadow: transparent;
+  --sel-bg: #4cc255;
+  --sel-fg: #0c0f0c;
+  --code-bg: #131813;
+}
+[data-theme="green"] {
+  --bg: #e4ecdf;
+  --fg: #1c231a;
+  --muted: #5b6a57;
+  --line: #1c231a;
+  --dash: #85947f;
+  --hl: #d0dcc9;
+  --chip-bg: #d5e0cd;
+  --accent: #2b7a3b;
+  --accent-soft: #d8e8d2;
+  --px: #3c5237;
+  --px-shadow: transparent;
+  --sel-bg: #1c231a;
+  --sel-fg: #eef3ea;
+  --code-bg: #d9e3d2;
+}
+
+* { box-sizing: border-box; }
+html { font-size: 15px; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  line-height: 1.65;
+}
+.frame { border: 1px solid var(--line); margin: 14px; min-height: calc(100vh - 28px); display: flex; flex-direction: column; }
+
+/* ---- top bar ---- */
+.top {
+  display: flex; align-items: center; gap: 1.4rem;
+  padding: 0.8rem 1.4rem;
+  border-bottom: 1px solid var(--line);
+}
+.wordmark { font-weight: 700; font-size: 1.15rem; color: var(--fg); text-decoration: none; letter-spacing: 0.02em; }
+.site-title { font-size: 1.05rem; letter-spacing: 0.06em; }
+.themes { margin-left: auto; display: flex; gap: 0.9rem; }
+.themes button {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font: inherit; color: var(--muted); font-size: 0.85rem;
+}
+.themes button.on { color: var(--fg); font-weight: 700; }
+.searchbox {
+  display: flex; align-items: center; gap: 0.5rem;
+  font: inherit; font-size: 0.85rem; color: var(--muted);
+  background: var(--bg); border: 1px solid var(--dash);
+  padding: 0.35rem 0.7rem; cursor: pointer; min-width: 12rem;
+}
+.searchbox kbd { margin-left: auto; border: 1px solid var(--dash); padding: 0 0.3rem; font-size: 0.75rem; }
+.gh-btn {
+  color: var(--fg); text-decoration: none; font-size: 0.85rem;
+  border: 1px solid var(--line); padding: 0.35rem 0.8rem; border-radius: 999px;
+}
+.burger { display: none; background: none; border: none; font-size: 1.2rem; color: var(--fg); cursor: pointer; }
+
+/* ---- layout ---- */
+.body { display: flex; flex: 1; min-height: 0; }
+.toc {
+  width: 310px; flex: none; padding: 1.2rem 0 2rem 0;
+  border-right: 1px dashed var(--dash);
+  overflow-y: auto; max-height: calc(100vh - 90px); position: sticky; top: 0;
+}
+.toc-title { font-size: 0.85rem; letter-spacing: 0.18em; padding: 0 1.4rem 0.8rem; }
+.toc-section { margin-top: 0.3rem; }
+.toc-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.25rem 1.4rem; font-size: 0.9rem;
+}
+.toc-head .fold { background: none; border: none; color: var(--muted); font: inherit; cursor: pointer; }
+.toc-section > ul { list-style: none; margin: 0; padding: 0; }
+.toc-section.folded > ul { display: none; }
+.toc-section a {
+  display: flex; align-items: baseline; gap: 0.5rem;
+  color: var(--fg); text-decoration: none; font-size: 0.88rem;
+  padding: 0.22rem 1.4rem 0.22rem 2.4rem;
+}
+.toc-section a:hover { background: var(--hl); }
+.toc-section a.active { background: var(--sel-bg); color: var(--sel-fg); }
+.chip {
+  font-size: 0.7rem; background: var(--chip-bg); color: var(--muted);
+  padding: 0 0.4rem; border-radius: 3px; white-space: nowrap;
+}
+.toc-section a.active .chip { background: var(--sel-fg); color: var(--sel-bg); }
+
+/* ---- content ---- */
+.content { flex: 1; min-width: 0; padding: 1.6rem 3rem 3rem; max-width: 1000px; }
+.crumb { color: var(--muted); font-size: 0.9rem; margin-bottom: 0.4rem; }
+.content h1 { font-size: 1.7rem; letter-spacing: 0.08em; text-transform: uppercase; margin: 0.2rem 0 1.4rem; font-weight: 600; }
+.content h2 { font-size: 1.15rem; margin-top: 2.2rem; letter-spacing: 0.03em; }
+.content h3 { font-size: 1rem; margin-top: 1.8rem; }
+.content p, .content li { font-size: 0.95rem; }
+.content a { color: var(--fg); }
+.content a.term {
+  background: var(--hl); text-decoration: none;
+  padding: 0.05em 0.3em; border-radius: 2px;
+}
+.content a.term:hover { background: var(--sel-bg); color: var(--sel-fg); }
+.ext { font-size: 0.8em; margin-left: 0.15em; }
+.content img { max-width: 100%; border: 1px solid var(--dash); }
+.content code {
+  background: var(--code-bg); padding: 0.08em 0.35em; border-radius: 2px; font-size: 0.9em;
+}
+.content pre {
+  background: var(--code-bg); border: 1px solid var(--dash);
+  padding: 0.9rem 1.1rem; overflow-x: auto; font-size: 0.85rem; line-height: 1.5;
+}
+.content pre code { background: none; padding: 0; }
+.content blockquote {
+  margin: 1.2rem 0; padding: 0.2rem 1.1rem;
+  border-left: 3px solid var(--dash); color: var(--muted);
+}
+.content table { border-collapse: collapse; font-size: 0.88rem; margin: 1.2rem 0; display: block; overflow-x: auto; }
+.content th, .content td { border: 1px solid var(--dash); padding: 0.35rem 0.7rem; text-align: left; }
+.content th { background: var(--hl); }
+.content hr { border: none; border-top: 1px dashed var(--dash); }
+
+/* ---- pixel title ---- */
+.pixel-title { margin: 1.2rem 0 2rem; display: flex; flex-direction: column; gap: 12px; }
+.px-art { width: min(560px, 90%); height: auto; display: block; }
+.px-fill rect { fill: var(--px); }
+.px-shadow rect { fill: none; stroke: var(--fg); stroke-width: 0.8; opacity: 0.55; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* ---- page nav / footer ---- */
+.pagenav { display: flex; justify-content: space-between; gap: 1rem; margin-top: 3rem; border-top: 1px dashed var(--dash); padding-top: 1.2rem; }
+.pager { color: var(--fg); text-decoration: none; font-size: 0.9rem; padding: 0.4rem 0.7rem; border: 1px solid var(--dash); }
+.pager:hover { background: var(--hl); }
+.pagefoot { margin-top: 1.4rem; font-size: 0.8rem; }
+.pagefoot a { color: var(--muted); }
+
+/* landing promo box (green-tinted footer slot) */
+.content .promo, .content > p:last-of-type em { }
+.promo {
+  margin-top: 2.5rem; border: 1px solid var(--accent); background: var(--accent-soft);
+  padding: 1rem 1.3rem; font-size: 0.9rem;
+}
+
+/* ---- search overlay ---- */
+.search-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+  display: flex; justify-content: center; padding-top: 12vh; z-index: 40;
+}
+.search-overlay[hidden] { display: none; }
+.search-panel { background: var(--bg); border: 1px solid var(--line); width: min(560px, 92vw); align-self: flex-start; }
+#search-input {
+  width: 100%; border: none; border-bottom: 1px dashed var(--dash);
+  background: none; color: var(--fg); font: inherit; padding: 0.8rem 1rem; outline: none;
+}
+#search-results { list-style: none; margin: 0; padding: 0.4rem 0; max-height: 50vh; overflow-y: auto; }
+#search-results a { display: block; padding: 0.45rem 1rem; color: var(--fg); text-decoration: none; font-size: 0.9rem; }
+#search-results a:hover, #search-results li.sel a { background: var(--sel-bg); color: var(--sel-fg); }
+#search-results .sec { color: var(--muted); font-size: 0.75rem; margin-left: 0.5rem; }
+#search-results li.sel a .sec { color: inherit; }
+
+/* ---- mobile ---- */
+@media (max-width: 900px) {
+  .frame { margin: 6px; }
+  .site-title, .themes, .searchbox { display: none; }
+  .burger { display: block; }
+  .toc {
+    position: fixed; left: 0; top: 0; bottom: 0; z-index: 30;
+    background: var(--bg); border-right: 1px solid var(--line);
+    transform: translateX(-100%); transition: transform 0.15s ease; max-height: none;
+  }
+  .toc.open { transform: none; }
+  .content { padding: 1.2rem 1.2rem 2.5rem; }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "metalworking-glossary",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node site/build.mjs"
+  },
+  "dependencies": {
+    "marked": "^15.0.0"
+  }
+}
