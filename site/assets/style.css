@@ -76,26 +76,26 @@
   --code-bg: #272e26;
   --head: #f2f7ea;
 }
-/* Violet Midnight: the house special */
+/* Violet Midnight — palette from mindfull/violet-midnight (MIT) */
 [data-theme="violet"] {
-  --bg: #0d0a1a;
-  --bg-side: #120e24;
-  --fg: #c7bde6;
-  --muted: #7d72a8;
-  --line: #5b4d96;
-  --dash: #4a3f7d;
-  --hl: #251c46;
-  --hover: #a78bfa1f;
-  --chip-fg: #a89dd4;
-  --chip-border: #4a3f7d;
-  --accent: #b18cff;
-  --accent-soft: #1b1236;
-  --px: #c3a1ff;
-  --sel-bg: #b18cff;
-  --sel-fg: #0d0a1a;
-  --tint: #b18cff3d;
-  --code-bg: #171031;
-  --head: #d3b8ff;
+  --bg: #232034;
+  --bg-side: #181627;
+  --fg: #b4b7c5;
+  --muted: #6b6690;
+  --line: #565174;
+  --dash: #565174;
+  --hl: #302d43;
+  --hover: #b871de1f;
+  --chip-fg: #8f8ab0;
+  --chip-border: #393553;
+  --accent: #43b6a2;
+  --accent-soft: #181627;
+  --px: #b871de;
+  --sel-bg: #b871de;
+  --sel-fg: #181627;
+  --tint: #385d7799;
+  --code-bg: #0f0d1d;
+  --head: #c678dd;
 }
 
 * { box-sizing: border-box; }
@@ -146,17 +146,20 @@ body {
 .burger { display: none; background: none; border: none; font-size: 1.2rem; color: var(--fg); cursor: pointer; }
 
 /* ---- layout ---- */
-.body { display: flex; flex: 1; min-height: 0; }
+.body { display: flex; flex: 1; min-height: 0; position: relative; }
+/* sidebar surface + dashed divider span the full row, however long the page */
+.body::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 330px;
+  background: var(--bg-side);
+}
+.body::after {
+  content: ""; position: absolute; left: 330px; top: 0; bottom: 0; width: 1px;
+  background: repeating-linear-gradient(to bottom, var(--dash) 0 9px, transparent 9px 17px);
+}
 .toc {
   width: 330px; flex: none; padding: 1.3rem 0 2rem 0;
   position: sticky; top: 0; overflow-y: auto; max-height: calc(100vh - 92px);
-  background: var(--bg-side);
-}
-/* dashed divider with a deliberate rhythm */
-.toc { border-right: none; position: relative; }
-.toc::after {
-  content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 1px;
-  background: repeating-linear-gradient(to bottom, var(--dash) 0 9px, transparent 9px 17px);
+  z-index: 1;
 }
 .toc-title { font-size: 0.85rem; letter-spacing: 0.2em; padding: 0 1.5rem 1rem; }
 .toc-section { margin-top: 0.35rem; }
@@ -226,6 +229,13 @@ body {
 .px-fill rect { fill: var(--px); }
 .px-shadow rect { fill: none; stroke: var(--fg); stroke-width: 0.9; opacity: 0.6; }
 .tagline { color: var(--muted); margin-top: 1.3rem; font-size: 0.95rem; }
+/* landing typewriter: letters hidden until the animation reveals them */
+.pixel-title.typing .px-letter { opacity: 0; }
+.pixel-title .px-letter.on { opacity: 1; }
+.px-cursor { fill: var(--accent); }
+.blink { animation: mw-blink 0.85s steps(1) infinite; }
+@keyframes mw-blink { 50% { opacity: 0; } }
+.tcur { display: inline-block; width: 0.55em; height: 1em; background: var(--accent); vertical-align: -0.15em; margin-left: 3px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 /* ---- page nav / footer ---- */
@@ -273,10 +283,11 @@ body {
   .burger { display: block; }
   .toc {
     position: fixed; left: 0; top: 0; bottom: 0; z-index: 30; width: 300px;
-    background: var(--bg); border-right: 1px solid var(--line);
+    background: var(--bg-side); border-right: 1px solid var(--line);
     transform: translateX(-100%); transition: transform 0.15s ease; max-height: none;
   }
   .toc.open { transform: none; }
-  .toc::after { display: none; }
+  .body::before, .body::after { display: none; }
   .content { padding: 1.2rem 1.2rem 2.5rem; }
 }
+

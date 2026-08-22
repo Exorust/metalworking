@@ -88,3 +88,51 @@
     e.stopPropagation();
   });
 })();
+
+// ---- landing typing animation (original) ----
+(function () {
+  var holder = document.querySelector(".pixel-title");
+  if (!holder || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  var svgs = [].slice.call(holder.querySelectorAll(".px-art"));
+  var tag = holder.querySelector(".tagline");
+  var tagText = tag ? tag.textContent : "";
+  holder.classList.add("typing");
+  if (tag) tag.innerHTML = '<span class="tag-text"></span><span class="tcur blink"></span>';
+
+  function typeLine(svg, done) {
+    if (!svg) return done();
+    var letters = [].slice.call(svg.querySelectorAll(".px-letter"));
+    if (!letters.length) return done();
+    var cur = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    cur.setAttribute("class", "px-cursor blink");
+    cur.setAttribute("y", "0");
+    cur.setAttribute("width", "44");
+    cur.setAttribute("height", "44");
+    cur.setAttribute("x", letters[0].dataset.x);
+    svg.appendChild(cur);
+    var i = 0;
+    setTimeout(function step() {
+      letters[i].classList.add("on");
+      var nxt = letters[i + 1];
+      i++;
+      if (nxt) {
+        cur.setAttribute("x", nxt.dataset.x);
+        setTimeout(step, 100 + Math.random() * 75);
+      } else {
+        cur.remove();
+        setTimeout(done, 200);
+      }
+    }, 350);
+  }
+
+  typeLine(svgs[0], function () {
+    typeLine(svgs[1], function () {
+      if (!tag) return;
+      var span = tag.querySelector(".tag-text"), i = 0;
+      (function t() {
+        span.textContent = tagText.slice(0, i);
+        if (i++ <= tagText.length) setTimeout(t, 14 + Math.random() * 24);
+      })();
+    });
+  });
+})();

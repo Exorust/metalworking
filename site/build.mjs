@@ -99,18 +99,23 @@ const FONT = {
 };
 function pixelLine(word, cls = "px-art") {
   const P = 8, GAP = 1, LGAP = 6; // px per cell, cell gap, letter gap
-  let x = 0; const rects = [];
+  let x = 0; const letters = [];
   for (const ch of word) {
     if (ch === " ") { x += 3 * (P + GAP); continue; }
     const g = FONT[ch];
+    const rects = [];
     for (let r = 0; r < 5; r++)
       for (let c = 0; c < 5; c++)
         if (g[r][c] === "1")
           rects.push(`<rect x="${x + c * (P + GAP)}" y="${r * (P + GAP)}" width="${P}" height="${P}"/>`);
+    letters.push({ x, body: rects.join("") });
     x += 5 * (P + GAP) + LGAP;
   }
   const w = x - LGAP, h = 5 * (P + GAP) - GAP;
-  return `<svg class="${cls}" viewBox="-3 -3 ${w + 6} ${h + 6}" role="img" aria-label="${word}" preserveAspectRatio="xMinYMin meet"><g class="px-shadow" transform="translate(3.5,3.5)">${rects.join("")}</g><g class="px-fill">${rects.join("")}</g></svg>`;
+  // One <g> per letter so the landing page can "type" them in sequence.
+  const body = letters.map(L =>
+    `<g class="px-letter" data-x="${L.x}"><g class="px-shadow" transform="translate(3.5,3.5)">${L.body}</g><g class="px-fill">${L.body}</g></g>`).join("");
+  return `<svg class="${cls}" viewBox="-3 -3 ${w + 6} ${h + 6}" role="img" aria-label="${word}" preserveAspectRatio="xMinYMin meet">${body}</svg>`;
 }
 // Landing composition mirrors banner.png: big METAL, smaller WORKING, tagline.
 const TITLE_ART = `<div class="pixel-title">${pixelLine("METAL", "px-art px-big")}${pixelLine("WORKING", "px-art px-small")}<div class="tagline">The craft of making Apple Silicon GPUs go fast.</div></div>`;
@@ -172,8 +177,8 @@ function sidebar(activeRoute) {
 function page({ route, title, content, prev, next }) {
   const crumb = route === "/" ? "/readme" : route.replace(/\/$/, "");
   const nav = [
-    prev ? `<a class="pager prev" href="${prev.route}">&larr; ${prev.title}</a>` : "<span></span>",
-    next ? `<a class="pager next" href="${next.route}">${next.title} &rarr;</a>` : "<span></span>",
+    prev ? `<a class="pager prev" href="${prev.route}"><svg class="arr" viewBox="0 0 26 10" width="26" height="10" aria-hidden="true"><path d="M26 5H3M7 1L2 5l5 4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span>${prev.title}</span></a>` : "<span></span>",
+    next ? `<a class="pager next" href="${next.route}"><span>${next.title}</span><svg class="arr" viewBox="0 0 26 10" width="26" height="10" aria-hidden="true"><path d="M0 5h23M19 1l5 4-5 4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></a>` : "<span></span>",
   ].join("");
   const srcPath = route === "/" ? "README.md" : `glossary${route.replace(/\/$/, "")}.md`;
   return `<!doctype html>
