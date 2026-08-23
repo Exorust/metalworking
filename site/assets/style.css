@@ -39,7 +39,7 @@
   --bg: #0d180a;
   --bg-side: #111f0d;
   --fg: #a6cc97;
-  --muted: #648c58;
+  --muted: #6f9a62;
   --line: #3d6633;
   --dash: #3d6633;
   --hl: #1f3517;
@@ -81,7 +81,7 @@
   --bg: #232034;
   --bg-side: #181627;
   --fg: #b4b7c5;
-  --muted: #6b6690;
+  --muted: #9a94c2;
   --line: #565174;
   --dash: #565174;
   --hl: #302d43;
@@ -106,8 +106,16 @@ body {
   color: var(--fg);
   font-family: "Azeret Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   line-height: 1.5;
+  font-variant-ligatures: none;
 }
 ::selection { background: var(--tint); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.skip {
+  position: absolute; left: 1rem; top: -3rem; z-index: 60;
+  background: var(--sel-bg); color: var(--sel-fg); padding: 0.5rem 1rem;
+  text-decoration: none; transition: top 0.1s;
+}
+.skip:focus { top: 1rem; }
 .frame { border: 1px solid var(--line); margin: 14px; min-height: calc(100vh - 28px); display: flex; flex-direction: column; }
 
 /* ---- top bar ---- */
@@ -140,7 +148,7 @@ body {
 .searchbox kbd { margin-left: auto; border: 1px solid var(--dash); padding: 0 0.3rem; font-size: 0.75rem; }
 .gh-btn {
   color: var(--fg); text-decoration: none; font-size: 0.85rem;
-  border: 1px solid var(--line); padding: 0.35rem 0.9rem; border-radius: 999px;
+  border: 1px solid var(--line); padding: 0.35rem 0.9rem; border-radius: 3px;
 }
 .gh-btn:hover { background: var(--fg); color: var(--bg); }
 .burger { display: none; background: none; border: none; font-size: 1.2rem; color: var(--fg); cursor: pointer; }
@@ -160,15 +168,26 @@ body {
   width: 330px; flex: none; padding: 1.3rem 0 2rem 0;
   position: sticky; top: 0; overflow-y: auto; max-height: calc(100vh - 92px);
   z-index: 1;
+  scrollbar-width: thin; scrollbar-color: var(--dash) transparent;
 }
-.toc-title { font-size: 0.85rem; letter-spacing: 0.2em; padding: 0 1.5rem 1rem; }
+.toc::-webkit-scrollbar { width: 6px; }
+.toc::-webkit-scrollbar-thumb { background: var(--dash); }
+.toc-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem 1rem; }
+.toc-title { font-size: 0.85rem; letter-spacing: 0.2em; }
+.toc-close { display: none; background: none; border: none; color: var(--fg); font: inherit; font-size: 1.5rem; line-height: 1; cursor: pointer; padding: 0.2rem 0.4rem; }
+.backdrop { position: fixed; inset: 0; background: #00000066; z-index: 25; }
+.backdrop[hidden] { display: none; }
 .toc-section { margin-top: 0.35rem; }
 .toc-head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0.35rem 1.5rem; font-size: 0.95rem; cursor: pointer;
+  padding: 0.35rem 1.5rem; cursor: pointer;
+}
+.toc-head span {
+  font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted); font-weight: 500;
 }
 .toc-head:hover { background: var(--hover); }
-.toc-head .fold { background: none; border: none; color: var(--muted); font: inherit; cursor: pointer; }
+.toc-head .fold { background: none; border: none; color: var(--muted); font: inherit; cursor: pointer; padding: 0.5rem 0.6rem; margin: -0.5rem -0.6rem; }
 .toc-section > ul { list-style: none; margin: 0; padding: 0; }
 .toc-section.folded > ul { display: none; }
 .toc-section a {
@@ -192,7 +211,10 @@ body {
 .content h1 { font-size: 1.75rem; margin: 0.3rem 0 1.5rem; font-weight: 400; color: var(--head); }
 .content h2 { font-size: 1.25rem; margin-top: 2.4rem; font-weight: 500; color: var(--head); }
 .content h3 { font-size: 1.05rem; margin-top: 1.9rem; font-weight: 700; color: var(--head); }
-.wordmark { color: var(--head); }
+.wordmark { color: var(--head); display: flex; align-items: center; gap: 0.55rem; }
+.px-mark { height: 15px; width: auto; }
+.px-mark .px-fill rect { fill: var(--accent); }
+.px-mark .px-shadow { display: none; }
 .content p, .content li { font-size: 1rem; line-height: 1.5; }
 .content li { margin: 0.3rem 0; }
 .content a { color: var(--fg); }
@@ -313,3 +335,28 @@ body {
   .content { padding: 1.2rem 1.2rem 2.5rem; }
 }
 
+
+.cmt { color: var(--muted); }
+.content pre:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.search-hint {
+  border-top: 1px solid var(--dash); padding: 0.5rem 1rem;
+  color: var(--muted); font-size: 0.75rem;
+}
+.search-hint kbd { border: 1px solid var(--dash); padding: 0 0.3rem; margin-right: 2px; }
+#search-results .snip { display: block; color: var(--muted); font-size: 0.75rem; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#search-results li.sel a .snip, #search-results a:hover .snip { color: inherit; opacity: 0.75; }
+body.nav-open { overflow: hidden; }
+
+@media (max-width: 900px) {
+  .toc-close { display: block; }
+}
+@media (min-width: 901px) {
+  .backdrop { display: none !important; }
+}
+@media print {
+  .top, .toc, .backdrop, .pagenav, .pagefoot, .skip, .search-overlay { display: none !important; }
+  .body::before, .body::after { display: none; }
+  .frame { border: none; margin: 0; }
+  .content { max-width: none; padding: 0; }
+  body { background: #fff; color: #000; }
+}

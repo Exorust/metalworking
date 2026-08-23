@@ -32,14 +32,23 @@
     });
   });
 
-  // ---- mobile burger ----
+  // ---- mobile drawer: burger opens; backdrop, close button, or Escape closes ----
   var burger = doc.querySelector(".burger"), toc = doc.querySelector(".toc");
-  if (burger) burger.addEventListener("click", function () { toc.classList.toggle("open"); });
+  var backdrop = doc.getElementById("nav-backdrop");
+  var tocClose = doc.querySelector(".toc-close");
+  function navOpen() { toc.classList.add("open"); backdrop.hidden = false; body.classList.add("nav-open"); }
+  function navClose() { toc.classList.remove("open"); backdrop.hidden = true; body.classList.remove("nav-open"); }
+  if (burger) burger.addEventListener("click", navOpen);
+  if (backdrop) backdrop.addEventListener("click", navClose);
+  if (tocClose) tocClose.addEventListener("click", navClose);
+  doc.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && toc.classList.contains("open")) navClose();
+  });
 
   // ---- arrow-key navigation ----
   doc.addEventListener("keydown", function (e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (doc.activeElement && /INPUT|TEXTAREA/.test(doc.activeElement.tagName)) return;
+    if (doc.activeElement && /INPUT|TEXTAREA|PRE/.test(doc.activeElement.tagName)) return;
     if (e.key === "ArrowRight" && body.dataset.next) location.href = body.dataset.next;
     if (e.key === "ArrowLeft" && body.dataset.prev) location.href = body.dataset.prev;
   });
@@ -63,13 +72,25 @@
   overlay.addEventListener("click", function (e) { if (e.target === overlay) closeSearch(); });
   doc.addEventListener("keydown", function (e) {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openSearch(); }
+    if (e.key === "/" && overlay.hidden &&
+        !(doc.activeElement && /INPUT|TEXTAREA/.test(doc.activeElement.tagName))) {
+      e.preventDefault(); openSearch();
+    }
     if (e.key === "Escape" && !overlay.hidden) closeSearch();
   });
+  // keep focus inside the search dialog
+  overlay.addEventListener("keydown", function (e) {
+    if (e.key === "Tab") { e.preventDefault(); input.focus(); }
+  });
+  // platform-appropriate shortcut label
+  var kbd = doc.getElementById("search-kbd");
+  if (kbd && !/Mac|iP/.test(navigator.platform)) kbd.textContent = "Ctrl K";
 
   function paintResults(items) {
     results.innerHTML = items.slice(0, 12).map(function (it, i) {
       return '<li' + (i === sel ? ' class="sel"' : "") + '><a href="' + it.route + '">' +
-        it.title + '<span class="sec">' + it.section + "</span></a></li>";
+        it.title + '<span class="sec">' + it.section + "</span>" +
+        (it.text ? '<span class="snip">' + it.text + "</span>" : "") + "</a></li>";
     }).join("");
   }
   function currentMatches() {
