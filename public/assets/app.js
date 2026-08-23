@@ -2,6 +2,11 @@
 (function () {
   var doc = document, body = doc.body;
 
+  // ---- analytics events (Vercel Web Analytics queue) ----
+  function track(name, data) {
+    try { window.va && window.va("event", data ? { name: name, data: data } : { name: name }); } catch (e) {}
+  }
+
   // ---- theme switcher ----
   var themeBtns = doc.querySelectorAll(".themes button");
   function setTheme(t) {
@@ -10,7 +15,7 @@
     themeBtns.forEach(function (b) { b.classList.toggle("on", b.dataset.theme === t); });
   }
   themeBtns.forEach(function (b) {
-    b.addEventListener("click", function () { setTheme(b.dataset.theme); });
+    b.addEventListener("click", function () { setTheme(b.dataset.theme); track("theme_change", { theme: b.dataset.theme }); });
   });
   setTheme(doc.documentElement.dataset.theme || "light");
 
@@ -49,8 +54,8 @@
   doc.addEventListener("keydown", function (e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (doc.activeElement && /INPUT|TEXTAREA|PRE/.test(doc.activeElement.tagName)) return;
-    if (e.key === "ArrowRight" && body.dataset.next) location.href = body.dataset.next;
-    if (e.key === "ArrowLeft" && body.dataset.prev) location.href = body.dataset.prev;
+    if (e.key === "ArrowRight" && body.dataset.next) { track("key_nav", { dir: "next" }); location.href = body.dataset.next; }
+    if (e.key === "ArrowLeft" && body.dataset.prev) { track("key_nav", { dir: "prev" }); location.href = body.dataset.prev; }
   });
 
   // ---- search ----
@@ -60,6 +65,7 @@
   var index = null, sel = 0;
 
   function openSearch() {
+    track("search_open");
     overlay.hidden = false;
     input.value = ""; results.innerHTML = ""; sel = 0;
     input.focus();
@@ -105,8 +111,16 @@
     var items = currentMatches();
     if (e.key === "ArrowDown") { sel = Math.min(sel + 1, Math.min(items.length, 12) - 1); paintResults(items); e.preventDefault(); }
     if (e.key === "ArrowUp") { sel = Math.max(sel - 1, 0); paintResults(items); e.preventDefault(); }
-    if (e.key === "Enter" && items[sel]) location.href = items[sel].route;
+    if (e.key === "Enter" && items[sel]) { track("search_go", { to: items[sel].route }); location.href = items[sel].route; }
     e.stopPropagation();
+  });
+  // ---- outbound + pager click events ----
+  doc.addEventListener("click", function (e) {
+    var a = e.target.closest && e.target.closest("a");
+    if (!a) return;
+    if (a.classList.contains("pager")) track("pager", { dir: a.classList.contains("next") ? "next" : "prev" });
+    else if (results.contains(a)) track("search_go", { to: a.getAttribute("href") });
+    else if (a.target === "_blank") track("outbound", { url: (a.href || "").slice(0, 100) });
   });
 })();
 

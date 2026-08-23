@@ -1,0 +1,19 @@
+---
+import Base from "../layouts/Base.astro";
+import { ORDER, DEFAULT_DESC } from "../manifest.mjs";
+import { TITLE_ART } from "../pixel.mjs";
+import { render } from "../markdown.mjs";
+import { README } from "../content.mjs";
+
+let md = README;
+// The banner is replaced by the typed pixel title; the website link is
+// self-referential on the website itself. Both stay in the GitHub README.
+md = md.replace(/^!\[[^\]]*\]\(banner\.png\)\n?/m, "");
+md = md.replace(/^\*\*Read it as a website:.*$\n?/m, "");
+
+const html = TITLE_ART + `<h1 class="visually-hidden">metalworking</h1>` + render(md, null);
+---
+
+<Base route="/" title="README" desc={DEFAULT_DESC} prev={null} next={ORDER[1]}>
+  <Fragment set:html={html} />
+</Base>

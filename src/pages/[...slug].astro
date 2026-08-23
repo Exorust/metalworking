@@ -1,0 +1,26 @@
+---
+import Base from "../layouts/Base.astro";
+import { SECTIONS, ORDER, firstPara } from "../manifest.mjs";
+import { render } from "../markdown.mjs";
+import { pageMd } from "../content.mjs";
+
+export function getStaticPaths() {
+  return SECTIONS.flatMap((s) =>
+    s.pages.map(([slug, title]) => ({
+      params: { slug: `${s.dir}/${slug}` },
+      props: { dir: s.dir, slug, title },
+    })),
+  );
+}
+
+const { dir, slug, title } = Astro.props;
+const route = `/${dir}/${slug}/`;
+const md = pageMd(dir, slug);
+const i = ORDER.findIndex((o) => o.route === route);
+const html = render(md, dir);
+const desc = firstPara(md).slice(0, 300);
+---
+
+<Base route={route} title={title} desc={desc} prev={ORDER[i - 1] ?? null} next={ORDER[i + 1] ?? null}>
+  <Fragment set:html={html} />
+</Base>
