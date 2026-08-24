@@ -32,6 +32,7 @@
   --sel-fg: #f2f2ef;
   --tint: #2f9e4433;      /* ::selection + accent washes */
   --code-bg: #e0e0db;
+  --on-accent: #0f1a10;
   --head: #191919;        /* headings; brighter than body in dark themes */
 }
 /* Terminal: phosphor — deep green-black, everything lives in green */
@@ -53,6 +54,7 @@ html[data-theme="terminal"] {
   --sel-fg: #0d180a;
   --tint: #77ef5e33;
   --code-bg: #132410;
+  --on-accent: #0d180a;
   --head: #77ef5e;
 }
 /* Light green: dark sage — muted gray-green, cream text */
@@ -74,6 +76,7 @@ html[data-theme="green"] {
   --sel-fg: #2d342c;
   --tint: #a9dc9233;
   --code-bg: #272e26;
+  --on-accent: #2d342c;
   --head: #f2f7ea;
 }
 /* Violet Midnight — palette from mindfull/violet-midnight (MIT) */
@@ -95,6 +98,7 @@ html[data-theme="violet"] {
   --sel-fg: #181627;
   --tint: #385d7799;
   --code-bg: #0f0d1d;
+  --on-accent: #181627;
   --head: #c678dd;
 }
 
@@ -312,8 +316,8 @@ body {
 .pager-title { font-size: 1.2rem; font-weight: 700; line-height: 1.3; }
 .pager .arr { flex: none; transition: transform 0.15s ease; }
 .pager.prev .arr { transform: scaleX(-1); }
-.pager:hover { background: var(--sel-bg); border-color: var(--sel-bg); }
-.pager:hover .pager-kicker, .pager:hover .pager-title { color: var(--sel-fg); }
+.pager:hover { background: var(--accent); border-color: var(--accent); }
+.pager:hover .pager-kicker, .pager:hover .pager-title { color: var(--on-accent); }
 .pager.next:hover .arr { transform: translateX(5px); }
 .pager.prev:hover .arr { transform: scaleX(-1) translateX(5px); }
 @media (max-width: 700px) {
