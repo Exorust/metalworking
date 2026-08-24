@@ -15,12 +15,13 @@ for performance per watt rather than peak throughput. An H100 will crush any M-s
 chip on raw FLOPs; the M-series counter is [unified memory](unified-memory.md)
 capacity and efficiency.
 
-![Apple GPU memory hierarchy: N GPU cores, each with a register file, threadgroup+tile memory and small L1s, sharing a GPU last-level cache, backed by the system level cache and unified LPDDR memory](../../memory-hierarchy.svg)
+![Side-by-side memory hierarchies: NVIDIA A100 SMs with big shared memory over a 40 MB L2 and GPU-only HBM, with host RAM across PCIe; Apple GPU cores with big registers and small threadgroup memory over a small L2, SLC, and unified LPDDR shared with the CPU](../../memory-hierarchy.svg)
 
-*The whole hierarchy at a glance. The SLC and unified-memory tiers are shared
-with the CPU; there is no separate VRAM. On M3 and later, Dynamic Caching
-allocates the per-core memories on demand from one cache pool instead of fixed
-partitions.*
+*The two hierarchies side by side. Reading down: Apple inverts the
+register/shared-memory ratio, has no 40 MB L2 safety net, and adds an SLC tier —
+then wins the bottom row, where NVIDIA's DRAM is GPU-only with the CPU across
+PCIe and Apple's is one shared pool. On M3 and later, Dynamic Caching allocates
+the per-core memories on demand from one cache pool instead of fixed partitions.*
 
 Inside a core, the numbers that matter:
 

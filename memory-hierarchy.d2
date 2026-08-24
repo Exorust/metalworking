@@ -8,6 +8,17 @@ direction: down
 style.fill: "#0d180a"
 
 classes: {
+  panel: {
+    style: {
+      fill: "transparent"
+      stroke: "#3a5232"
+      stroke-dash: 4
+      font-color: "#77ef5e"
+      font: mono
+      bold: true
+      font-size: 22
+    }
+  }
   core: {
     style: {
       fill: "#12240d"
@@ -43,18 +54,20 @@ classes: {
       font: mono
       bold: true
     }
-    width: 1100
-    height: 64
+    width: 620
+    height: 60
   }
-  cpu: {
+  far: {
     style: {
       fill: "#0d180a"
-      stroke: "#a6cc97"
+      stroke: "#6f9a62"
+      stroke-dash: 4
       font-color: "#a6cc97"
-      stroke-width: 2
       font: mono
       bold: true
     }
+    width: 620
+    height: 60
   }
   note: {
     shape: text
@@ -68,12 +81,25 @@ classes: {
     style: {
       stroke: "#a6cc97"
       stroke-width: 2
+      font-color: "#a6cc97"
+      font: mono
     }
   }
   fat: {
     style: {
       stroke: "#77ef5e"
       stroke-width: 3
+      font-color: "#a6cc97"
+      font: mono
+    }
+  }
+  slow: {
+    style: {
+      stroke: "#6f9a62"
+      stroke-dash: 4
+      stroke-width: 2
+      font-color: "#6f9a62"
+      font: mono
     }
   }
   ghost: {
@@ -81,42 +107,67 @@ classes: {
   }
 }
 
-core0: "GPU CORE 0" {
-  class: core
-  regs: "REGISTERS\n(~208 KB per core)" { class: regs }
-  smem: "THREADGROUP + TILE\n(32 KB / threadgroup)" { class: mem }
-  l1: "L1\n(8 KB D / 12 KB I)" { class: mem }
-  regs <-> smem: { class: wire }
-  regs <-> l1: { class: wire }
-}
-core1: "GPU CORE 1" {
-  class: core
-  regs: "REGISTERS\n(~208 KB per core)" { class: regs }
-  smem: "THREADGROUP + TILE\n(32 KB / threadgroup)" { class: mem }
-  l1: "L1\n(8 KB D / 12 KB I)" { class: mem }
-  regs <-> smem: { class: wire }
-  regs <-> l1: { class: wire }
-}
-dots: "- - - -" { class: note }
-coreN: "GPU CORE (N-1)\n(M5: N=10, M5 Max: N=40)" {
-  class: core
-  regs: "REGISTERS\n(~208 KB per core)" { class: regs }
-  smem: "THREADGROUP + TILE\n(32 KB / threadgroup)" { class: mem }
-  l1: "L1\n(8 KB D / 12 KB I)" { class: mem }
-  regs <-> smem: { class: wire }
-  regs <-> l1: { class: wire }
+nv: "NVIDIA (A100)" {
+  class: panel
+
+  sm0: "SM 0" {
+    class: core
+    regs: "REGISTERS\n(256 KB per SM)" { class: regs }
+    smem: "L1 / SHARED MEM\n(192 KB, configurable)" { class: mem }
+    regs <-> smem: { class: wire }
+  }
+  dots: "- - - -" { class: note }
+  smN: "SM (N-1)\n(A100: N=108)" {
+    class: core
+    regs: "REGISTERS\n(256 KB per SM)" { class: regs }
+    smem: "L1 / SHARED MEM\n(192 KB, configurable)" { class: mem }
+    regs <-> smem: { class: wire }
+  }
+
+  l2: "L2 CACHE (40 MB)" { class: bar }
+  dram: "GLOBAL MEMORY (HBM DRAM, 40 GB, ~1.6 TB/S) - GPU-ONLY" { class: bar }
+  host: "CPU + HOST RAM: A SEPARATE POOL, EVERY BYTE CROSSES PCIE" { class: far }
+
+  sm0 -> l2: { class: wire }
+  dots -> l2: { class: ghost }
+  smN -> l2: { class: wire }
+  l2 <-> dram: { class: fat }
+  dram <-> host: "PCIE ~32 GB/S + CUDAMEMCPY" { class: slow }
 }
 
-dyn: "M3 AND LATER (DYNAMIC CACHING): REGISTERS, THREADGROUP, TILE AND STACK ARE ALLOCATED ON DEMAND FROM ONE ON-CORE CACHE POOL" { class: note }
+ap: "APPLE (M-SERIES)" {
+  class: panel
 
-l2: "GPU LAST-LEVEL CACHE (L2, SHARED BY ALL CORES)" { class: bar }
-slc: "SYSTEM LEVEL CACHE (SLC, TENS OF MB - SHARED WITH CPU + ANE)" { class: bar }
-dram: "UNIFIED MEMORY (LPDDR DRAM - ONE POOL FOR CPU AND GPU. M5: ~153 GB/S, M5 MAX: ~614 GB/S)" { class: bar }
+  core0: "GPU CORE 0" {
+    class: core
+    regs: "REGISTERS\n(~208 KB per core)" { class: regs }
+    smem: "THREADGROUP + TILE\n(32 KB / threadgroup)" { class: mem }
+    l1: "L1\n(8 KB D / 12 KB I)" { class: mem }
+    regs <-> smem: { class: wire }
+    regs <-> l1: { class: wire }
+  }
+  dots: "- - - -" { class: note }
+  coreN: "GPU CORE (N-1)\n(M5: N=10, M5 Max: N=40)" {
+    class: core
+    regs: "REGISTERS\n(~208 KB per core)" { class: regs }
+    smem: "THREADGROUP + TILE\n(32 KB / threadgroup)" { class: mem }
+    l1: "L1\n(8 KB D / 12 KB I)" { class: mem }
+    regs <-> smem: { class: wire }
+    regs <-> l1: { class: wire }
+  }
 
-core0 -> l2: { class: wire }
-core1 -> l2: { class: wire }
-dots -> l2: { class: ghost }
-coreN -> l2: { class: wire }
-l2 <-> slc: { class: fat }
-slc <-> dram: { class: fat }
-dram -> dyn: { class: ghost }
+  l2: "GPU LAST-LEVEL CACHE (L2, SMALL - NO 40 MB SAFETY NET)" { class: bar }
+  slc: "SYSTEM LEVEL CACHE (SLC, TENS OF MB - SHARED WITH CPU + ANE)" { class: bar }
+  dram: "UNIFIED MEMORY (LPDDR - ONE POOL FOR CPU AND GPU.\nM5: ~153 GB/S, M5 MAX: ~614 GB/S)" { class: bar }
+
+  core0 -> l2: { class: wire }
+  dots -> l2: { class: ghost }
+  coreN -> l2: { class: wire }
+  l2 <-> slc: { class: fat }
+  slc <-> dram: { class: fat }
+}
+
+dyn: "APPLE, M3 AND LATER (DYNAMIC CACHING): REGISTERS, THREADGROUP, TILE AND STACK ARE ALLOCATED ON DEMAND FROM ONE ON-CORE CACHE POOL" { class: note }
+
+nv.host -> dyn: { class: ghost }
+ap.dram -> dyn: { class: ghost }
