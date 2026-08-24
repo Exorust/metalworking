@@ -62,5 +62,4 @@ export function pixelArrow() {
 export const TITLE_ART =
   `<div class="pixel-title">${pixelLine("METAL", "px-art px-big")}${pixelLine("WORKING", "px-art px-small")}` +
   `<div class="tagline">The craft of making Apple Silicon GPUs go fast.</div></div>`;
-export const HEADER_ART = pixelLine("METAL GLOSSARY", "px-mini");
 export const MARK = pixelLine("M", "px-mark");

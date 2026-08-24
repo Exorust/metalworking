@@ -132,10 +132,6 @@ body {
   background: var(--bg-side);
 }
 .wordmark { font-weight: 700; font-size: 1.05rem; color: var(--fg); text-decoration: none; letter-spacing: 0.02em; }
-.site-title { display: flex; align-items: center; margin-left: 2.2rem; flex: none; }
-.px-mini { height: 13px; width: auto; display: block; }
-.px-mini .px-fill rect { fill: var(--fg); }
-.px-mini .px-shadow { display: none; }
 .themes { margin-left: auto; position: relative; }
 .theme-btn {
   display: flex; align-items: center; gap: 0.5rem;
@@ -351,7 +347,6 @@ body {
 #search-results li.sel a .sec { color: inherit; }
 
 /* ---- mobile ---- */
-@media (max-width: 1250px) { .site-title { display: none; } }
 @media (max-width: 900px) {
   .frame { margin: 6px; }
   .themes, .searchbox { display: none; }

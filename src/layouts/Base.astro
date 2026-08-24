@@ -1,6 +1,7 @@
 ---
 import { SECTIONS, REPO, SITE, DEFAULT_DESC } from "../manifest.mjs";
-import { HEADER_ART, MARK, pixelArrow } from "../pixel.mjs";
+import { MARK, pixelArrow } from "../pixel.mjs";
+import { STYLE_URL, APP_URL } from "../assets.mjs";
 
 const { route, title, desc = "", prev = null, next = null } = Astro.props;
 
@@ -40,7 +41,7 @@ const arrow = pixelArrow();
 <meta property="og:url" content={SITE + route} />
 <meta property="og:image" content={SITE + "/assets/banner.png"} />
 <meta name="twitter:card" content="summary_large_image" />
-<link rel="stylesheet" href="/assets/style.css" />
+<link rel="stylesheet" href={STYLE_URL} />
 <script is:inline>try{document.documentElement.dataset.theme=localStorage.getItem("mw-theme")||"light"}catch(e){}</script>
 </head>
 <body data-prev={prev ? prev.route : ""} data-next={next ? next.route : ""}>
@@ -49,7 +50,6 @@ const arrow = pixelArrow();
 <header class="top">
   <button class="burger" aria-label="Open navigation">&#9776;</button>
   <a class="wordmark" href="/"><Fragment set:html={MARK} />metalworking</a>
-  <span class="site-title" title="Metal Glossary"><Fragment set:html={HEADER_ART} /></span>
   <nav class="themes" aria-label="theme">
     <button class="theme-btn" id="theme-open" aria-haspopup="listbox" aria-expanded="false">
       <span id="theme-current">Light</span><span class="caret" aria-hidden="true">&#9662;</span>
@@ -91,6 +91,6 @@ const arrow = pixelArrow();
 </div>
 <script is:inline>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
 <script is:inline defer src="/_vercel/insights/script.js"></script>
-<script is:inline src="/assets/app.js"></script>
+<script is:inline src={APP_URL}></script>
 </body>
 </html>
