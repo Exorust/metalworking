@@ -1,4 +1,4 @@
-# MPS — Metal Performance Shaders
+# MPS: Metal Performance Shaders
 
 **MPS is Apple's library of pre-built GPU kernels (matmul, convolution, image
 ops): the closest thing Metal has to cuBLAS/cuDNN, and the baseline your custom

@@ -1,4 +1,4 @@
-# MSL — Metal Shading Language
+# MSL: Metal Shading Language
 
 **MSL is the C++ dialect Metal kernels are written in: C++14 with GPU address
 spaces, kernel attributes, and a SIMD standard library, compiled through
