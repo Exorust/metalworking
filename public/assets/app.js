@@ -7,15 +7,39 @@
     try { window.va && window.va("event", data ? { name: name, data: data } : { name: name }); } catch (e) {}
   }
 
-  // ---- theme switcher ----
-  var themeBtns = doc.querySelectorAll(".themes button");
+  // ---- theme dropdown ----
+  var THEME_NAMES = { terminal: "Terminal", green: "Light green", light: "Light", violet: "Violet Midnight" };
+  var themeBtns = doc.querySelectorAll(".theme-list button");
+  var themeOpen = doc.getElementById("theme-open");
+  var themeList = doc.getElementById("theme-list");
+  var themeCur = doc.getElementById("theme-current");
   function setTheme(t) {
     doc.documentElement.dataset.theme = t;
     try { localStorage.setItem("mw-theme", t); } catch (e) {}
     themeBtns.forEach(function (b) { b.classList.toggle("on", b.dataset.theme === t); });
+    if (themeCur) themeCur.textContent = THEME_NAMES[t] || t;
   }
+  function themeMenu(open) {
+    if (!themeList) return;
+    themeList.hidden = !open;
+    themeOpen.setAttribute("aria-expanded", String(open));
+  }
+  if (themeOpen) themeOpen.addEventListener("click", function (e) {
+    e.stopPropagation();
+    themeMenu(themeList.hidden);
+  });
   themeBtns.forEach(function (b) {
-    b.addEventListener("click", function () { setTheme(b.dataset.theme); track("theme_change", { theme: b.dataset.theme }); });
+    b.addEventListener("click", function () {
+      setTheme(b.dataset.theme);
+      track("theme_change", { theme: b.dataset.theme });
+      themeMenu(false);
+    });
+  });
+  doc.addEventListener("click", function (e) {
+    if (themeList && !themeList.hidden && !themeList.contains(e.target)) themeMenu(false);
+  });
+  doc.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && themeList && !themeList.hidden) themeMenu(false);
   });
   setTheme(doc.documentElement.dataset.theme || "light");
 

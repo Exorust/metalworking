@@ -51,10 +51,15 @@ const arrow = pixelArrow();
   <a class="wordmark" href="/"><Fragment set:html={MARK} />metalworking</a>
   <span class="site-title" title="Metal Glossary"><Fragment set:html={HEADER_ART} /></span>
   <nav class="themes" aria-label="theme">
-    <button data-theme="terminal">Terminal</button>
-    <button data-theme="green">Light green</button>
-    <button data-theme="light">Light</button>
-    <button data-theme="violet">Violet Midnight</button>
+    <button class="theme-btn" id="theme-open" aria-haspopup="listbox" aria-expanded="false">
+      <span id="theme-current">Light</span><span class="caret" aria-hidden="true">&#9662;</span>
+    </button>
+    <ul class="theme-list" id="theme-list" role="listbox" aria-label="Color theme" hidden>
+      <li><button role="option" data-theme="terminal">Terminal</button></li>
+      <li><button role="option" data-theme="green">Light green</button></li>
+      <li><button role="option" data-theme="light">Light</button></li>
+      <li><button role="option" data-theme="violet">Violet Midnight</button></li>
+    </ul>
   </nav>
   <button class="searchbox" id="search-open"><svg class="mag" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.5" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="10" y1="10" x2="14" y2="14" stroke="currentColor" stroke-width="1.6"/></svg> Search <kbd id="search-kbd">&#8984;K</kbd></button>
   <a class="gh-btn" href={REPO} target="_blank" rel="noopener">GitHub <span class="ext">&#8599;</span></a>
