@@ -102,6 +102,52 @@ html[data-theme="violet"] {
   --head: #c678dd;
 }
 
+/* Memory-hierarchy diagram tokens (SVG inlined at build; fallbacks = terminal) */
+:root, html[data-theme="light"] {
+  --dg-bg: #e3e3de;      --dg-div: #c6c6bf;
+  --dg-acc: #2f9e44;     --dg-on-acc: #f2f7ee;
+  --dg-soft: #4c7a52;    --dg-core: #dde6d8;
+  --dg-regs: #ccdac5;    --dg-regs-fg: #1c2b1a;
+  --dg-mem: #e9efe4;     --dg-mut: #62625e;
+  --dg-ghost-line: #b2b2aa; --dg-ghost-fg: #8a8a85;
+  --dg-slc: #b7d2ab;     --dg-amber: #e2bd62;
+  --dg-on-amber: #3a300f; --dg-gray: #7d7d76;
+  --dg-gray-fg: #55554f;
+}
+html[data-theme="terminal"] {
+  --dg-bg: #0d180a;      --dg-div: #24361d;
+  --dg-acc: #77ef5e;     --dg-on-acc: #0d180a;
+  --dg-soft: #a6cc97;    --dg-core: #12240d;
+  --dg-regs: #1c3315;    --dg-regs-fg: #d9ead0;
+  --dg-mem: #0f1e0c;     --dg-mut: #6f9a62;
+  --dg-ghost-line: #2c4423; --dg-ghost-fg: #4a6a3e;
+  --dg-slc: #2c5423;     --dg-amber: #e8c268;
+  --dg-on-amber: #1a1608; --dg-gray: #8a8f7a;
+  --dg-gray-fg: #b9bfa9;
+}
+html[data-theme="green"] {
+  --dg-bg: #293027;      --dg-div: #4a5644;
+  --dg-acc: #a9dc92;     --dg-on-acc: #2d342c;
+  --dg-soft: #b5c2ab;    --dg-core: #313930;
+  --dg-regs: #3d463b;    --dg-regs-fg: #eef4e6;
+  --dg-mem: #272e26;     --dg-mut: #9aa892;
+  --dg-ghost-line: #4d584a; --dg-ghost-fg: #71806a;
+  --dg-slc: #46543f;     --dg-amber: #d9c47e;
+  --dg-on-amber: #2a2410; --dg-gray: #8f9a88;
+  --dg-gray-fg: #b0bca7;
+}
+html[data-theme="violet"] {
+  --dg-bg: #181627;      --dg-div: #393553;
+  --dg-acc: #43b6a2;     --dg-on-acc: #181627;
+  --dg-soft: #9a94c2;    --dg-core: #232034;
+  --dg-regs: #302d43;    --dg-regs-fg: #d9d6ea;
+  --dg-mem: #1d1a2e;     --dg-mut: #8f8ab0;
+  --dg-ghost-line: #393553; --dg-ghost-fg: #6c6690;
+  --dg-slc: #3a3357;     --dg-amber: #dcaf5e;
+  --dg-on-amber: #241c07; --dg-gray: #8a86a3;
+  --dg-gray-fg: #b3aec9;
+}
+
 :root { --topbar-h: 62px; }
 * { box-sizing: border-box; }
 html { font-size: 16px; }
@@ -253,6 +299,7 @@ body {
 .content a:not(.term):hover { color: var(--accent); }
 .ext { font-size: 0.8em; margin-left: 0.15em; color: var(--accent); }
 .content img { max-width: 100%; border: 1px solid var(--dash); }
+.content svg.diagram { width: 100%; height: auto; border: 1px solid var(--dash); border-radius: 6px; }
 .content code {
   background: var(--code-bg); padding: 0.08em 0.35em; border-radius: 2px; font-size: 0.92em;
 }

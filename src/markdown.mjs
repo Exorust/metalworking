@@ -2,6 +2,7 @@
 import { marked } from "marked";
 import { REPO } from "./manifest.mjs";
 import { assetUrl } from "./assets.mjs";
+import { themedDiagram } from "./diagram.mjs";
 
 function rewriteHref(href, fromDir) {
   if (/^https?:|^mailto:/.test(href)) return { href, external: true };
@@ -35,6 +36,7 @@ export function render(md, fromDir) {
   };
   renderer.image = ({ href, text }) => {
     const name = href.split("/").pop();
+    if (name === "memory-hierarchy.svg") return themedDiagram();
     return `<img src="${assetUrl(name)}" alt="${text}">`;
   };
   // Focusable code blocks (keyboard users can scroll them; arrow-nav is
