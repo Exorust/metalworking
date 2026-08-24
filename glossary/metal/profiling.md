@@ -6,7 +6,7 @@ work is done on this platform.**
 What you have, in decreasing order of usefulness:
 
 **Command-buffer timestamps.** `GPUStartTime` / `GPUEndTime` on a completed
-[command buffer](command-buffers.md) — wall-clock GPU seconds, programmatic, cheap,
+[command buffer](command-buffers.md): wall-clock GPU seconds, programmatic, cheap,
 reliable. This is what every benchmark harness in the
 [case studies](../kernels/gemm-tiled.md) uses. Granularity is the command buffer,
 so isolate what you're measuring into its own buffer, warm up (first execution
@@ -15,9 +15,9 @@ includes [pipeline compilation](compilation-pipeline.md)), and take medians.
 **Xcode's GPU capture (Metal Debugger).** The closest thing to a real profiler:
 per-encoder timings, occupancy estimates, memory-bandwidth counters, shader
 profiling. Two structural limits: it's a GUI (no CI, no scripted regression
-checks), and capture perturbs heavily on big ML workloads — inference projects
-report 50-100× slowdowns and multi-GB traces. Usable for staring at one dispatch;
-unusable as a feedback loop.
+checks), and capture perturbs heavily on big ML workloads, with inference projects
+reporting 50-100× slowdowns and multi-GB traces. Usable for staring at one
+dispatch; unusable as a feedback loop.
 
 **Metal 4's counter API: timestamps only.** The hardware counters that would give
 you achieved occupancy, stall reasons, or DRAM traffic per kernel are not in the
@@ -39,13 +39,14 @@ independently converge on:
    "things that did not help" section is this method producing knowledge.
 3. **[Disassembly](compilation-pipeline.md) when arithmetic says impossible.**
    [applegpu](https://github.com/dougallj/applegpu)'s `compiler_explorer.py` shows
-   what was actually emitted — the tool of last resort for
+   what was actually emitted: the tool of last resort for
    [spill](../machine/registers.md) hunting.
 4. **Methodology hygiene**, because the tools won't catch you: fix your clocks
-   story (thermals — [locking fans changed long-run throughput decay from 50% to
-   6.7%](../war-stories/cheap-tricks.md) in one measured case), report end-to-end
-   numbers next to kernel numbers ([synthetic wins that vanish end-to-end are the
-   classic failure](../war-stories/the-failures.md)), and state matrix sizes —
+   story (thermals:
+   [locking fans changed long-run throughput decay from 50% to 6.7%](../war-stories/cheap-tricks.md)
+   in one measured case), report end-to-end numbers next to kernel numbers
+   ([synthetic wins that vanish end-to-end are the classic failure](../war-stories/the-failures.md)),
+   and state matrix sizes, since
    [the winner flips with size](../kernels/gemm-double-buffered.md).
 
 Next section: [MLX](../mlx/mlx-overview.md)

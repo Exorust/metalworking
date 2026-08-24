@@ -1,6 +1,6 @@
 # MSL — Metal Shading Language
 
-**MSL is the C++ dialect Metal kernels are written in — C++14 with GPU address
+**MSL is the C++ dialect Metal kernels are written in: C++14 with GPU address
 spaces, kernel attributes, and a SIMD standard library, compiled through
 [AIR to GPU binary](compilation-pipeline.md).**
 
@@ -29,7 +29,7 @@ Reading guide, CUDA → MSL:
 | pointer args | address-spaced: `device` (global memory), `constant` (uniform, cached), `threadgroup`, `thread` |
 | `threadIdx` / `blockIdx` / `blockDim` | attribute-tagged parameters: `[[thread_position_in_threadgroup]]`, `[[threadgroup_position_in_grid]]`, `[[threads_per_threadgroup]]`, `[[thread_position_in_grid]]`, ... |
 | `__shared__ float s[N];` | `threadgroup float s[N];` (in-kernel, static size) |
-| `__launch_bounds__(n)` | `__attribute__((max_total_threads_per_threadgroup(n)))` — [worth 10× here](../machine/registers.md) |
+| `__launch_bounds__(n)` | `__attribute__((max_total_threads_per_threadgroup(n)))`, [worth 10× here](../machine/registers.md) |
 | `#pragma unroll` | `#pragma clang loop unroll(full)` |
 | `-D` compile defines | same, plus [function constants](function-constants.md) for post-compile specialization |
 
@@ -44,13 +44,13 @@ What it lacks, coming from CUDA: no printf-debugging culture to speak of (it
 exists; it's painful), no cooperative groups beyond the three built-in levels, no
 dynamic parallelism, no dynamic threadgroup-memory sizing from inside the kernel
 (the host sets it via `setThreadgroupMemoryLength`, or you declare statically), and
-no inline PTX-equivalent — the one escape hatch,
+no inline PTX-equivalent. The one escape hatch,
 [`__asm("air.*")` intrinsics, was closed by Metal 4](simdgroup-async-copy.md).
 
 Hands-on is the fastest way in:
 [Metal-Puzzles](https://github.com/abeleinin/Metal-Puzzles) is 14 progressively
 harder MSL kernels (map → threadgroup memory → prefix sum → matmul) checked
-against references from Python — the recommended on-ramp before reading the
+against references from Python, and the recommended on-ramp before reading the
 [case studies](../kernels/gemm-tiled.md).
 
 Next: [Dispatch geometry](dispatch-geometry.md)

@@ -17,8 +17,8 @@ CUDA equivalent, stage by stage:
 The practical differences from CUDA-land:
 
 **There is no offline path to machine code.** You can compile MSL → metallib ahead
-of time (and should, for app startup), but the last mile — AIR → the actual
-[G-series ISA](https://github.com/dougallj/applegpu) — always happens on-device,
+of time (and should, for app startup), but the last mile, AIR → the actual
+[G-series ISA](https://github.com/dougallj/applegpu), always happens on-device,
 inside `makeComputePipelineState`. Consequences: pipeline creation is the expensive
 step (cache pipeline states the way you'd cache cuBLAS handles), and
 [function constants](function-constants.md) get to participate in that final
@@ -27,7 +27,7 @@ branching.
 
 **Runtime string compilation is a first-class workflow.**
 `device.makeLibrary(source:)` compiles an MSL string at runtime through the same
-backend as the offline compiler — measured bit-identical performance
+backend as the offline compiler, with measured bit-identical performance
 ([m5-gemm's README](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/README.md)
 tested `-O3 -ffast-math` offline vs runtime: no difference). This is why
 [metal-flash-attention generates kernels as Swift strings](../kernels/mfa-codegen.md),
@@ -37,7 +37,7 @@ and why Python harnesses need no Xcode at all.
 **Inspecting what the compiler actually emitted is community tooling, not vendor
 tooling.** There is no `cuobjdump`. The reverse-engineered
 [applegpu](https://github.com/dougallj/applegpu) disassembler is the Godbolt of
-this world (`compiler_explorer.py`: MSL in, ISA out) — the standard move when a
+this world (`compiler_explorer.py`: MSL in, ISA out), and the standard move when a
 kernel underperforms and you suspect [spills](../machine/registers.md) or missed
 unrolling. Expect to find one surprise every time you look.
 

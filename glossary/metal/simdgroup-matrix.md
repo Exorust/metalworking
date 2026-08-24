@@ -4,17 +4,17 @@
 held collectively in one [simdgroup's](../machine/simdgroup.md) registers, with a
 single-call multiply-accumulate.**
 
-CUDA equivalent: warp-level MMA — `wmma` fragments / `mma.sync` — as an API.
+CUDA equivalent: warp-level MMA (`wmma` fragments / `mma.sync`) as an API.
 As hardware, the analogy is looser: pre-M5 Apple GPUs have no separate tensor-core
 unit; `simdgroup_matrix` ops execute on the regular FP32 pipes, arranged well
 (the reverse-engineered [Rigel paper](https://arxiv.org/abs/2606.12765) confirms
 even Metal 4.1's newer `matmul2d` tensor API has no dedicated matrix datapath on
 M4-class hardware). The performance story is therefore different from NVIDIA's:
 you use `simdgroup_matrix` for its *register layout and issue efficiency*, not for
-a 10× throughput unlock — and a well-written simdgroup-matrix GEMM
+a 10× throughput unlock. A well-written simdgroup-matrix GEMM
 [still reaches 13.5 TFLOPS fp32 on an M5 Max, beating MPS](../kernels/gemm-tiled.md).
 
-The API in one breath — load fragments, accumulate, store:
+The API in one breath (load fragments, accumulate, store):
 
 ```metal
 simdgroup_float8x8 A_simd, B_simd;
@@ -37,7 +37,7 @@ Rules of use, all matching your `wmma` instincts:
   grid of accumulators is 1024 floats per simdgroup; doubling that
   [spilled and ran 10× slower](../machine/registers.md) in the measured case. The
   accumulator budget *is* the tile-size decision.
-- **Types:** `simdgroup_float8x8`, `simdgroup_half8x8`, `simdgroup_bfloat8x8` —
+- **Types:** `simdgroup_float8x8`, `simdgroup_half8x8`, `simdgroup_bfloat8x8`.
   [F16 fragments halve the register cost](../machine/f16.md); serious kernels take
   16-bit inputs and [accumulate in fp32](../machine/f16.md).
 
@@ -46,6 +46,7 @@ Everything above `simdgroup_matrix` is composition: MLX's
 simdgroup-level register blocks; [attention kernels](../kernels/steel-attention.md)
 chain two of those through an [online softmax](../techniques/online-softmax.md).
 When Q has only one row and no 8×8 tile can be filled, kernels abandon
-`simdgroup_matrix` entirely — the [decode-vs-prefill split](../techniques/decode-vs-prefill.md).
+`simdgroup_matrix` entirely; that's the
+[decode-vs-prefill split](../techniques/decode-vs-prefill.md).
 
 Next: [simdgroup_async_copy](simdgroup-async-copy.md)
