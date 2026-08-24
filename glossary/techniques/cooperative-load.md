@@ -1,7 +1,7 @@
 # Cooperative Load
 
 **A cooperative load is the whole threadgroup jointly copying a tile from device
-memory to [threadgroup memory](../machine/threadgroup-memory.md) — no thread loads
+memory to [threadgroup memory](../machine/threadgroup-memory.md). No thread loads
 "its own" data; every thread carries an equal, coalesced share of everyone's.**
 
 CUDA equivalent: the classic tiled-GEMM staging loop, unchanged in spirit. Two
@@ -10,8 +10,8 @@ cooperative loads are the *only* way tiles move, and with
 [barriers nearly free](../metal/synchronization.md), the load-sync-compute-sync
 rhythm costs almost nothing beyond the loads themselves.
 
-The reference implementation, from the [GEMM case study](../kernels/gemm-tiled.md)
-— each thread strides through the tile at threadgroup-width steps, so consecutive
+The reference implementation, from the [GEMM case study](../kernels/gemm-tiled.md).
+Each thread strides through the tile at threadgroup-width steps, so consecutive
 threads always touch consecutive addresses (coalescing), in `float4` units when
 alignment allows (vectorization):
 
@@ -35,7 +35,7 @@ inline void load_tile(
 ```
 — [m5-gemm `sync_copy.metal:46-71`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L46-L71), abridged
 
-With a 64×16 tile and 128 threads, that's two `float4` loads per thread — the
+With a 64×16 tile and 128 threads, that's two `float4` loads per thread; the
 whole staging step is a few hundred instructions across the group.
 
 The productionized version is steel's
@@ -43,17 +43,18 @@ The productionized version is steel's
 arithmetic (elements per thread, thread-to-tile mapping) from template parameters
 at compile time, expresses vector width as an `alignas` struct so the compiler
 emits the widest legal load, and adds a bounds-checked `load_safe` twin for
-ragged edges — selected per-pipeline by
-[function constants](../metal/function-constants.md), so aligned dispatches never
+ragged edges, selected per-pipeline by
+[function constants](../metal/function-constants.md) so aligned dispatches never
 pay for checks.
 
 Rules of thumb, all CUDA-familiar: consecutive threads → consecutive addresses
-(in *both* directions — DRAM coalescing on the read, bank-friendliness on the
+in *both* directions (DRAM coalescing on the read, bank-friendliness on the
 write, which matters since
 [scattered threadgroup-memory access is pricey here](../machine/threadgroup-memory.md));
 vectorize to `float4`/`half8` when layout permits; derive the mapping at compile
-time so the loop fully unrolls. The historical footnote — a single simdgroup
-issuing a [DMA copy for the whole group](../metal/simdgroup-async-copy.md) used to
-beat all of this — explains why older codebases look different.
+time so the loop fully unrolls. The historical footnote explains why older
+codebases look different: a single simdgroup issuing a
+[DMA copy for the whole group](../metal/simdgroup-async-copy.md) used to beat
+all of this.
 
 Next: [Register blocking](register-blocking.md)

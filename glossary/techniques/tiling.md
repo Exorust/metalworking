@@ -1,10 +1,10 @@
 # Tiling
 
 **Tiling is the reuse pyramid: copy a block of the problem one level closer to
-the ALUs, do all the math it can support, then let it go — the technique that
+the ALUs, do all the math it can support, then let it go. It's the technique that
 turns bandwidth-bound matmul into compute-bound matmul.**
 
-CUDA equivalent: identical concept, and your instincts transfer — what moves is
+CUDA equivalent: identical concept, and your instincts transfer. What moves is
 the *shape* of the pyramid, because Apple's memory hierarchy has
 [different proportions](../machine/registers.md).
 
@@ -22,13 +22,13 @@ Each level multiplies reuse: a value loaded once into
 [threadgroup memory](../machine/threadgroup-memory.md) feeds every simdgroup in
 the group; a fragment loaded once into [registers](../machine/registers.md) feeds
 a whole row or column of accumulator tiles. Arithmetic per byte of DRAM traffic
-climbs from O(1) (naive) to O(tile edge) — which is the entire
+climbs from O(1) (naive) to O(tile edge), which is the entire
 [arithmetic-intensity](arithmetic-intensity.md) game.
 
 The Apple-specific calibration, versus CUDA habits:
 
 - **The middle level is thin.** 32 KB caps threadgroup tiles; typical shapes are
-  64×64 output per threadgroup with a 16-32 deep K-slab — smaller than
+  64×64 output per threadgroup with a 16-32 deep K-slab, smaller than
   CUDA-typical. The pyramid's weight shifts down a level:
   [register blocking](register-blocking.md) carries more of the reuse than
   shared-memory blocking does on NVIDIA.
@@ -40,14 +40,14 @@ The Apple-specific calibration, versus CUDA habits:
   [picks the variant per shape](../mlx/how-an-op-becomes-a-kernel.md).
 - **The edge problem is solved at pipeline time, not per-thread.** Instead of
   every thread guarding every access, [function constants](../metal/function-constants.md)
-  compile separate aligned/ragged pipelines — the aligned one contains zero
+  compile separate aligned/ragged pipelines; the aligned one contains zero
   bounds checks.
 
 Tiling's two companion moves have their own pages: getting the tile *in*
-efficiently is the [cooperative load](cooperative-load.md); hiding the tile's
+efficiently is the [cooperative load](cooperative-load.md), and hiding the tile's
 load time behind the previous tile's math is
-[double buffering](double-buffering.md). And the limit case of tiling — where the
-"tile" you refuse to write to memory is an entire intermediate matrix — is
+[double buffering](double-buffering.md). The limit case of tiling, where the
+"tile" you refuse to write to memory is an entire intermediate matrix, is
 [flash attention](flash-attention.md).
 
 Next: [Cooperative load](cooperative-load.md)
