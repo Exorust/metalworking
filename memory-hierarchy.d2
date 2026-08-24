@@ -1,0 +1,122 @@
+vars: {
+  d2-config: {
+    pad: 24
+  }
+}
+
+direction: down
+style.fill: "#0d180a"
+
+classes: {
+  core: {
+    style: {
+      fill: "#12240d"
+      stroke: "#77ef5e"
+      font-color: "#77ef5e"
+      stroke-width: 2
+      font: mono
+      bold: true
+    }
+  }
+  regs: {
+    style: {
+      fill: "#1c3315"
+      stroke: "#a6cc97"
+      font-color: "#d9ead0"
+      font: mono
+    }
+  }
+  mem: {
+    style: {
+      fill: "#0d180a"
+      stroke: "#77ef5e"
+      font-color: "#a6cc97"
+      font: mono
+    }
+  }
+  bar: {
+    style: {
+      fill: "#1c3315"
+      stroke: "#77ef5e"
+      font-color: "#d9ead0"
+      stroke-width: 2
+      font: mono
+      bold: true
+    }
+    width: 1100
+    height: 64
+  }
+  cpu: {
+    style: {
+      fill: "#0d180a"
+      stroke: "#a6cc97"
+      font-color: "#a6cc97"
+      stroke-width: 2
+      font: mono
+      bold: true
+    }
+  }
+  note: {
+    shape: text
+    style: {
+      font-color: "#6f9a62"
+      font: mono
+      font-size: 14
+    }
+  }
+  wire: {
+    style: {
+      stroke: "#a6cc97"
+      stroke-width: 2
+    }
+  }
+  fat: {
+    style: {
+      stroke: "#77ef5e"
+      stroke-width: 3
+    }
+  }
+  ghost: {
+    style.opacity: 0
+  }
+}
+
+core0: "GPU CORE 0" {
+  class: core
+  regs: "REGISTERS\n(~208 KB per core)" { class: regs }
+  smem: "THREADGROUP + TILE\n(32 KB / threadgroup)" { class: mem }
+  l1: "L1\n(8 KB D / 12 KB I)" { class: mem }
+  regs <-> smem: { class: wire }
+  regs <-> l1: { class: wire }
+}
+core1: "GPU CORE 1" {
+  class: core
+  regs: "REGISTERS\n(~208 KB per core)" { class: regs }
+  smem: "THREADGROUP + TILE\n(32 KB / threadgroup)" { class: mem }
+  l1: "L1\n(8 KB D / 12 KB I)" { class: mem }
+  regs <-> smem: { class: wire }
+  regs <-> l1: { class: wire }
+}
+dots: "- - - -" { class: note }
+coreN: "GPU CORE (N-1)\n(M5: N=10, M5 Max: N=40)" {
+  class: core
+  regs: "REGISTERS\n(~208 KB per core)" { class: regs }
+  smem: "THREADGROUP + TILE\n(32 KB / threadgroup)" { class: mem }
+  l1: "L1\n(8 KB D / 12 KB I)" { class: mem }
+  regs <-> smem: { class: wire }
+  regs <-> l1: { class: wire }
+}
+
+dyn: "M3 AND LATER (DYNAMIC CACHING): REGISTERS, THREADGROUP, TILE AND STACK ARE ALLOCATED ON DEMAND FROM ONE ON-CORE CACHE POOL" { class: note }
+
+l2: "GPU LAST-LEVEL CACHE (L2, SHARED BY ALL CORES)" { class: bar }
+slc: "SYSTEM LEVEL CACHE (SLC, TENS OF MB - SHARED WITH CPU + ANE)" { class: bar }
+dram: "UNIFIED MEMORY (LPDDR DRAM - ONE POOL FOR CPU AND GPU. M5: ~153 GB/S, M5 MAX: ~614 GB/S)" { class: bar }
+
+core0 -> l2: { class: wire }
+core1 -> l2: { class: wire }
+dots -> l2: { class: ghost }
+coreN -> l2: { class: wire }
+l2 <-> slc: { class: fat }
+slc <-> dram: { class: fat }
+dram -> dyn: { class: ghost }

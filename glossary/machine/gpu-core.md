@@ -15,6 +15,13 @@ for performance per watt rather than peak throughput. An H100 will crush any M-s
 chip on raw FLOPs; the M-series counter is [unified memory](unified-memory.md)
 capacity and efficiency.
 
+![Apple GPU memory hierarchy: N GPU cores, each with a register file, threadgroup+tile memory and small L1s, sharing a GPU last-level cache, backed by the system level cache and unified LPDDR memory](../../memory-hierarchy.svg)
+
+*The whole hierarchy at a glance. The SLC and unified-memory tiers are shared
+with the CPU; there is no separate VRAM. On M3 and later, Dynamic Caching
+allocates the per-core memories on demand from one cache pool instead of fixed
+partitions.*
+
 Inside a core, the numbers that matter:
 
 - **[Register file](registers.md): ~208 KB**, nearly SM-sized, and the core's real
