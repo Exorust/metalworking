@@ -98,6 +98,7 @@
   --head: #c678dd;
 }
 
+:root { --topbar-h: 62px; }
 * { box-sizing: border-box; }
 html { font-size: 16px; }
 body {
@@ -120,7 +121,7 @@ body {
 
 /* ---- top bar ---- */
 .top {
-  position: relative;
+  position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; gap: 1.3rem;
   padding: 0.85rem 1.4rem;
   border-bottom: 1px solid var(--line);
@@ -166,7 +167,8 @@ body {
 }
 .toc {
   width: 330px; flex: none; padding: 1.3rem 0 2rem 0;
-  position: sticky; top: 0; overflow-y: auto; max-height: calc(100vh - 92px);
+  position: sticky; top: var(--topbar-h, 61px); overflow-y: auto;
+  max-height: calc(100vh - var(--topbar-h, 61px));
   z-index: 1;
   scrollbar-width: thin; scrollbar-color: var(--dash) transparent;
 }
