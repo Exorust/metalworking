@@ -5,7 +5,7 @@
 constants of the [m5-gemm loader](gemm-tiled.md) recomputed at compile time from
 template parameters, for every shape [MLX](../mlx/mlx-overview.md) serves.**
 
-The template head *is* the design — read the defaulted parameters doing the
+The template head *is* the design. Read the defaulted parameters doing the
 arithmetic you did by hand in the simpler kernel:
 
 ```cpp
@@ -29,7 +29,7 @@ derive the thread-to-tile mapping. Any tile shape, any threadgroup size, zero
 runtime arithmetic.
 
 The hot path expresses vector width as an aligned type rather than a `float4`
-cast — the compiler emits the widest load the `alignment` parameter permits:
+cast, so the compiler emits the widest load the `alignment` parameter permits:
 
 ```cpp
   struct alignas(alignment * sizeof(T)) ReadVector {
@@ -53,7 +53,7 @@ bounds-checks and zero-fills for tiles hanging off the matrix edge. m5-gemm
 required sizes divisible by 64; MLX can't. The elegance is in *when* each variant
 runs: [function constants](../metal/function-constants.md) let the
 [wiring kernel](steel-gemm-fused.md) compile pipelines where aligned dispatches
-contain only `load_unsafe` — edge handling that costs nothing off the edge.
+contain only `load_unsafe`. Edge handling that costs nothing off the edge.
 
 The smallest detail is the most load-bearing for composability:
 
@@ -65,7 +65,7 @@ The smallest detail is the most load-bearing for composability:
 — [`steel/gemm/loader.h:130-133`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/loader.h#L130-L133)
 
 The loader owns its pointer arithmetic; the K-loop just calls `next()`. Three
-verbs — load, next, done — are the whole interface, which is what lets quantized
+verbs (load, next, done) are the whole interface, which is what lets quantized
 loaders, transposed loaders, and the
 [attention fork's differently-shaped loaders](steel-attention.md) swap in without
 the kernel body changing. This is the [CUTLASS discipline](../mlx/steel.md) in

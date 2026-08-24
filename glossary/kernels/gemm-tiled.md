@@ -1,8 +1,8 @@
 # Case Study: The Tiled GEMM
 
 **`sync_copy.metal` from [yaroslavvb/m5-gemm](https://github.com/yaroslavvb/m5-gemm)
-(BSD-3-Clause) — ~140 lines of MSL that beat [MPS](../metal/mps.md) at fp32
-matmul: 13.5 vs 11.7 TFLOPS at 4096² on an M5 Max. The single best first kernel to
+(BSD-3-Clause): ~140 lines of MSL that beat [MPS](../metal/mps.md) at fp32
+matmul, 13.5 vs 11.7 TFLOPS at 4096² on an M5 Max. The single best first kernel to
 read on this platform, because every technique it uses has a page in this
 glossary.**
 
@@ -13,7 +13,7 @@ with the [dead async-copy intrinsic](gemm-async-ghost.md) replaced by a
 [cooperative load](../techniques/cooperative-load.md).
 
 **The shape, fixed at compile time.** Three `-D` constants define the whole
-[tiling pyramid](../techniques/tiling.md) — with defaults: 64×64 output per
+[tiling pyramid](../techniques/tiling.md). With defaults: 64×64 output per
 threadgroup, 32×32 per simdgroup, K consumed 16 at a time:
 
 ```metal
@@ -35,8 +35,8 @@ The author calls it the single biggest practical win: it lets the
 [register allocator](../machine/registers.md) commit to 128 threads and stop
 spilling the accumulators.
 
-**The K-loop** is the [tiling](../techniques/tiling.md) rhythm at its cleanest —
-stage cooperatively, [barrier](../metal/synchronization.md), multiply from
+**The K-loop** is the [tiling](../techniques/tiling.md) rhythm at its cleanest.
+Stage cooperatively, [barrier](../metal/synchronization.md), multiply from
 registers, barrier, advance:
 
 ```metal
@@ -61,15 +61,15 @@ simplest form; `simdgroup_multiply_tile` is a straight
 [`simdgroup_matrix`](../metal/simdgroup-matrix.md) fragment loop.
 
 **The epilogue** computes the full BLAS `C = α·AB + β·C` fused into the single
-store ([`sync_copy.metal:133-143`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L133-L143))
-— [fusion](../techniques/fusion-and-epilogues.md) in miniature, and the exact spot
+store ([`sync_copy.metal:133-143`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L133-L143)):
+[fusion](../techniques/fusion-and-epilogues.md) in miniature, and the exact spot
 [steel generalizes into pluggable epilogues](steel-gemm-fused.md).
 
-Run it yourself (Apple Silicon, no Xcode needed —
+Run it yourself (Apple Silicon, no Xcode needed thanks to
 [runtime compilation](../metal/compilation-pipeline.md)): `python matmul.py --dim
-4096 --trials 5` in the repo benchmarks both kernels against MPS;
+4096 --trials 5` in the repo benchmarks both kernels against MPS, and
 `bandwidth.py` gives you [your machine's roofline](../techniques/roofline.md).
-The numbers cited here are the author's, from a 40-core M5 Max — expect different
+The numbers cited here are the author's, from a 40-core M5 Max; expect different
 crossovers on different tiers.
 
 Next: [The double-buffered GEMM](gemm-double-buffered.md)

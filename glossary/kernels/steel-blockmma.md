@@ -3,8 +3,8 @@
 **`BlockMMA` (`steel/gemm/mma.h`) is
 [register blocking](../techniques/register-blocking.md) as a reusable component:
 each simdgroup's grid of [8×8 fragments](../metal/simdgroup-matrix.md), the K-march
-that feeds them, and the [epilogue hook](../techniques/fusion-and-epilogues.md) —
-everything between "tiles are staged" and "results are stored."**
+that feeds them, and the [epilogue hook](../techniques/fusion-and-epilogues.md).
+Everything between "tiles are staged" and "results are stored."**
 
 The layout constants decode the [m5-gemm kernel](gemm-tiled.md)'s hand-written
 structure into named parameters:
@@ -25,10 +25,10 @@ struct BlockMMA {
 `WM × WN` is the simdgroup arrangement (m5-gemm's `SW × SW`); `TM × TN` is each
 simdgroup's accumulator grid (`SIMD_TILE × SIMD_TILE`); `Ctile` lives in
 [registers](../machine/registers.md) for the kernel's lifetime, with `AccumType =
-float` regardless of data type — [16-bit traffic, fp32
-accumulation](../machine/f16.md).
+float` regardless of data type:
+[16-bit traffic, fp32 accumulation](../machine/f16.md).
 
-The multiply marches K in fragment-size steps — load an A fragment and a B
+The multiply marches K in fragment-size steps. Load an A fragment and a B
 fragment, `tile_matmad`, advance:
 
 ```cpp
@@ -60,13 +60,13 @@ The ending is where [fusion](../techniques/fusion-and-epilogues.md) plugs in:
 element *in registers*, then stores once
 ([`mma.h:540-551`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/mma.h#L540-L551));
 `apply_epilogue(C, ...)` variants additionally read an input matrix for
-`α·AB + β·C`-shaped endings. Bias, activation, scaling — zero extra memory
+`α·AB + β·C`-shaped endings. Bias, activation, scaling: zero extra memory
 passes, by construction.
 
 One caveat before you generalize from this file:
 [attention needs a different `mma.h`](steel-attention.md). A GEMM accumulator
 only accumulates; attention's score tile must be *read and transformed in place*
 between two matmuls, which demands a different fragment layout. Steel maintains
-both — same philosophy, different geometry.
+both. Same philosophy, different geometry.
 
 Next: [The fused GEMM kernel](steel-gemm-fused.md)

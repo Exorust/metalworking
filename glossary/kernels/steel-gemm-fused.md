@@ -4,12 +4,12 @@
 [BlockLoader](steel-blockloader.md), [BlockMMA](steel-blockmma.md), and
 [epilogues](../techniques/fusion-and-epilogues.md) are factored out: ~350 lines of
 wiring, most of which is [function-constant](../metal/function-constants.md)
-dispatch. The kernel is the least interesting file in the library — which is the
+dispatch. The kernel is the least interesting file in the library, which is the
 achievement.**
 
-The head declares both specialization mechanisms at once — template parameters
+The head declares both specialization mechanisms at once: template parameters
 (shape; fixed per compiled variant) and function constants (behavior; fixed per
-pipeline):
+pipeline).
 
 ```cpp
 constant bool has_batch [[function_constant(10)]];
@@ -34,7 +34,7 @@ practice, and which
 [tile parameters the host picks per shape](../mlx/how-an-op-becomes-a-kernel.md).
 
 The aligned fast path is the [m5-gemm K-loop](gemm-tiled.md) rewritten against
-component interfaces — and containing zero bounds checks, because
+component interfaces, containing zero bounds checks because
 [pipeline-time specialization deleted them](../metal/function-constants.md):
 
 ```cpp
@@ -55,14 +55,14 @@ component interfaces — and containing zero bounds checks, because
 
 The unaligned branches below
 ([lines 209-345](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/kernels/steel_gemm_fused.h#L209-L345))
-enumerate every ragged-edge combination through `load_safe`/`store_result_safe` —
+enumerate every ragged-edge combination through `load_safe`/`store_result_safe`:
 verbose, mechanical, and *absent from aligned pipelines*.
 
 Once this file reads as boring, the rest of the
 [steel](../mlx/steel.md) shape space is a names tour: `steel_gemm_splitk.h`
 (huge-K: split the reduction across threadgroups, combine after),
 `steel_gemm_masked.h` (block-sparse), `steel_gemm_gather.h` (MoE gather-GEMM),
-`steel_gemm_segmented.h` — all reusing the same loader/MMA components with
+`steel_gemm_segmented.h`. All reuse the same loader/MMA components with
 different wiring. That reuse is the whole argument for the decomposition, and the
 `_nax` twins (`gemm_nax.h`) isolate exactly what the Metal-4/M5 tensor
 instructions change: diff one against its plain sibling and nothing moves but the
