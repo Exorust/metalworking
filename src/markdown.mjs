@@ -1,6 +1,7 @@
 // Markdown -> HTML with the glossary's link/code conventions.
 import { marked } from "marked";
 import { REPO } from "./manifest.mjs";
+import { assetUrl } from "./assets.mjs";
 
 function rewriteHref(href, fromDir) {
   if (/^https?:|^mailto:/.test(href)) return { href, external: true };
@@ -34,7 +35,7 @@ export function render(md, fromDir) {
   };
   renderer.image = ({ href, text }) => {
     const name = href.split("/").pop();
-    return `<img src="/assets/${name}" alt="${text}">`;
+    return `<img src="${assetUrl(name)}" alt="${text}">`;
   };
   // Focusable code blocks (keyboard users can scroll them; arrow-nav is
   // guarded while they're focused) with comment lines dimmed.
