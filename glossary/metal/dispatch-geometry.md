@@ -13,6 +13,13 @@ The hierarchy, top to bottom:
 | warp | [simdgroup](../machine/simdgroup.md) | registers via shuffle |
 | thread | thread | its own [registers](../machine/registers.md) |
 
+![The Metal launch hierarchy: a grid of threadgroups, one threadgroup of four simdgroups, one simdgroup of 32 threads, with the two dispatch calls counting different units and ragged partial threadgroups at the grid edge](../../diagrams/dispatch-geometry.svg)
+
+*The three levels, and both traps in one frame: the two dispatch calls count
+different units (boxes vs threads, with the ragged partials `dispatchThreads`
+quietly creates), and the threadgroup's size is promised to the compiler at
+pipeline time, not launch time.*
+
 Trap one: **two dispatch calls with different units.**
 `dispatchThreadgroups(gridSize, threadsPerThreadgroup:)` counts the grid in
 *threadgroups*, exactly CUDA's `<<<numBlocks, blockDim>>>`. But

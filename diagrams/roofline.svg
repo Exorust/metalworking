@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1380 520" role="img" aria-label="Roofline chart: performance versus arithmetic intensity, with the measured bandwidth slope, the practical compute ceiling, the ridge point where they meet, and example workloads on each side" font-family="Azeret Mono, ui-monospace, Menlo, monospace">
+  <!-- Hand-authored. Amber = the bandwidth roof, green = the compute roof.
+       Log-log axes drawn schematically; positions are illustrative, labels carry the data. -->
+  <rect width="1380" height="520" rx="6" fill="#0d180a"/>
+
+  <!-- plot area -->
+  <g stroke="#24361d">
+    <line x1="120" y1="60" x2="120" y2="420"/>
+    <line x1="120" y1="420" x2="1300" y2="420"/>
+  </g>
+  <!-- faint grid -->
+  <g stroke="#12240d">
+    <line x1="120" y1="150" x2="1300" y2="150"/>
+    <line x1="120" y1="240" x2="1300" y2="240"/>
+    <line x1="120" y1="330" x2="1300" y2="330"/>
+    <line x1="330" y1="60" x2="330" y2="420"/>
+    <line x1="540" y1="60" x2="540" y2="420"/>
+    <line x1="750" y1="60" x2="750" y2="420"/>
+    <line x1="960" y1="60" x2="960" y2="420"/>
+    <line x1="1170" y1="60" x2="1170" y2="420"/>
+  </g>
+
+  <!-- axis labels -->
+  <text x="60" y="245" font-size="11.5" fill="#a6cc97" transform="rotate(-90 60 245)" text-anchor="middle">performance (FLOP/s, log)</text>
+  <text x="710" y="466" font-size="11.5" fill="#a6cc97" text-anchor="middle">arithmetic intensity (FLOPs / byte, log)</text>
+
+  <!-- region shading -->
+  <path d="M120 420 L750 150 L750 420 Z" fill="#e8c268" opacity="0.07"/>
+  <rect x="750" y="150" width="550" height="270" fill="#77ef5e" opacity="0.05"/>
+
+  <!-- bandwidth roof: diagonal -->
+  <line x1="120" y1="420" x2="750" y2="150" stroke="#e8c268" stroke-width="2.5"/>
+  <!-- its dashed continuation past the ridge -->
+  <line x1="750" y1="150" x2="1010" y2="40" stroke="#e8c268" stroke-width="1" stroke-dasharray="5 5" opacity="0.5"/>
+  <!-- compute roof: horizontal -->
+  <line x1="750" y1="150" x2="1300" y2="150" stroke="#77ef5e" stroke-width="2.5"/>
+  <!-- its dashed continuation left of the ridge -->
+  <line x1="330" y1="150" x2="750" y2="150" stroke="#77ef5e" stroke-width="1" stroke-dasharray="5 5" opacity="0.4"/>
+
+  <!-- roof labels -->
+  <text x="300" y="308" font-size="11.5" fill="#e8c268" transform="rotate(-23 300 308)">memory roof · slope = measured bandwidth (~516 GB/s on M5 Max, ~84% of spec)</text>
+  <text x="1290" y="136" font-size="11.5" fill="#77ef5e" text-anchor="end">compute roof · best measured GEMM (~13.5 TFLOPS fp32)</text>
+
+  <!-- ridge point -->
+  <rect x="742" y="142" width="16" height="16" fill="#77ef5e"/>
+  <line x1="750" y1="158" x2="750" y2="420" stroke="#6f9a62" stroke-dasharray="3 5" stroke-width="1"/>
+  <text x="762" y="186" font-size="11.5" fill="#d9ead0">ridge point</text>
+  <text x="762" y="203" font-size="10" fill="#6f9a62">minimum intensity that can escape the memory roof</text>
+
+  <!-- region captions -->
+  <text x="330" y="95" font-size="12.5" fill="#e8c268">BANDWIDTH BOUND</text>
+  <text x="330" y="113" font-size="10" fill="#6f9a62">more kernels live here than CUDA intuition expects</text>
+  <text x="990" y="95" font-size="12.5" fill="#77ef5e">COMPUTE BOUND</text>
+  <text x="990" y="113" font-size="10" fill="#6f9a62">the GEMM school's territory</text>
+
+  <!-- example points -->
+  <circle cx="205" cy="384" r="6" fill="#e8c268"/>
+  <text x="220" y="380" font-size="10.5" fill="#b9bfa9">elementwise op (intensity ~0.1)</text>
+  <text x="220" y="396" font-size="9.5" fill="#6f9a62">pinned to the slope: only fusion helps</text>
+
+  <circle cx="545" cy="332" r="6" fill="#e8c268"/>
+  <text x="560" y="328" font-size="10.5" fill="#b9bfa9">LLM decode</text>
+  <text x="560" y="344" font-size="9.5" fill="#6f9a62">tok/s tracks the bandwidth spec</text>
+
+  <circle cx="1040" cy="163" r="6" fill="#77ef5e"/>
+  <text x="1055" y="160" font-size="10.5" fill="#b9bfa9">4096&#178; tiled GEMM (~85&#215; below the memory roof)</text>
+  <text x="1055" y="176" font-size="9.5" fill="#6f9a62">tiling moved it here; naive matmul stays on the slope</text>
+
+  <!-- footer -->
+  <text x="690" y="502" font-size="10.5" fill="#6f9a62" text-anchor="middle">both roofs are measured, not spec: bandwidth.metal for the slope, the best local GEMM for the ceiling</text>
+</svg>

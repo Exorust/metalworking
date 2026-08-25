@@ -33,6 +33,12 @@ void eval(array& arr) {
 ```
 — [`mlx/backend/metal/eval.cpp:29-62`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/eval.cpp#L29-L62), abridged
 
+![MLX's record-then-commit model: ops append graph nodes instantly, eval walks the graph and batches kernels into command buffers; an accidental mid-loop eval forces a drain every iteration](../../diagrams/lazy-evaluation.svg)
+
+*Recording is free; evaluation is the sync boundary. The bottom lanes show the
+same loop written well and badly: the dashed drains are what an accidental
+mid-loop eval costs on every single token.*
+
 **The performance rule that falls out: evaluate once per step.** Every `mx.eval`
 (explicit or accidental) is a synchronization boundary: commit, wait, CPU wakes,
 re-encode. The [DFlash war story](../war-stories/the-failures.md) measured a real

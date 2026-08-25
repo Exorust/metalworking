@@ -38,6 +38,12 @@ The components, each with its own case study:
   Diffing one against its plain sibling shows exactly what the new instruction set
   changes.
 
+![Steel's architecture: BlockLoader, BlockMMA, and epilogue transforms wired by the fused GEMM kernel, sibling wiring kernels reusing the same components, and the attention fork with its own loader and MMA](../../diagrams/steel-architecture.svg)
+
+*Three components, many wirings. Every sibling kernel at the bottom reuses the
+same green boxes; the attention fork on the right is the one place the
+geometry itself had to change.*
+
 Which instantiation runs is decided host-side:
 [the tile-selection macro](how-an-op-becomes-a-kernel.md) maps chip class and
 problem shape to `BM/BN/BK/WM/WN`.

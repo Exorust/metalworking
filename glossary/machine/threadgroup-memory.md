@@ -21,6 +21,12 @@ through." The house pattern, visible in every [GEMM](../kernels/gemm-tiled.md) a
    [registers](registers.md) via `simdgroup_load` and does all real work there.
 3. The slab is overwritten by the next one. Nothing lingers.
 
+![The house pattern: a slab cooperatively loaded from device memory into the 32 KB staging buffer, fragments pulled immediately into registers, and the next slab overwriting the buffer](../../diagrams/tile-passthrough.svg)
+
+*How tiles pass through. The staging buffer holds each slab just long enough
+for the simdgroups to pull fragments out; the dashed loop is the next slab
+overwriting it.*
+
 Doubling your threadgroup-memory footprint halves how many threadgroups can be
 resident, which cuts [occupancy](occupancy.md). That's the standard CUDA trade,
 and the exact cost of [double buffering](../techniques/double-buffering.md), which

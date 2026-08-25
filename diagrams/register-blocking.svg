@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1380 440" role="img" aria-label="The accumulator grid: a column of A fragments and a row of B fragments feed a four by four grid of 8x8 accumulator fragments forming one simdgroup's 32x32 output patch, resident in registers for the kernel's lifetime" font-family="Azeret Mono, ui-monospace, Menlo, monospace">
+  <!-- Hand-authored. Green = accumulator state resident in registers,
+       slc = the fragments streamed from threadgroup memory each K step. -->
+  <rect width="1380" height="440" rx="6" fill="#0d180a"/>
+
+  <!-- A column -->
+  <text x="150" y="60" font-size="11.5" fill="#a6cc97" text-anchor="middle">A fragments</text>
+  <text x="150" y="76" font-size="9" fill="#6f9a62" text-anchor="middle">1 column / K step</text>
+  <g fill="#2c5423" stroke="#24361d">
+    <rect x="120" y="96" width="60" height="60" rx="2"/>
+    <rect x="120" y="164" width="60" height="60" rx="2"/>
+    <rect x="120" y="232" width="60" height="60" rx="2"/>
+    <rect x="120" y="300" width="60" height="60" rx="2"/>
+  </g>
+
+  <!-- B row -->
+  <text x="490" y="60" font-size="11.5" fill="#a6cc97" text-anchor="middle">B fragments · 1 row / K step</text>
+  <g fill="#2c5423" stroke="#24361d">
+    <rect x="220" y="76" width="60" height="40" rx="2"/>
+    <rect x="356" y="76" width="60" height="40" rx="2"/>
+    <rect x="492" y="76" width="60" height="40" rx="2"/>
+    <rect x="628" y="76" width="60" height="40" rx="2"/>
+  </g>
+
+  <!-- accumulator grid 4x4 -->
+  <g fill="#1c3315" stroke="#77ef5e">
+    <rect x="220" y="128" width="128" height="64" rx="2"/><rect x="356" y="128" width="128" height="64" rx="2"/><rect x="492" y="128" width="128" height="64" rx="2"/><rect x="628" y="128" width="128" height="64" rx="2"/>
+    <rect x="220" y="200" width="128" height="64" rx="2"/><rect x="356" y="200" width="128" height="64" rx="2"/><rect x="492" y="200" width="128" height="64" rx="2"/><rect x="628" y="200" width="128" height="64" rx="2"/>
+    <rect x="220" y="272" width="128" height="64" rx="2"/><rect x="356" y="272" width="128" height="64" rx="2"/><rect x="492" y="272" width="128" height="64" rx="2"/><rect x="628" y="272" width="128" height="64" rx="2"/>
+    <rect x="220" y="344" width="128" height="64" rx="2"/><rect x="356" y="344" width="128" height="64" rx="2"/><rect x="492" y="344" width="128" height="64" rx="2"/><rect x="628" y="344" width="128" height="64" rx="2"/>
+  </g>
+  <text x="284" y="164" font-size="9.5" fill="#d9ead0" text-anchor="middle">acc[0][0]</text>
+  <text x="420" y="164" font-size="9.5" fill="#d9ead0" text-anchor="middle">acc[0][1]</text>
+  <text x="692" y="380" font-size="9.5" fill="#d9ead0" text-anchor="middle">acc[3][3]</text>
+  <text x="488" y="256" font-size="10.5" fill="#77ef5e" text-anchor="middle">32×32 output patch</text>
+  <text x="488" y="274" font-size="9" fill="#a6cc97" text-anchor="middle">16 × simdgroup_float8x8 = 1024 floats, in registers, whole kernel</text>
+
+  <!-- reuse arrows -->
+  <g stroke="#6f9a62" stroke-dasharray="3 4">
+    <line x1="150" y1="126" x2="748" y2="126" opacity="0.6"/>
+    <line x1="250" y1="116" x2="250" y2="404" opacity="0.6"/>
+  </g>
+
+  <!-- right panel: the arithmetic -->
+  <text x="820" y="140" font-size="11.5" fill="#a6cc97">the reuse arithmetic:</text>
+  <text x="820" y="164" font-size="9.5" fill="#6f9a62">each A fragment feeds a whole row (4 MMAs)</text>
+  <text x="820" y="180" font-size="9.5" fill="#6f9a62">each B fragment feeds a whole column (4 MMAs)</text>
+  <text x="820" y="196" font-size="9.5" fill="#6f9a62">8 fragment loads → 16 multiply-accumulates per K step</text>
+
+  <text x="820" y="240" font-size="11.5" fill="#a6cc97">the cliff edges:</text>
+  <text x="820" y="264" font-size="9.5" fill="#6f9a62">too small → threadgroup-memory bandwidth bound</text>
+  <text x="820" y="280" font-size="9.5" fill="#e8c268">too big → spills: SIMD_TILE 4 → 8 ran 10× slower</text>
+
+  <text x="820" y="324" font-size="11.5" fill="#a6cc97">the two levers:</text>
+  <text x="820" y="348" font-size="9.5" fill="#6f9a62">max_total_threads_per_threadgroup (allocator can plan)</text>
+  <text x="820" y="364" font-size="9.5" fill="#6f9a62">16-bit fragments (half the budget spent)</text>
+
+  <text x="820" y="408" font-size="9.5" fill="#4a6a3e">written to DRAM exactly once, in the epilogue</text>
+</svg>

@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1380 440" role="img" aria-label="Steel's component architecture: BlockLoader, BlockMMA, and epilogue transforms wired together by the fused GEMM kernel, with sibling wiring kernels reusing the same components and the attention fork carrying its own differently shaped loader and MMA" font-family="Azeret Mono, ui-monospace, Menlo, monospace">
+  <!-- Hand-authored. Green = the reusable components, panels = the wiring kernels
+       that assemble them. -->
+  <rect width="1380" height="440" rx="6" fill="#0d180a"/>
+
+  <!-- ===== components row ===== -->
+  <text x="40" y="52" font-size="13" fill="#a6cc97">THE COMPONENTS (steel/gemm/)</text>
+  <g>
+    <rect x="40" y="70" width="280" height="80" fill="#2c5423" stroke="#77ef5e" rx="3"/>
+    <text x="180" y="100" font-size="11.5" fill="#d9ead0" text-anchor="middle">BlockLoader</text>
+    <text x="180" y="120" font-size="9" fill="#a6cc97" text-anchor="middle">loader.h · cooperative load as a template</text>
+    <text x="180" y="136" font-size="9" fill="#a6cc97" text-anchor="middle">load_unsafe / load_safe / next()</text>
+
+    <rect x="360" y="70" width="280" height="80" fill="#2c5423" stroke="#77ef5e" rx="3"/>
+    <text x="500" y="100" font-size="11.5" fill="#d9ead0" text-anchor="middle">BlockMMA</text>
+    <text x="500" y="120" font-size="9" fill="#a6cc97" text-anchor="middle">mma.h · TM×TN fragment grid, K-march</text>
+    <text x="500" y="136" font-size="9" fill="#a6cc97" text-anchor="middle">mma() / store_result()</text>
+
+    <rect x="680" y="70" width="280" height="80" fill="#2c5423" stroke="#77ef5e" rx="3"/>
+    <text x="820" y="100" font-size="11.5" fill="#d9ead0" text-anchor="middle">Epilogue</text>
+    <text x="820" y="120" font-size="9" fill="#a6cc97" text-anchor="middle">transforms.h · the ending as a plug-in type</text>
+    <text x="820" y="136" font-size="9" fill="#a6cc97" text-anchor="middle">TransformAdd / TransformAxpby</text>
+  </g>
+
+  <!-- wiring arrows down -->
+  <g stroke="#6f9a62" fill="#6f9a62">
+    <line x1="180" y1="150" x2="180" y2="192" stroke-width="1.25"/><path d="M176 192 L180 200 L184 192 Z" stroke="none"/>
+    <line x1="500" y1="150" x2="500" y2="192" stroke-width="1.25"/><path d="M496 192 L500 200 L504 192 Z" stroke="none"/>
+    <line x1="820" y1="150" x2="820" y2="192" stroke-width="1.25"/><path d="M816 192 L820 200 L824 192 Z" stroke="none"/>
+  </g>
+
+  <!-- ===== wiring kernel ===== -->
+  <rect x="40" y="200" width="920" height="70" fill="#12240d" stroke="#24361d" rx="4"/>
+  <text x="500" y="228" font-size="11.5" fill="#a6cc97" text-anchor="middle">steel_gemm_fused.h · the wiring kernel</text>
+  <text x="500" y="248" font-size="9.5" fill="#6f9a62" text-anchor="middle">~350 lines, mostly function-constant dispatch: the least interesting file in the library, which is the achievement</text>
+
+  <!-- siblings -->
+  <g stroke="#6f9a62" fill="none">
+    <path d="M500 270 C 500 292, 180 292, 180 310"/>
+    <path d="M500 270 C 500 292, 430 292, 430 310"/>
+    <path d="M500 270 C 500 292, 680 292, 680 310"/>
+    <path d="M500 270 C 500 292, 900 292, 900 310"/>
+  </g>
+  <g>
+    <rect x="70" y="310" width="220" height="44" fill="#0f1e0c" stroke="#24361d" rx="3"/>
+    <text x="180" y="329" font-size="10" fill="#a6cc97" text-anchor="middle">steel_gemm_splitk</text>
+    <text x="180" y="345" font-size="8.5" fill="#6f9a62" text-anchor="middle">huge-K: split, then combine</text>
+    <rect x="320" y="310" width="220" height="44" fill="#0f1e0c" stroke="#24361d" rx="3"/>
+    <text x="430" y="329" font-size="10" fill="#a6cc97" text-anchor="middle">steel_gemm_masked</text>
+    <text x="430" y="345" font-size="8.5" fill="#6f9a62" text-anchor="middle">block-sparse</text>
+    <rect x="570" y="310" width="220" height="44" fill="#0f1e0c" stroke="#24361d" rx="3"/>
+    <text x="680" y="329" font-size="10" fill="#a6cc97" text-anchor="middle">steel_gemm_gather</text>
+    <text x="680" y="345" font-size="8.5" fill="#6f9a62" text-anchor="middle">MoE gather-GEMM</text>
+    <rect x="820" y="310" width="220" height="44" fill="#0f1e0c" stroke="#24361d" rx="3"/>
+    <text x="930" y="329" font-size="10" fill="#a6cc97" text-anchor="middle">gemm_nax twins</text>
+    <text x="930" y="345" font-size="8.5" fill="#6f9a62" text-anchor="middle">Metal-4/M5 tensor ops: only the MMA layer moves</text>
+  </g>
+  <text x="540" y="386" font-size="10" fill="#a6cc97" text-anchor="middle">same components, different wiring: the whole argument for the decomposition</text>
+
+  <!-- ===== attention fork ===== -->
+  <rect x="1010" y="70" width="330" height="284" fill="#0f1e0c" stroke="#e8c268" rx="4"/>
+  <text x="1175" y="100" font-size="11.5" fill="#e8c268" text-anchor="middle">THE ATTENTION FORK (steel/attn/)</text>
+  <rect x="1040" y="120" width="270" height="50" fill="#12240d" stroke="#24361d" rx="3"/>
+  <text x="1175" y="141" font-size="10" fill="#a6cc97" text-anchor="middle">its own loader.h + mma.h</text>
+  <text x="1175" y="158" font-size="8.5" fill="#6f9a62" text-anchor="middle">different fragment layout</text>
+  <rect x="1040" y="186" width="270" height="50" fill="#12240d" stroke="#24361d" rx="3"/>
+  <text x="1175" y="207" font-size="10" fill="#a6cc97" text-anchor="middle">steel_attention.h</text>
+  <text x="1175" y="224" font-size="8.5" fill="#6f9a62" text-anchor="middle">flash attention from the same vocabulary</text>
+  <text x="1175" y="270" font-size="9" fill="#6f9a62" text-anchor="middle">why the fork: a GEMM accumulator only</text>
+  <text x="1175" y="286" font-size="9" fill="#6f9a62" text-anchor="middle">accumulates; the score tile must be read</text>
+  <text x="1175" y="302" font-size="9" fill="#6f9a62" text-anchor="middle">and transformed in place between two</text>
+  <text x="1175" y="318" font-size="9" fill="#6f9a62" text-anchor="middle">matmuls. same philosophy, new geometry</text>
+
+  <!-- footer -->
+  <text x="40" y="420" font-size="10.5" fill="#6f9a62">CUDA equivalent: CUTLASS · unlike CUTLASS, steel is not consumable standalone: its ideas travel by reading</text>
+</svg>

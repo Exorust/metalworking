@@ -23,6 +23,13 @@ by core count and clock. For matmul, a shortcut: the best measured GEMM on your
 chip class *is* a practical ceiling (13.5 TFLOPS fp32 on a 40-core M5 Max, from
 [the case study](../kernels/gemm-tiled.md)).
 
+![Roofline chart: performance versus arithmetic intensity, with the measured bandwidth slope, the practical compute ceiling, the ridge point, and example workloads on each side](../../diagrams/roofline.svg)
+
+*The chart the page has been describing. Everything left of the ridge point is
+capped by the amber slope no matter how clever the ALU work; everything right
+of it answers to the green ceiling. The example points are this glossary's own
+recurring cast.*
+
 Then every benchmark result gets the same two-line interrogation: achieved
 GFLOPS ÷ compute ceiling, achieved GB/s ÷ bandwidth ceiling. Whichever ratio is
 higher names your binding constraint. If both are low, the kernel is

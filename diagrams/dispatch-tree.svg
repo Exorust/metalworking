@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1380 460" role="img" aria-label="The MLX matmul dispatch decision tree: shape checks route to gemv or quantized families, otherwise the tile-selection macro picks steel template parameters, the kernel name is assembled, and the pipeline is fetched from cache or JIT built" font-family="Azeret Mono, ui-monospace, Menlo, monospace">
+  <!-- Hand-authored. Green = the steel fast path this glossary reads,
+       amber = the branches that silently take you elsewhere. -->
+  <rect width="1380" height="460" rx="6" fill="#0d180a"/>
+
+  <!-- root -->
+  <rect x="80" y="60" width="220" height="44" fill="#12240d" stroke="#24361d" rx="3"/>
+  <text x="190" y="87" font-size="11.5" fill="#a6cc97" text-anchor="middle">mx.matmul(a, b)</text>
+  <text x="190" y="122" font-size="9" fill="#6f9a62" text-anchor="middle">lazy graph → Matmul::eval_gpu</text>
+
+  <!-- branch: quantized -->
+  <rect x="400" y="40" width="250" height="44" fill="#e8c268" rx="3"/>
+  <text x="525" y="59" font-size="10.5" fill="#1a1608" text-anchor="middle">weights quantized?</text>
+  <text x="525" y="75" font-size="9" fill="#1a1608" text-anchor="middle">→ QMV / QMM family instead</text>
+
+  <!-- branch: gemv -->
+  <rect x="400" y="104" width="250" height="44" fill="#e8c268" rx="3"/>
+  <text x="525" y="123" font-size="10.5" fill="#1a1608" text-anchor="middle">matrix × vector shape?</text>
+  <text x="525" y="139" font-size="9" fill="#1a1608" text-anchor="middle">→ gemv kernels, not GEMM</text>
+
+  <!-- branch: skinny -->
+  <rect x="400" y="168" width="250" height="44" fill="#e8c268" rx="3"/>
+  <text x="525" y="187" font-size="10.5" fill="#1a1608" text-anchor="middle">very skinny / huge K?</text>
+  <text x="525" y="203" font-size="9" fill="#1a1608" text-anchor="middle">→ split-K and non-steel paths</text>
+
+  <!-- main path: tile macro -->
+  <rect x="400" y="248" width="250" height="60" fill="#2c5423" stroke="#77ef5e" rx="3"/>
+  <text x="525" y="272" font-size="10.5" fill="#d9ead0" text-anchor="middle">GEMM_TPARAM_MACRO</text>
+  <text x="525" y="290" font-size="9" fill="#a6cc97" text-anchor="middle">chip class × size × dtype × transpose</text>
+
+  <!-- edges from root -->
+  <g stroke="#6f9a62" fill="none">
+    <path d="M300 82 C 350 82, 350 62, 400 62"/>
+    <path d="M300 82 C 350 82, 350 126, 400 126"/>
+    <path d="M300 82 C 350 82, 350 190, 400 190"/>
+  </g>
+  <g stroke="#77ef5e" fill="none" stroke-width="1.5">
+    <path d="M300 90 C 350 90, 350 278, 400 278"/>
+  </g>
+
+  <!-- tile params out -->
+  <rect x="720" y="248" width="200" height="60" fill="#1c3315" stroke="#24361d" rx="3"/>
+  <text x="820" y="272" font-size="10.5" fill="#d9ead0" text-anchor="middle">bm bn bk · wm wn</text>
+  <text x="820" y="290" font-size="9" fill="#6f9a62" text-anchor="middle">e.g. 64·64·16 · 1·2</text>
+
+  <!-- kernel name -->
+  <rect x="990" y="248" width="350" height="60" fill="#12240d" stroke="#24361d" rx="3"/>
+  <text x="1165" y="272" font-size="10" fill="#a6cc97" text-anchor="middle">"steel_gemm_fused_...bm64_bn64..."</text>
+  <text x="1165" y="290" font-size="9" fill="#6f9a62" text-anchor="middle">kernel name assembled as a string</text>
+
+  <!-- pipeline cache -->
+  <rect x="720" y="360" width="280" height="60" fill="#1c3315" stroke="#77ef5e" rx="3"/>
+  <text x="860" y="384" font-size="10.5" fill="#d9ead0" text-anchor="middle">pipeline cache</text>
+  <text x="860" y="402" font-size="9" fill="#6f9a62" text-anchor="middle">hit → reuse · miss → JIT build with function constants</text>
+
+  <!-- encode -->
+  <rect x="1080" y="360" width="260" height="60" fill="#77ef5e" rx="3"/>
+  <text x="1210" y="384" font-size="10.5" fill="#0d180a" text-anchor="middle">encode dispatch</text>
+  <text x="1210" y="402" font-size="9" fill="#0d180a" text-anchor="middle">into the shared command buffer</text>
+
+  <!-- edges -->
+  <g stroke="#77ef5e" fill="#77ef5e" stroke-width="1.5">
+    <line x1="650" y1="278" x2="712" y2="278"/><path d="M712 273 L722 278 L712 283 Z" stroke="none"/>
+    <line x1="920" y1="278" x2="982" y2="278"/><path d="M982 273 L992 278 L982 283 Z" stroke="none"/>
+  </g>
+  <g stroke="#77ef5e" fill="#77ef5e" stroke-width="1.5">
+    <path d="M1165 308 C 1165 334, 860 334, 860 352" fill="none"/>
+    <path d="M856 352 L860 360 L864 352 Z" stroke="none"/>
+    <line x1="1000" y1="390" x2="1072" y2="390"/><path d="M1072 385 L1082 390 L1072 395 Z" stroke="none"/>
+  </g>
+
+  <!-- annotations -->
+  <text x="80" y="200" font-size="10.5" fill="#e8c268">falling off the fast path is silent:</text>
+  <text x="80" y="218" font-size="9.5" fill="#6f9a62">MTPLX's 2.24× came from noticing M=3-6</text>
+  <text x="80" y="234" font-size="9.5" fill="#6f9a62">fell between the gemv tuning and the</text>
+  <text x="80" y="250" font-size="9.5" fill="#6f9a62">GEMM tiles</text>
+  <text x="80" y="290" font-size="9.5" fill="#6f9a62">sdpa has its own gate like this</text>
+  <text x="80" y="306" font-size="9.5" fill="#6f9a62">(head-dim lists, sequence thresholds)</text>
+
+  <text x="80" y="410" font-size="10.5" fill="#a6cc97">cuBLAS's secret heuristics, in greppable form: mlx/backend/metal/matmul.cpp</text>
+</svg>

@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1380 460" role="img" aria-label="Flash attention kernel anatomy: a resident Q tile, K and V tiles streaming past, the score tile living only in registers, a running output accumulator, and the ghosted L-by-L score matrix that never materializes" font-family="Azeret Mono, ui-monospace, Menlo, monospace">
+  <!-- Hand-authored. Green = register state, amber = streaming traffic,
+       dashed gray = the matrix that never exists. -->
+  <rect width="1380" height="460" rx="6" fill="#0d180a"/>
+
+  <!-- ===== ghosted L×L matrix ===== -->
+  <rect x="1020" y="70" width="300" height="300" fill="none" stroke="#8a8f7a" stroke-dasharray="6 6" rx="4"/>
+  <g stroke="#2c4423">
+    <line x1="1020" y1="145" x2="1320" y2="145"/><line x1="1020" y1="220" x2="1320" y2="220"/><line x1="1020" y1="295" x2="1320" y2="295"/>
+    <line x1="1095" y1="70" x2="1095" y2="370"/><line x1="1170" y1="70" x2="1170" y2="370"/><line x1="1245" y1="70" x2="1245" y2="370"/>
+  </g>
+  <text x="1170" y="52" font-size="12.5" fill="#b9bfa9" text-anchor="middle">the L×L score matrix</text>
+  <text x="1170" y="396" font-size="10.5" fill="#4a6a3e" text-anchor="middle">never materializes: at 32K context it would be</text>
+  <text x="1170" y="412" font-size="10.5" fill="#4a6a3e" text-anchor="middle">a billion floats of round-trip traffic per layer</text>
+  <!-- one ghost cell = the tile in flight -->
+  <rect x="1095" y="145" width="75" height="75" fill="none" stroke="#77ef5e" stroke-width="1.5" stroke-dasharray="3 3"/>
+  <text x="1132" y="188" font-size="9.5" fill="#77ef5e" text-anchor="middle">only this</text>
+
+  <!-- ===== K/V stream ===== -->
+  <text x="40" y="52" font-size="13" fill="#a6cc97">K / V STREAM</text>
+  <text x="40" y="70" font-size="10.5" fill="#6f9a62">tiles pass through once, cooperative loads</text>
+  <g>
+    <rect x="40" y="96" width="80" height="60" fill="#e8c268" rx="3"/>
+    <text x="80" y="131" font-size="10" fill="#1a1608" text-anchor="middle">K tile</text>
+    <rect x="132" y="96" width="80" height="60" fill="#e8c268" rx="3" opacity="0.65"/>
+    <rect x="224" y="96" width="80" height="60" fill="#e8c268" rx="3" opacity="0.35"/>
+    <rect x="40" y="170" width="80" height="60" fill="#e8c268" rx="3"/>
+    <text x="80" y="205" font-size="10" fill="#1a1608" text-anchor="middle">V tile</text>
+    <rect x="132" y="170" width="80" height="60" fill="#e8c268" rx="3" opacity="0.65"/>
+    <rect x="224" y="170" width="80" height="60" fill="#e8c268" rx="3" opacity="0.35"/>
+  </g>
+  <g stroke="#e8c268" fill="#e8c268">
+    <line x1="316" y1="163" x2="368" y2="163" stroke-width="1.5"/>
+    <path d="M368 158 L378 163 L368 168 Z" stroke="none"/>
+  </g>
+
+  <!-- ===== the kernel (register state) ===== -->
+  <rect x="392" y="60" width="560" height="330" fill="#12240d" stroke="#24361d" rx="4"/>
+  <text x="408" y="88" font-size="13" fill="#a6cc97">ONE SIMDGROUP'S REGISTERS</text>
+
+  <!-- Q resident -->
+  <rect x="412" y="108" width="150" height="80" fill="#1c3315" stroke="#77ef5e" rx="3"/>
+  <text x="487" y="143" font-size="11.5" fill="#d9ead0" text-anchor="middle">Q tile</text>
+  <text x="487" y="162" font-size="9.5" fill="#6f9a62" text-anchor="middle">loads once, stays resident</text>
+
+  <!-- Stile -->
+  <rect x="610" y="108" width="150" height="80" fill="#77ef5e" rx="3"/>
+  <text x="685" y="138" font-size="11.5" fill="#0d180a" text-anchor="middle">S tile</text>
+  <text x="685" y="156" font-size="9.5" fill="#0d180a" text-anchor="middle">= Q·K&#7488; · masked and</text>
+  <text x="685" y="170" font-size="9.5" fill="#0d180a" text-anchor="middle">softmaxed in place</text>
+  <text x="685" y="212" font-size="9.5" fill="#77ef5e" text-anchor="middle">born and dies here, per K tile</text>
+
+  <!-- O accumulator -->
+  <rect x="412" y="252" width="348" height="80" fill="#1c3315" stroke="#24361d" rx="3"/>
+  <text x="586" y="285" font-size="11.5" fill="#d9ead0" text-anchor="middle">O accumulator  +=  P · V tile</text>
+  <text x="586" y="305" font-size="9.5" fill="#6f9a62" text-anchor="middle">rescaled by the online-softmax correction c each step</text>
+
+  <!-- running scalars -->
+  <rect x="800" y="252" width="132" height="80" fill="#0f1e0c" stroke="#24361d" rx="3"/>
+  <text x="866" y="281" font-size="10.5" fill="#a6cc97" text-anchor="middle">m, l</text>
+  <text x="866" y="300" font-size="9.5" fill="#6f9a62" text-anchor="middle">running max</text>
+  <text x="866" y="314" font-size="9.5" fill="#6f9a62" text-anchor="middle">and sum</text>
+
+  <!-- internal arrows -->
+  <g stroke="#6f9a62" fill="#6f9a62">
+    <line x1="562" y1="148" x2="600" y2="148" stroke-width="1.25"/>
+    <path d="M600 144 L608 148 L600 152 Z" stroke="none"/>
+    <line x1="685" y1="220" x2="685" y2="240" stroke-width="1.25"/>
+    <path d="M681 240 L685 248 L689 240 Z" stroke="none"/>
+  </g>
+
+  <!-- kernel -> ghost link -->
+  <g stroke="#8a8f7a" stroke-dasharray="4 4">
+    <line x1="760" y1="148" x2="1088" y2="180"/>
+  </g>
+
+  <!-- output -->
+  <g stroke="#77ef5e" fill="#77ef5e">
+    <line x1="586" y1="340" x2="586" y2="398" stroke-width="1.5"/>
+    <path d="M581 398 L586 408 L591 398 Z" stroke="none"/>
+  </g>
+  <text x="606" y="404" font-size="10.5" fill="#a6cc97">O written to memory once, after the last tile (O /= l)</text>
+
+  <!-- footer -->
+  <text x="40" y="440" font-size="10.5" fill="#6f9a62">causal masking is a skip, not a mask: whole tiles above the diagonal are never visited</text>
+</svg>

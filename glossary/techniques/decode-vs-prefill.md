@@ -13,6 +13,12 @@ token, pure [bandwidth](arithmetic-intensity.md), and on Apple Silicon
 chip tiers, and why the [buying advice in the war stories](../war-stories/cheap-tricks.md)
 is "read the bandwidth line, ignore the core count."
 
+![Prefill as a fat compute-bound matrix multiply versus decode as one query row streaming the entire KV cache, bandwidth bound](../../diagrams/decode-vs-prefill.svg)
+
+*The two shapes. Prefill has tiles to feed the matrix hardware; decode is one
+green row against everything in amber, which is why its speed is a bandwidth
+number.*
+
 Why decode can't use the matrix kernels: with one query row, there's no 8×8 tile
 to feed [`simdgroup_matrix`](../metal/simdgroup-matrix.md), and the matrix path
 would compute mostly on padding. A one-row attention is a *reduction*, not a

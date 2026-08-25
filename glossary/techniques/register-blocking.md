@@ -27,6 +27,11 @@ accumulated into on every K iteration, stored once in the epilogue. Steel's
 [`BlockMMA`](../kernels/steel-blockmma.md) is the same idea as a template: a
 `TM × TN` fragment grid whose size falls out of `BM/BN` and the simdgroup layout.
 
+![The accumulator grid: a column of A fragments and a row of B fragments feed a four by four grid of 8x8 accumulators forming one simdgroup's 32x32 output patch](../../diagrams/register-blocking.svg)
+
+*The reuse geometry: eight fragment loads feed sixteen multiply-accumulates
+per K step, and the green grid never leaves the register file.*
+
 The sizing tension, and the two measured cliff edges:
 
 - **Too small**: each fragment of A and B loaded from threadgroup memory feeds

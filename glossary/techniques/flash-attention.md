@@ -31,6 +31,12 @@ The kernel anatomy, common to every implementation (walked line-by-line in the
    [codegen](../kernels/mfa-codegen.md)) strips masking/alignment code the shape
    doesn't need.
 
+![Flash attention kernel anatomy: a resident Q tile, K and V tiles streaming past, the score tile living only in registers, a running output accumulator, and the ghosted L-by-L matrix that never materializes](../../diagrams/flash-attention-anatomy.svg)
+
+*The whole trick in one picture: everything green lives in one simdgroup's
+registers, everything amber streams through once, and the dashed matrix on the
+right is the thing the algorithm exists to avoid writing.*
+
 What to take from the three-implementation comparison
 ([MLX](../kernels/steel-attention.md) · [MFA](../kernels/mfa-codegen.md) ·
 [llama.cpp](../kernels/llamacpp-attention.md)): the algorithm is settled; the

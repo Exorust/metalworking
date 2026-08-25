@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1380 430" role="img" aria-label="The reuse pyramid: grid of output tiles, one threadgroup tile, one simdgroup patch, one 8x8 fragment, each level held one memory closer to the ALUs" font-family="Azeret Mono, ui-monospace, Menlo, monospace">
+  <!-- Hand-authored. Palette: phosphor green = compute/registers, amber = DRAM,
+       slc green = threadgroup memory. Left to right: zoom in one level per panel. -->
+  <rect width="1380" height="430" rx="6" fill="#0d180a"/>
+
+  <!-- ===== Panel 1: the grid ===== -->
+  <text x="40" y="52" font-size="13" fill="#a6cc97">GRID</text>
+  <text x="40" y="70" font-size="10.5" fill="#6f9a62">each threadgroup owns a BM×BN output tile</text>
+  <g>
+    <rect x="40" y="88" width="240" height="240" fill="#0f1e0c" stroke="#24361d"/>
+    <!-- tile outlines 4x4 -->
+    <g stroke="#2c4423" fill="none">
+      <rect x="100" y="88" width="0.001" height="240"/>
+      <line x1="100" y1="88" x2="100" y2="328"/><line x1="160" y1="88" x2="160" y2="328"/><line x1="220" y1="88" x2="220" y2="328"/>
+      <line x1="40" y1="148" x2="280" y2="148"/><line x1="40" y1="208" x2="280" y2="208"/><line x1="40" y1="268" x2="280" y2="268"/>
+    </g>
+    <!-- highlighted tile -->
+    <rect x="160" y="148" width="60" height="60" fill="#2c5423" stroke="#77ef5e" stroke-width="1.5"/>
+  </g>
+  <rect x="40" y="346" width="240" height="26" fill="#e8c268" rx="3"/>
+  <text x="160" y="363" font-size="10.5" fill="#1a1608" text-anchor="middle">device memory (DRAM)</text>
+
+  <!-- arrow -->
+  <g stroke="#6f9a62" fill="#6f9a62">
+    <line x1="296" y1="208" x2="342" y2="208" stroke-width="1.5"/>
+    <path d="M342 203 L352 208 L342 213 Z" stroke="none"/>
+  </g>
+  <text x="324" y="192" font-size="9.5" fill="#6f9a62" text-anchor="middle">one</text>
+  <text x="324" y="228" font-size="9.5" fill="#6f9a62" text-anchor="middle">threadgroup</text>
+
+  <!-- ===== Panel 2: threadgroup tile ===== -->
+  <text x="380" y="52" font-size="13" fill="#a6cc97">THREADGROUP TILE</text>
+  <text x="380" y="70" font-size="10.5" fill="#6f9a62">BM×BN = 64×64 · staged slabs of A and B</text>
+  <g>
+    <rect x="380" y="88" width="240" height="240" fill="#12240d" stroke="#24361d"/>
+    <g stroke="#2c4423" fill="none">
+      <line x1="500" y1="88" x2="500" y2="328"/>
+      <line x1="380" y1="208" x2="620" y2="208"/>
+    </g>
+    <!-- 2x2 simdgroup patches, one highlighted -->
+    <rect x="500" y="88" width="120" height="120" fill="#2c5423" stroke="#77ef5e" stroke-width="1.5"/>
+    <text x="440" y="153" font-size="9.5" fill="#4a6a3e" text-anchor="middle">simdgroup</text>
+    <text x="440" y="273" font-size="9.5" fill="#4a6a3e" text-anchor="middle">simdgroup</text>
+    <text x="560" y="273" font-size="9.5" fill="#4a6a3e" text-anchor="middle">simdgroup</text>
+  </g>
+  <rect x="380" y="346" width="240" height="26" fill="#2c5423" rx="3"/>
+  <text x="500" y="363" font-size="10.5" fill="#d9ead0" text-anchor="middle">threadgroup memory (32 KB)</text>
+
+  <!-- arrow -->
+  <g stroke="#6f9a62" fill="#6f9a62">
+    <line x1="636" y1="208" x2="682" y2="208" stroke-width="1.5"/>
+    <path d="M682 203 L692 208 L682 213 Z" stroke="none"/>
+  </g>
+  <text x="664" y="192" font-size="9.5" fill="#6f9a62" text-anchor="middle">one</text>
+  <text x="664" y="228" font-size="9.5" fill="#6f9a62" text-anchor="middle">simdgroup</text>
+
+  <!-- ===== Panel 3: simdgroup patch ===== -->
+  <text x="720" y="52" font-size="13" fill="#a6cc97">SIMDGROUP PATCH</text>
+  <text x="720" y="70" font-size="10.5" fill="#6f9a62">32×32 · a 4×4 grid of accumulator fragments</text>
+  <g>
+    <rect x="720" y="88" width="240" height="240" fill="#1c3315" stroke="#24361d"/>
+    <g stroke="#2c4423" fill="none">
+      <line x1="780" y1="88" x2="780" y2="328"/><line x1="840" y1="88" x2="840" y2="328"/><line x1="900" y1="88" x2="900" y2="328"/>
+      <line x1="720" y1="148" x2="960" y2="148"/><line x1="720" y1="208" x2="960" y2="208"/><line x1="720" y1="268" x2="960" y2="268"/>
+    </g>
+    <rect x="840" y="148" width="60" height="60" fill="#77ef5e" stroke="#77ef5e"/>
+    <text x="870" y="183" font-size="10" fill="#0d180a" text-anchor="middle">8×8</text>
+  </g>
+  <rect x="720" y="346" width="240" height="26" fill="#1c3315" rx="3" stroke="#77ef5e" stroke-width="0.75"/>
+  <text x="840" y="363" font-size="10.5" fill="#d9ead0" text-anchor="middle">registers (~208 KB / core)</text>
+
+  <!-- arrow -->
+  <g stroke="#6f9a62" fill="#6f9a62">
+    <line x1="976" y1="208" x2="1022" y2="208" stroke-width="1.5"/>
+    <path d="M1022 203 L1032 208 L1022 213 Z" stroke="none"/>
+  </g>
+  <text x="1004" y="192" font-size="9.5" fill="#6f9a62" text-anchor="middle">one</text>
+  <text x="1004" y="228" font-size="9.5" fill="#6f9a62" text-anchor="middle">instruction</text>
+
+  <!-- ===== Panel 4: fragment ===== -->
+  <text x="1060" y="52" font-size="13" fill="#a6cc97">FRAGMENT</text>
+  <text x="1060" y="70" font-size="10.5" fill="#6f9a62">simdgroup_float8x8</text>
+  <g>
+    <rect x="1060" y="118" width="180" height="180" fill="#77ef5e" rx="3"/>
+    <text x="1150" y="198" font-size="16" fill="#0d180a" text-anchor="middle">8×8</text>
+    <text x="1150" y="220" font-size="10" fill="#0d180a" text-anchor="middle">multiply-accumulate</text>
+  </g>
+  <rect x="1060" y="346" width="180" height="26" fill="#12240d" rx="3" stroke="#24361d"/>
+  <text x="1150" y="363" font-size="10.5" fill="#a6cc97" text-anchor="middle">one MMA per issue</text>
+
+  <!-- reuse annotation -->
+  <text x="690" y="408" font-size="11" fill="#6f9a62" text-anchor="middle">each level multiplies reuse: arithmetic per byte of DRAM traffic climbs from O(1) to O(tile edge)</text>
+</svg>

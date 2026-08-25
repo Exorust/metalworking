@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1380 430" role="img" aria-label="Two compilation toolchains compared: CUDA compiles to shipped machine code ahead of time, Metal ships portable AIR and always builds the GPU binary on the user's device, where function constants join the final compile" font-family="Azeret Mono, ui-monospace, Menlo, monospace">
+  <!-- Hand-authored. Gray = the CUDA lane (foreign), green = the Metal lane,
+       amber = the on-device final compile. The vertical dashed line is what ships. -->
+  <rect width="1380" height="430" rx="6" fill="#0d180a"/>
+
+  <!-- ship line -->
+  <line x1="820" y1="40" x2="820" y2="360" stroke="#8a8f7a" stroke-dasharray="6 6"/>
+  <text x="820" y="386" font-size="10.5" fill="#b9bfa9" text-anchor="middle">what ships to the user</text>
+  <text x="700" y="30" font-size="10" fill="#6f9a62" text-anchor="end">build machine</text>
+  <text x="940" y="30" font-size="10" fill="#6f9a62">user's device</text>
+
+  <!-- ===== CUDA lane ===== -->
+  <text x="40" y="86" font-size="12.5" fill="#8a8f7a">CUDA</text>
+  <g>
+    <rect x="130" y="62" width="130" height="40" fill="none" stroke="#8a8f7a" rx="3"/>
+    <text x="195" y="87" font-size="10.5" fill="#b9bfa9" text-anchor="middle">CUDA C++</text>
+    <rect x="310" y="62" width="110" height="40" fill="none" stroke="#8a8f7a" rx="3"/>
+    <text x="365" y="87" font-size="10.5" fill="#b9bfa9" text-anchor="middle">nvcc</text>
+    <rect x="470" y="62" width="110" height="40" fill="none" stroke="#8a8f7a" rx="3"/>
+    <text x="525" y="87" font-size="10.5" fill="#b9bfa9" text-anchor="middle">PTX</text>
+    <rect x="630" y="62" width="150" height="40" fill="#8a8f7a" rx="3"/>
+    <text x="705" y="87" font-size="10.5" fill="#0d180a" text-anchor="middle">SASS (cubin)</text>
+    <g stroke="#8a8f7a" fill="#8a8f7a">
+      <line x1="260" y1="82" x2="302" y2="82"/><path d="M302 78 L310 82 L302 86 Z" stroke="none"/>
+      <line x1="420" y1="82" x2="462" y2="82"/><path d="M462 78 L470 82 L462 86 Z" stroke="none"/>
+      <line x1="580" y1="82" x2="622" y2="82"/><path d="M622 78 L630 82 L622 86 Z" stroke="none"/>
+    </g>
+  </g>
+  <text x="940" y="87" font-size="10" fill="#4a6a3e">machine code shipped; JIT-from-PTX only as fallback</text>
+  <text x="130" y="126" font-size="9.5" fill="#4a6a3e">per-arch fatbins: sm_80, sm_90, ...</text>
+
+  <!-- ===== Metal lane ===== -->
+  <text x="40" y="216" font-size="12.5" fill="#77ef5e">METAL</text>
+  <g>
+    <rect x="130" y="192" width="130" height="40" fill="#12240d" stroke="#24361d" rx="3"/>
+    <text x="195" y="217" font-size="10.5" fill="#a6cc97" text-anchor="middle">MSL</text>
+    <rect x="310" y="192" width="150" height="40" fill="#12240d" stroke="#24361d" rx="3"/>
+    <text x="385" y="211" font-size="10.5" fill="#a6cc97" text-anchor="middle">metal frontend</text>
+    <text x="385" y="226" font-size="9" fill="#6f9a62" text-anchor="middle">or runtime string compile</text>
+    <rect x="510" y="192" width="110" height="40" fill="#12240d" stroke="#24361d" rx="3"/>
+    <text x="565" y="217" font-size="10.5" fill="#a6cc97" text-anchor="middle">AIR</text>
+    <rect x="670" y="192" width="110" height="40" fill="#2c5423" rx="3"/>
+    <text x="725" y="217" font-size="10.5" fill="#d9ead0" text-anchor="middle">metallib</text>
+    <g stroke="#6f9a62" fill="#6f9a62">
+      <line x1="260" y1="212" x2="302" y2="212"/><path d="M302 208 L310 212 L302 216 Z" stroke="none"/>
+      <line x1="460" y1="212" x2="502" y2="212"/><path d="M502 208 L510 212 L502 216 Z" stroke="none"/>
+      <line x1="620" y1="212" x2="662" y2="212"/><path d="M662 208 L670 212 L662 216 Z" stroke="none"/>
+    </g>
+  </g>
+  <!-- crossing the ship line -->
+  <g stroke="#77ef5e" fill="#77ef5e">
+    <line x1="780" y1="212" x2="872" y2="212" stroke-width="1.5"/>
+    <path d="M872 207 L882 212 L872 217 Z" stroke="none"/>
+  </g>
+  <!-- on-device build -->
+  <rect x="890" y="180" width="240" height="64" fill="#e8c268" rx="3"/>
+  <text x="1010" y="205" font-size="10.5" fill="#1a1608" text-anchor="middle">makeComputePipelineState</text>
+  <text x="1010" y="224" font-size="9.5" fill="#1a1608" text-anchor="middle">AIR → G-series ISA, built here, always</text>
+  <g stroke="#77ef5e" fill="#77ef5e">
+    <line x1="1130" y1="212" x2="1192" y2="212" stroke-width="1.5"/>
+    <path d="M1192 207 L1202 212 L1192 217 Z" stroke="none"/>
+  </g>
+  <rect x="1210" y="192" width="130" height="40" fill="#77ef5e" rx="3"/>
+  <text x="1275" y="217" font-size="10.5" fill="#0d180a" text-anchor="middle">GPU binary</text>
+
+  <!-- function constants join -->
+  <rect x="890" y="290" width="240" height="40" fill="#1c3315" stroke="#77ef5e" rx="3"/>
+  <text x="1010" y="309" font-size="10.5" fill="#d9ead0" text-anchor="middle">function constants bind here</text>
+  <text x="1010" y="324" font-size="9" fill="#6f9a62" text-anchor="middle">folded as literals: dead code deleted pre-GPU</text>
+  <g stroke="#77ef5e" fill="#77ef5e">
+    <line x1="1010" y1="290" x2="1010" y2="252" stroke-width="1.25"/>
+    <path d="M1006 252 L1010 244 L1014 252 Z" stroke="none"/>
+  </g>
+
+  <!-- consequences -->
+  <text x="130" y="290" font-size="10.5" fill="#a6cc97">consequences:</text>
+  <text x="130" y="310" font-size="9.5" fill="#6f9a62">· pipeline creation is the expensive step: cache pipeline states</text>
+  <text x="130" y="326" font-size="9.5" fill="#6f9a62">· runtime string compile uses the same backend (measured bit-identical)</text>
+  <text x="130" y="342" font-size="9.5" fill="#6f9a62">· no cuobjdump: inspecting the ISA is community tooling (applegpu)</text>
+  <text x="130" y="358" font-size="9.5" fill="#6f9a62">· no -arch matrix: AIR finalizes per-device at pipeline creation</text>
+</svg>

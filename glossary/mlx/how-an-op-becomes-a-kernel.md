@@ -38,6 +38,12 @@ string (`steel_gemm_fused_...bm64_bn64...`), the
 [function constants](../metal/function-constants.md) are bound, and the dispatch
 is encoded.
 
+![The MLX matmul dispatch tree: shape checks route to gemv or quantized families, otherwise the tile-selection macro picks steel parameters, the kernel name is assembled, and the pipeline is fetched or JIT built](../../diagrams/dispatch-tree.svg)
+
+*The route a matmul takes. The amber branches are where shapes silently leave
+the steel fast path; the green spine is the path this glossary's case studies
+read.*
+
 Branches before steel, because falling into the wrong one is a
 classic silent slowdown: **matrix-vector shapes** route to `gemv` kernels rather
 than GEMM; **very skinny/small** cases have split-K and non-steel paths;

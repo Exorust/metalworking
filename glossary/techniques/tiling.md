@@ -11,12 +11,11 @@ the *shape* of the pyramid, because Apple's memory hierarchy has
 The pyramid on this platform, as instantiated by every GEMM in the
 [case studies](../kernels/gemm-tiled.md):
 
-```
-grid            each threadgroup owns a BM×BN tile of the output
-  threadgroup   stages BM×BK of A and BK×BN of B in threadgroup memory
-    simdgroup   owns a sub-tile of the output, resident in registers
-      hardware  simdgroup_matrix: an 8×8 matmul per instruction
-```
+![The reuse pyramid: a grid of output tiles, one threadgroup tile, one simdgroup patch, and one 8x8 fragment, each level held in memory one step closer to the ALUs](../../diagrams/tiling-pyramid.svg)
+
+*Reading left to right zooms in one level per panel. The strip under each
+panel names the memory that holds it; the highlighted cell is what the next
+panel magnifies.*
 
 Each level multiplies reuse: a value loaded once into
 [threadgroup memory](../machine/threadgroup-memory.md) feeds every simdgroup in

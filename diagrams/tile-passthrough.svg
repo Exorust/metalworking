@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1380 340" role="img" aria-label="The house pattern for threadgroup memory: a slab is cooperatively loaded from device memory into the 32 KB staging buffer, simdgroups immediately pull fragments into registers where all real work happens, and the next slab overwrites the buffer" font-family="Azeret Mono, ui-monospace, Menlo, monospace">
+  <!-- Hand-authored. Amber = DRAM, slc = the thin staging buffer, green = registers. -->
+  <rect width="1380" height="340" rx="6" fill="#0d180a"/>
+
+  <!-- device memory -->
+  <rect x="40" y="70" width="280" height="160" fill="#e8c268" rx="4"/>
+  <text x="180" y="106" font-size="11.5" fill="#1a1608" text-anchor="middle">device memory</text>
+  <text x="180" y="124" font-size="9.5" fill="#1a1608" text-anchor="middle">(unified DRAM)</text>
+  <rect x="70" y="150" width="220" height="48" fill="#1a1608" opacity="0.18" rx="2"/>
+  <text x="180" y="179" font-size="9.5" fill="#1a1608" text-anchor="middle">next slab</text>
+
+  <!-- step 1 arrow -->
+  <g stroke="#e8c268" fill="#e8c268">
+    <line x1="336" y1="150" x2="418" y2="150" stroke-width="2"/>
+    <path d="M418 144 L430 150 L418 156 Z" stroke="none"/>
+  </g>
+  <text x="383" y="128" font-size="9.5" fill="#a6cc97" text-anchor="middle">1 · cooperative</text>
+  <text x="383" y="142" font-size="9.5" fill="#a6cc97" text-anchor="middle">load</text>
+  <text x="383" y="176" font-size="8.5" fill="#6f9a62" text-anchor="middle">coalesced, vectorized,</text>
+  <text x="383" y="190" font-size="8.5" fill="#6f9a62" text-anchor="middle">every thread an equal share</text>
+
+  <!-- staging buffer -->
+  <rect x="446" y="86" width="240" height="128" fill="#2c5423" rx="4"/>
+  <text x="566" y="120" font-size="11.5" fill="#d9ead0" text-anchor="middle">threadgroup memory</text>
+  <text x="566" y="138" font-size="9.5" fill="#a6cc97" text-anchor="middle">32 KB · a staging buffer,</text>
+  <text x="566" y="154" font-size="9.5" fill="#a6cc97" text-anchor="middle">not a residence</text>
+
+  <!-- step 2 arrow -->
+  <g stroke="#77ef5e" fill="#77ef5e">
+    <line x1="702" y1="150" x2="784" y2="150" stroke-width="2"/>
+    <path d="M784 144 L796 150 L784 156 Z" stroke="none"/>
+  </g>
+  <text x="749" y="128" font-size="9.5" fill="#a6cc97" text-anchor="middle">2 · simdgroup_load</text>
+  <text x="749" y="176" font-size="8.5" fill="#6f9a62" text-anchor="middle">fragments pulled</text>
+  <text x="749" y="190" font-size="8.5" fill="#6f9a62" text-anchor="middle">immediately</text>
+
+  <!-- registers -->
+  <rect x="812" y="60" width="300" height="180" fill="#1c3315" stroke="#77ef5e" rx="4"/>
+  <text x="962" y="96" font-size="11.5" fill="#d9ead0" text-anchor="middle">registers</text>
+  <text x="962" y="114" font-size="9.5" fill="#a6cc97" text-anchor="middle">~208 KB per core</text>
+  <g fill="#77ef5e">
+    <rect x="872" y="140" width="40" height="40" rx="2"/><rect x="922" y="140" width="40" height="40" rx="2"/><rect x="972" y="140" width="40" height="40" rx="2"/><rect x="1022" y="140" width="40" height="40" rx="2"/>
+  </g>
+  <text x="962" y="212" font-size="9.5" fill="#a6cc97" text-anchor="middle">all real work happens here</text>
+
+  <!-- step 3: overwrite loop -->
+  <g stroke="#8a8f7a" fill="none" stroke-dasharray="5 5">
+    <path d="M566 224 C 566 286, 180 286, 180 244"/>
+  </g>
+  <path d="M174 246 L180 236 L186 246 Z" fill="#8a8f7a"/>
+  <text x="380" y="300" font-size="9.5" fill="#b9bfa9" text-anchor="middle">3 · the next slab overwrites the buffer · nothing lingers</text>
+
+  <!-- right note -->
+  <text x="1150" y="106" font-size="10.5" fill="#a6cc97">the inverted ratio:</text>
+  <text x="1150" y="128" font-size="9.5" fill="#6f9a62">CUDA stages big tiles in shared</text>
+  <text x="1150" y="144" font-size="9.5" fill="#6f9a62">memory (48-228 KB); here the</text>
+  <text x="1150" y="160" font-size="9.5" fill="#6f9a62">weight of reuse shifts down a</text>
+  <text x="1150" y="176" font-size="9.5" fill="#6f9a62">level, into registers</text>
+  <text x="1150" y="208" font-size="9.5" fill="#6f9a62">barriers between steps cost</text>
+  <text x="1150" y="224" font-size="9.5" fill="#6f9a62">~2 cycles: sync freely</text>
+</svg>

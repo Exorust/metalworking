@@ -20,6 +20,12 @@ Encoding is cheap CPU work; `commit()` hands the whole batch to the GPU;
 `waitUntilCompleted` (or a completion handler) is the sync point. Two rules of
 thumb carry most of the value:
 
+![Two submission patterns: chatty per-op commit and wait leaves the GPU idle between ops; one command buffer per forward pass keeps it continuously busy](../../diagrams/command-buffers.svg)
+
+*The same work, submitted two ways. Every dashed gap on the left is the GPU
+waiting for the CPU to wake, read, and re-encode; the right side pays the
+per-buffer cost once.*
+
 **Batch aggressively.** Per-dispatch overhead within one command buffer is tiny;
 per-command-buffer overhead (commit, scheduling, completion) is not. The
 community-converged pattern for inference is **one command buffer per forward

@@ -23,6 +23,12 @@ Why it appears in a GPU glossary:
   CPU-side AMX work and GPU work compete for the same bandwidth; a background
   BNNS workload dents your GPU kernel's roofline.
 
+![One die, three matrix engines: the CPU cluster with AMX, the GPU cores, and the Neural Engine, sharing the unified memory fabric, each reachable through a different API](../../diagrams/three-engines.svg)
+
+*Where AMX sits. Three matrix engines share one bandwidth budget; Metal talks
+only to the middle one, and the API rows at the bottom are the whole
+accessibility story.*
+
 Apple has never documented the instruction set. The definitive reference is
 [corsix/amx](https://github.com/corsix/amx) (MIT): per-instruction docs with an
 executable software emulator as the specification, plus per-generation deltas (M2

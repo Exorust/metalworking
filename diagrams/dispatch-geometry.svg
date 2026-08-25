@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1380 430" role="img" aria-label="The Metal launch hierarchy: a grid of threadgroups, one threadgroup of four simdgroups, one simdgroup of 32 threads, with the two dispatch calls counting in different units and a ragged partial threadgroup at the grid edge" font-family="Azeret Mono, ui-monospace, Menlo, monospace">
+  <!-- Hand-authored. Green = the unit each dispatch call counts,
+       dashed = the ragged edge dispatchThreads creates. -->
+  <rect width="1380" height="430" rx="6" fill="#0d180a"/>
+
+  <!-- ===== grid ===== -->
+  <text x="40" y="52" font-size="13" fill="#a6cc97">GRID</text>
+  <g>
+    <rect x="40" y="70" width="300" height="240" fill="#0f1e0c" stroke="#24361d"/>
+    <!-- threadgroup boxes 4x3, last column ragged -->
+    <g fill="#12240d" stroke="#2c4423">
+      <rect x="52" y="82" width="60" height="66"/><rect x="120" y="82" width="60" height="66"/><rect x="188" y="82" width="60" height="66"/>
+      <rect x="52" y="156" width="60" height="66"/><rect x="120" y="156" width="60" height="66"/><rect x="188" y="156" width="60" height="66"/>
+      <rect x="52" y="230" width="60" height="66"/><rect x="120" y="230" width="60" height="66"/><rect x="188" y="230" width="60" height="66"/>
+    </g>
+    <!-- highlighted threadgroup -->
+    <rect x="120" y="156" width="60" height="66" fill="#2c5423" stroke="#77ef5e" stroke-width="1.5"/>
+    <!-- ragged partials -->
+    <g fill="none" stroke="#8a8f7a" stroke-dasharray="4 4">
+      <rect x="256" y="82" width="36" height="66"/>
+      <rect x="256" y="156" width="36" height="66"/>
+      <rect x="256" y="230" width="36" height="66"/>
+    </g>
+  </g>
+  <text x="304" y="330" font-size="9.5" fill="#b9bfa9" text-anchor="end">partial threadgroups at the edge:</text>
+  <text x="304" y="344" font-size="9.5" fill="#b9bfa9" text-anchor="end">what dispatchThreads quietly makes</text>
+
+  <!-- the two calls -->
+  <rect x="40" y="360" width="300" height="24" fill="#1c3315" rx="3"/>
+  <text x="190" y="376" font-size="9.5" fill="#d9ead0" text-anchor="middle">dispatchThreadgroups: grid counted in boxes</text>
+  <rect x="40" y="390" width="300" height="24" fill="#0f1e0c" rx="3" stroke="#8a8f7a" stroke-dasharray="4 4"/>
+  <text x="190" y="406" font-size="9.5" fill="#b9bfa9" text-anchor="middle">dispatchThreads: grid counted in threads</text>
+
+  <!-- arrow -->
+  <g stroke="#6f9a62" fill="#6f9a62">
+    <line x1="356" y1="190" x2="402" y2="190" stroke-width="1.5"/>
+    <path d="M402 185 L412 190 L402 195 Z" stroke="none"/>
+  </g>
+
+  <!-- ===== threadgroup ===== -->
+  <text x="440" y="52" font-size="13" fill="#a6cc97">THREADGROUP</text>
+  <text x="440" y="70" font-size="10.5" fill="#6f9a62">128 threads is the workhorse size</text>
+  <g>
+    <rect x="440" y="86" width="300" height="224" fill="#12240d" stroke="#24361d"/>
+    <g fill="#1c3315" stroke="#2c4423">
+      <rect x="456" y="102" width="128" height="88"/>
+      <rect x="596" y="102" width="128" height="88"/>
+      <rect x="456" y="206" width="128" height="88"/>
+      <rect x="596" y="206" width="128" height="88"/>
+    </g>
+    <rect x="456" y="102" width="128" height="88" fill="#2c5423" stroke="#77ef5e" stroke-width="1.5"/>
+    <text x="520" y="150" font-size="10" fill="#d9ead0" text-anchor="middle">simdgroup 0</text>
+    <text x="660" y="150" font-size="10" fill="#4a6a3e" text-anchor="middle">simdgroup 1</text>
+    <text x="520" y="254" font-size="10" fill="#4a6a3e" text-anchor="middle">simdgroup 2</text>
+    <text x="660" y="254" font-size="10" fill="#4a6a3e" text-anchor="middle">simdgroup 3</text>
+  </g>
+  <text x="440" y="334" font-size="9.5" fill="#6f9a62">shares: threadgroup memory + barriers</text>
+  <rect x="440" y="360" width="300" height="24" fill="#1c3315" rx="3"/>
+  <text x="590" y="376" font-size="9.5" fill="#d9ead0" text-anchor="middle">size is a pipeline-time contract, not a launch detail</text>
+  <text x="590" y="406" font-size="9" fill="#6f9a62" text-anchor="middle">max_total_threads_per_threadgroup lets the register allocator plan</text>
+
+  <!-- arrow -->
+  <g stroke="#6f9a62" fill="#6f9a62">
+    <line x1="756" y1="190" x2="802" y2="190" stroke-width="1.5"/>
+    <path d="M802 185 L812 190 L802 195 Z" stroke="none"/>
+  </g>
+
+  <!-- ===== simdgroup ===== -->
+  <text x="840" y="52" font-size="13" fill="#a6cc97">SIMDGROUP</text>
+  <text x="840" y="70" font-size="10.5" fill="#6f9a62">32 threads in lockstep (the warp)</text>
+  <g>
+    <rect x="840" y="86" width="500" height="120" fill="#12240d" stroke="#24361d"/>
+    <!-- 32 thread dots: 16 x 2 -->
+    <g fill="#77ef5e">
+      <circle cx="866" cy="122" r="7"/><circle cx="896" cy="122" r="7"/><circle cx="926" cy="122" r="7"/><circle cx="956" cy="122" r="7"/>
+      <circle cx="986" cy="122" r="7"/><circle cx="1016" cy="122" r="7"/><circle cx="1046" cy="122" r="7"/><circle cx="1076" cy="122" r="7"/>
+      <circle cx="1106" cy="122" r="7"/><circle cx="1136" cy="122" r="7"/><circle cx="1166" cy="122" r="7"/><circle cx="1196" cy="122" r="7"/>
+      <circle cx="1226" cy="122" r="7"/><circle cx="1256" cy="122" r="7"/><circle cx="1286" cy="122" r="7"/><circle cx="1316" cy="122" r="7"/>
+      <circle cx="866" cy="170" r="7"/><circle cx="896" cy="170" r="7"/><circle cx="926" cy="170" r="7"/><circle cx="956" cy="170" r="7"/>
+      <circle cx="986" cy="170" r="7"/><circle cx="1016" cy="170" r="7"/><circle cx="1046" cy="170" r="7"/><circle cx="1076" cy="170" r="7"/>
+      <circle cx="1106" cy="170" r="7"/><circle cx="1136" cy="170" r="7"/><circle cx="1166" cy="170" r="7"/><circle cx="1196" cy="170" r="7"/>
+      <circle cx="1226" cy="170" r="7"/><circle cx="1256" cy="170" r="7"/><circle cx="1286" cy="170" r="7"/><circle cx="1316" cy="170" r="7"/>
+    </g>
+  </g>
+  <text x="840" y="230" font-size="9.5" fill="#6f9a62">shares: registers via simd_shuffle / simd_sum · simdgroup_matrix fragments live across all 32</text>
+
+  <!-- index attributes -->
+  <text x="840" y="270" font-size="10.5" fill="#a6cc97">ask for the composed index, don't compute it:</text>
+  <text x="840" y="292" font-size="9.5" fill="#6f9a62">[[threadgroup_position_in_grid]] · [[simdgroup_index_in_threadgroup]]</text>
+  <text x="840" y="308" font-size="9.5" fill="#6f9a62">[[thread_index_in_simdgroup]] · [[thread_position_in_grid]]</text>
+  <text x="840" y="340" font-size="9.5" fill="#e8c268">trap: MLX's custom-kernel API exposes grid in threads,</text>
+  <text x="840" y="356" font-size="9.5" fill="#e8c268">not threadgroups: check the convention before the kernel</text>
+</svg>

@@ -14,6 +14,12 @@ CUDA equivalent, stage by stage:
 | fatbin / JIT-from-PTX | **metallib** → `MTLLibrary` → `MTLComputePipelineState` | the JIT path is the *only* path |
 | `-arch=sm_90` matrix | none needed | AIR finalizes per-device at pipeline creation |
 
+![Two compilation toolchains: CUDA ships machine code ahead of time, Metal ships portable AIR and always builds the GPU binary on the user's device, where function constants join the final compile](../../diagrams/compilation-pipeline.svg)
+
+*The dashed line is the ship boundary. CUDA crosses it with machine code;
+Metal crosses it with portable IR and finishes compiling on the user's device,
+which is what lets function constants participate in the final compile.*
+
 The practical differences from CUDA-land:
 
 **There is no offline path to machine code.** You can compile MSL → metallib ahead

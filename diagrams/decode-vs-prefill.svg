@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1380 420" role="img" aria-label="Prefill and decode compared: prefill is a fat matrix-matrix multiply that is compute bound; decode is one query row streaming the entire KV cache and all weights, bandwidth bound" font-family="Azeret Mono, ui-monospace, Menlo, monospace">
+  <!-- Hand-authored. Green = compute-bound work, amber = bandwidth-bound streaming. -->
+  <rect width="1380" height="420" rx="6" fill="#0d180a"/>
+
+  <!-- ===== prefill ===== -->
+  <text x="40" y="52" font-size="13" fill="#77ef5e">PREFILL · the prompt, all at once</text>
+  <g>
+    <!-- Q block -->
+    <rect x="40" y="80" width="120" height="180" fill="#2c5423" rx="3"/>
+    <text x="100" y="174" font-size="10.5" fill="#d9ead0" text-anchor="middle">Q</text>
+    <text x="100" y="192" font-size="9" fill="#a6cc97" text-anchor="middle">many rows</text>
+    <text x="200" y="174" font-size="14" fill="#6f9a62" text-anchor="middle">×</text>
+    <!-- K^T block -->
+    <rect x="240" y="80" width="180" height="180" fill="#1c3315" stroke="#24361d" rx="3"/>
+    <text x="330" y="174" font-size="10.5" fill="#d9ead0" text-anchor="middle">K&#7488; / weights</text>
+    <text x="450" y="174" font-size="14" fill="#6f9a62" text-anchor="middle">=</text>
+    <!-- result -->
+    <rect x="480" y="80" width="140" height="180" fill="#12240d" stroke="#77ef5e" rx="3"/>
+    <text x="550" y="168" font-size="10.5" fill="#a6cc97" text-anchor="middle">fat matmul</text>
+    <text x="550" y="186" font-size="9" fill="#6f9a62" text-anchor="middle">8×8 tiles everywhere</text>
+  </g>
+  <rect x="40" y="288" width="580" height="26" fill="#2c5423" rx="3"/>
+  <text x="330" y="305" font-size="10.5" fill="#d9ead0" text-anchor="middle">COMPUTE BOUND · the GEMM school's territory</text>
+  <text x="40" y="342" font-size="9.5" fill="#6f9a62">wants: tiling, register blocking, simdgroup_matrix,</text>
+  <text x="40" y="358" font-size="9.5" fill="#6f9a62">double buffering</text>
+
+  <!-- divider -->
+  <line x1="690" y1="40" x2="690" y2="380" stroke="#24361d"/>
+
+  <!-- ===== decode ===== -->
+  <text x="740" y="52" font-size="13" fill="#e8c268">DECODE · one token at a time</text>
+  <g>
+    <!-- single query row -->
+    <rect x="740" y="80" width="180" height="18" fill="#77ef5e" rx="2"/>
+    <text x="830" y="72" font-size="9.5" fill="#a6cc97" text-anchor="middle">one query row</text>
+    <text x="946" y="94" font-size="14" fill="#6f9a62" text-anchor="middle">·</text>
+    <!-- KV cache stream -->
+    <rect x="970" y="80" width="370" height="180" fill="#0f1e0c" stroke="#24361d" rx="3"/>
+    <g fill="#e8c268">
+      <rect x="984" y="94" width="342" height="14" rx="2"/>
+      <rect x="984" y="116" width="342" height="14" rx="2" opacity="0.85"/>
+      <rect x="984" y="138" width="342" height="14" rx="2" opacity="0.7"/>
+      <rect x="984" y="160" width="342" height="14" rx="2" opacity="0.55"/>
+      <rect x="984" y="182" width="342" height="14" rx="2" opacity="0.4"/>
+      <rect x="984" y="204" width="342" height="14" rx="2" opacity="0.3"/>
+      <rect x="984" y="226" width="342" height="14" rx="2" opacity="0.2"/>
+    </g>
+    <text x="1155" y="278" font-size="9.5" fill="#6f9a62" text-anchor="middle">the ENTIRE KV cache + all weights, streamed per token</text>
+  </g>
+  <!-- no 8x8 note -->
+  <text x="740" y="130" font-size="9.5" fill="#6f9a62">no 8×8 tile to fill:</text>
+  <text x="740" y="146" font-size="9.5" fill="#6f9a62">a reduction, not a matmul;</text>
+  <text x="740" y="162" font-size="9.5" fill="#6f9a62">vec kernels drop</text>
+  <text x="740" y="178" font-size="9.5" fill="#6f9a62">simdgroup_matrix entirely</text>
+  <rect x="740" y="288" width="600" height="26" fill="#e8c268" rx="3"/>
+  <text x="1040" y="305" font-size="10.5" fill="#1a1608" text-anchor="middle">BANDWIDTH BOUND · tok/s tracks the memory-bandwidth spec linearly</text>
+  <text x="740" y="342" font-size="9.5" fill="#6f9a62">wants: fewer bytes (quantization, KV compression), fewer</text>
+  <text x="740" y="358" font-size="9.5" fill="#6f9a62">syncs (one eval per token), split-KV two-pass reductions</text>
+
+  <!-- footer -->
+  <text x="690" y="398" font-size="10.5" fill="#a6cc97" text-anchor="middle">one API, two machines: every serious kernel family ships separate kernels for the two</text>
+</svg>

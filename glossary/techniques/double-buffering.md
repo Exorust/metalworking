@@ -34,6 +34,12 @@ before compute, one barrier per iteration.
 ```
 — [m5-gemm `sync_copy_db.metal:87-126`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy_db.metal#L87-L126), abridged
 
+![Three timelines comparing single-buffered serial load/compute, double-buffered overlap through ILP, and the dead DMA era's true copy-engine overlap](../../diagrams/double-buffering.svg)
+
+*What the restructuring buys. The green ticks are threadgroup barriers (one
+per iteration in the double-buffered loop); the ghosted third lane is the
+hardware overlap the platform lost with `simdgroup_async_copy`.*
+
 **The cost**: 2× threadgroup-memory footprint → fewer resident threadgroups →
 less [occupancy](../machine/occupancy.md)-based latency hiding. Double buffering
 trades one hiding mechanism for another, and the measured
