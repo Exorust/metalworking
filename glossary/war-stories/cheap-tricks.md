@@ -33,7 +33,9 @@ enthusiast quirk.
 And one honorable mention that rounds out the platform picture: the **ANE
 exists**. The Neural Engine, the third matrix engine on the die after the GPU
 and [AMX](../machine/amx.md), reaches ~6.6 TFLOPS/watt (vs ~1 for the GPU) but
-only speaks Core ML; the community's
+speaks only Apple's model frameworks (Core ML, superseded for generative
+workloads by Core AI in the macOS 27 cycle, which adds a documented hook for
+custom Metal kernels); the community's
 [reverse-engineering effort](https://www.reddit.com/r/LocalLLaMA/comments/1rhx5pc/)
 to train on it through private APIs is equal parts impressive and cautionary.
 For Metal work its main relevance is knowing that some workloads

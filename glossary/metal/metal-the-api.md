@@ -35,9 +35,11 @@ this mostly means the documentation, tooling, and half the API surface
 (render passes, textures) are about someone else's problems, and the compute story
 is comparatively under-documented. That gap is why this glossary exists.
 
-**One device, no topology.** No NVLink, no multi-GPU on one machine, no peer
-access. Distributed MLX exists over the network, but single-box scaling is
-[buy more unified memory](../machine/unified-memory.md), not add cards.
+**One device per box; the topology is between boxes.** No NVLink, no
+multi-GPU on one machine, no peer access; single-box scaling is
+[buy more unified memory](../machine/unified-memory.md), not add cards. Across
+boxes there is now a real story: [mx.distributed over Thunderbolt 5
+RDMA](../mlx/distributed.md) clusters Macs at microsecond latencies.
 
 From Python, you rarely touch this API directly: [MLX](../mlx/mlx-overview.md)
 wraps it, and PyObjC reaches it when you need raw control (the

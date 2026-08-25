@@ -1,8 +1,10 @@
 # Quantization
 
-**MLX quantizes weights group-wise affine (each group of 32/64/128 values along a
-row stores one scale, one bias, and 2-8 bit codes), and a dedicated kernel family
-multiplies against them without ever materializing the dequantized matrix.**
+**MLX's workhorse quantization is group-wise affine (each group of 32/64/128
+values along a row stores one scale, one bias, and 2-8 bit codes), and a
+dedicated kernel family multiplies against them without ever materializing the
+dequantized matrix. Since 2026 it is one of four modes: `affine`, `mxfp4`,
+`nvfp4`, and `mxfp8`.**
 
 CUDA equivalent: the weight-only-quantization kernels of TensorRT-LLM / AWQ /
 GPTQ-land. Same motivation, sharpened by the platform: on
@@ -40,6 +42,15 @@ a 2.24× end-to-end factor. The
 [sparse-V dequant-skip story](../war-stories/sparse-v.md) is the same insight one
 level deeper: dequantization cost is per-*use*, so work you can prove unnecessary
 (near-zero attention weights) is dequantization you can skip.
+
+**The newer modes are block-scaled floats**, not affine integers:
+[`mxfp4`, `nvfp4`, `mxfp8`](https://github.com/ml-explore/mlx/blob/43d2f06cb87e76895bf9a152bade4fee83408643/python/mlx/nn/layers/quantized.py#L13-L16)
+with group sizes 32/16/32, backed by `fp4.h`/`fp8.h` kernels, plus
+`quantize_input=True` for activation quantization (nvfp4/mxfp8, Linear
+layers). These are the formats the [M5 neural
+accelerators](../machine/neural-accelerators.md) consume natively, which is why
+they arrived together. The affine story below still carries the teaching load;
+just don't quote this page's first sentence as the whole picture.
 
 One trap for intuition: quantized kernels *dequantize on every use*. There is no
 cached fp16 copy; that would defeat the purpose. So arithmetic per byte rises,

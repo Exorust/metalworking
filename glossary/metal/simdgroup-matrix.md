@@ -41,6 +41,13 @@ Rules of use, all matching your `wmma` instincts:
   [F16 fragments halve the register cost](../machine/f16.md); serious kernels take
   16-bit inputs and [accumulate in fp32](../machine/f16.md).
 
+**On M5, this story forks.** The M5 generation adds a real per-core matrix
+unit (the [neural accelerators](../machine/neural-accelerators.md)) reached
+through [Metal 4 tensor ops](mtltensor-and-mpp.md), with Apple reporting
+multi-x prefill gains. `simdgroup_matrix` remains the portable primitive: it
+runs on every M-series chip, and it is still what most shipped kernels use.
+Read this page as the baseline; the NAX pages cover the fork.
+
 Everything above `simdgroup_matrix` is composition: MLX's
 [`BlockMMA`](../kernels/steel-blockmma.md) tiles these 8×8 fragments into
 simdgroup-level register blocks; [attention kernels](../kernels/steel-attention.md)

@@ -34,9 +34,11 @@ The components, each with its own case study:
   needs its middle matrix *transformed in place* between two matmuls, so `attn/`
   carries its own `mma.h`/`loader.h` with a different fragment layout. Don't mix
   the two subsystems up when reading.
-- **The `_nax` variants** (`gemm_nax.h`, ...): the Metal-4/M5-era tensor-op path.
-  Diffing one against its plain sibling shows exactly what the new instruction set
-  changes.
+- **The NAX fork** (`gemm/nax.h`, `attn/nax.h`, `quantized_nax.metal`,
+  `fp_quantized_nax.metal`, `gemm_nax.h`): a parallel steel targeting the
+  [M5 neural accelerators](../machine/neural-accelerators.md) through Metal 4
+  tensor ops, not a variant file. Diffing a `_nax` kernel against its plain
+  sibling shows exactly what the new hardware changes: the MMA layer.
 
 ![Steel's architecture: BlockLoader, BlockMMA, and epilogue transforms wired by the fused GEMM kernel, sibling wiring kernels reusing the same components, and the attention fork with its own loader and MMA](../../diagrams/steel-architecture.svg)
 

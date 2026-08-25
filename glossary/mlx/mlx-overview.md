@@ -41,8 +41,14 @@ Python (mx.*)                        NumPy-shaped API, lazy
 Where the alternatives sit: **llama.cpp**'s Metal backend
 ([case study](../kernels/llamacpp-attention.md)) is the other production-grade
 kernel body on the platform, C/C++ with no Python layer, organized around
-quantized formats. **PyTorch MPS** runs but is a port, not a native design; its
-ops dispatch to [MPS](../metal/mps.md) rather than open kernels. **MLX is where
-kernel-level work happens** if you want to touch the stack this glossary teaches.
+quantized formats. **PyTorch MPS** runs and is improving: since 2.13 it ships hand-written
+Metal kernels for hot paths like FlexAttention
+([release notes](https://pytorch.org/blog/pytorch-2-13-release-blog/)) rather
+than dispatching everything to [MPS](../metal/mps.md). It remains a port of a
+CUDA-native design. MLX also now has a [CUDA
+backend](https://ml-explore.github.io/mlx/build/html/install.html), making it
+a two-backend framework rather than an Apple-only one. **MLX's Metal backend
+is still where kernel-level work happens** if you want to touch the stack this
+glossary teaches.
 
 Next: [Lazy evaluation](lazy-evaluation.md)

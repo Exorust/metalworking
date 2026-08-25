@@ -19,11 +19,19 @@ checks), and capture perturbs heavily on big ML workloads, with inference projec
 reporting 50-100× slowdowns and multi-GB traces. Usable for staring at one
 dispatch; unusable as a feedback loop.
 
-**Metal 4's counter API: timestamps only.** The hardware counters that would give
-you achieved occupancy, stall reasons, or DRAM traffic per kernel are not in the
-public API at any version. This is not an oversight being fixed; the API surface
-narrowed. (Apple's own job postings for Metal instrumentation engineers suggest
-they know.)
+**Metal 4's counter API: timestamps only, through macOS 26.** The hardware
+counters that would give you achieved occupancy, stall reasons, or DRAM traffic
+per kernel are not in the public *programmatic* API through macOS 26. The GUI
+capture does surface them: flash-moe's
+[I/O exploration notes](https://github.com/gorroai/flash-moe/blob/4df3af8278c4bef2e7f6b34f61e4e2596b58e93b/docs/io-and-gpu-exploration.md)
+pulled a full instruction-cost breakdown from a Metal GPU trace (63.9% math,
+25% type conversion from bf16 scale/bias, 93.4% L1 hit rate, 2.4% GPU
+utilization: the model was I/O-bound, not compute-bound). And the story is
+changing: macOS 27 adds always-on performance metrics, a `metalperftrace`
+command-line tool, and a StateReporting API
+([WWDC26 session 388](https://developer.apple.com/videos/play/wwdc2026/388/)),
+which would give this page its first scriptable feedback loop. Until that
+ships and proves out, the methodology below stands.
 
 So the working methodology, which the [war stories](../war-stories/three-questions.md)
 independently converge on:
@@ -49,4 +57,4 @@ independently converge on:
    and state matrix sizes, since
    [the winner flips with size](../kernels/gemm-double-buffered.md).
 
-Next section: [MLX](../mlx/mlx-overview.md)
+Next: [Disassembly](disassembly.md)

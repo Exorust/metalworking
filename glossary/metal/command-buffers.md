@@ -16,7 +16,7 @@ MTLCommandQueue                  — ordered lane of work (make one, keep it)
         setComputePipelineState, setBuffer, dispatchThreadgroups, ...
 ```
 
-Encoding is cheap CPU work; `commit()` hands the whole batch to the GPU;
+Encoding happens on the CPU; `commit()` hands the whole batch to the GPU;
 `waitUntilCompleted` (or a completion handler) is the sync point. Two rules of
 thumb carry most of the value:
 
@@ -35,6 +35,18 @@ command buffer; [flash-moe](../war-stories/three-questions.md) pre-encodes
 command buffers before the GPU needs them; [MLX's scheduler](../mlx/lazy-evaluation.md)
 exists to batch this way automatically. When a port from CUDA is mysteriously
 slow at small batch sizes, count your command buffers first.
+
+**Encoding itself can become the wall.** Host-side encode costs ~2.9 µs per
+dispatch, size-independent, and at framework-graph scale that adds up: the
+[MTPLX dispatch census](https://github.com/youssofal/MTPLX/blob/ed1c8eea501689b744c13bec6a99ee2d36d26ab5/docs/perf/deepseek-v4-dispatch-levers.md)
+measured one bf16 DeepSeek-V4 decode step at **19,809 dispatches in 384
+command buffers, with host encode at 56-59 ms against 32-35 ms of GPU
+execution**. The encode was exposed, not hidden. The fix was structural
+(collapse a normalization chain, one shared `mx.compile` tape): -26% dispatches,
+worth ~15 ms of host encode per token. So the earlier rule has a ceiling:
+batching hides *per-buffer* overhead, but a graph that emits tens of thousands
+of tiny dispatches pays the encoder tax anyway. Count dispatches, not just
+buffers.
 
 **Sync as rarely as possible.** `waitUntilCompleted` drains the pipeline: the GPU
 goes idle while the CPU wakes, reads, and re-encodes. On
