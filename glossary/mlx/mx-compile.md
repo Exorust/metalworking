@@ -43,4 +43,4 @@ Custom [`metal_kernel`](mx-fast.md) effort belongs on the patterns compile can't
 see: reductions with structure, [softmax-shaped streaming](../techniques/online-softmax.md),
 [quantization-aware loops](quantization.md).
 
-Next section: [Techniques](../techniques/arithmetic-intensity.md)
+Next: [Distributed MLX](distributed.md)

@@ -36,7 +36,12 @@ attention fused?" is answered:
 — [`scaled_dot_product_attention.cpp:629-644`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/scaled_dot_product_attention.cpp#L629-L644), abridged
 
 Fall outside those conditions (an unusual head dim, a mask type the kernel lacks,
-training mode) and you silently get the unfused fallback graph. The
+training mode) and you silently get the unfused fallback graph. On current MLX
+the silence is fixed: the gate is refactored into
+[`has_fused_kernel()`](https://github.com/ml-explore/mlx/blob/43d2f06cb87e76895bf9a152bade4fee83408643/mlx/backend/metal/scaled_dot_product_attention.cpp#L633)
+returning a human-readable reason string, and a `force_fused` argument raises
+with that reason instead of falling back. "Why isn't my attention fused?" is
+now an API call. The
 [DFlash war story's](../war-stories/three-questions.md) single best win was a
 head-dim patch moving a model *inside* this gate. Note also what the file admits:
 the fused kernel has no backward on Metal (training takes the fallback), one of
@@ -62,6 +67,9 @@ headers go in separate arguments; and there's no
 kernel whose performance depends on those
 ([register-pressure-critical GEMMs](../machine/registers.md)), drop to PyObjC and
 [raw Metal](../metal/metal-the-api.md) instead. It's the right tool for fused
-elementwise/reduction ops, and the wrong tool for beating steel.
+elementwise/reduction ops, and the wrong tool for beating steel. That last
+clause is measured, not folklore: [the MTPLX port
+ledger](../war-stories/the-failures.md) shows exactly which side of the line
+each kernel type lands on.
 
 Next: [Quantization](quantization.md)

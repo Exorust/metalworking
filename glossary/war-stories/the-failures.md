@@ -32,6 +32,19 @@ share of real runtime was too small for its speedup to register. The
 [roofline page's hygiene rules](../techniques/roofline.md) exist because of this
 failure mode; it is the most common one in public benchmark claims.
 
+**The mechanism, finally measured.** The MTPLX project ported every kernel
+from a Metal optimization challenge onto a new model's geometry and published
+the full ledger
+([PORT_KERNEL_LEDGER](https://github.com/youssofal/MTPLX/blob/ed1c8eea501689b744c13bec6a99ee2d36d26ab5/docs/laguna-mlxfast-port/PORT_KERNEL_LEDGER.md),
+Apache-2.0): 15 kernels, GPU-validated, individually timed. Score: 2 wins,
+11 losses, 1 no-lever, and both wins were *prefill fusions* where stock MLX
+has no MMA-backed path. The ledger's own thesis: cross-op **fusion**
+transfers; hand **GEMV/attention** kernels do not, "because they race MLX's
+`mlx::steel` MMA (`gather_qmm`, flash-SDPA) which `mx.fast.metal_kernel`
+cannot reach." That is the 0.5-0.8× prior explained: the fast paths live
+below the API your custom kernel is written against. Wins happen where no
+fast path exists to race.
+
 The compiled checklist for reading (or making) an "X% faster on Apple Silicon"
 claim:
 

@@ -34,6 +34,16 @@ Everything the track draws from, plus the feeds for staying current. All URLs ve
 - Methodology check: ["I beat MLX's SDPA... then discovered it was useless"](https://medium.com/@rajveer.rathod1301/i-built-a-flashattention-kernel-that-beat-mlxs-sdpa-then-i-discovered-it-was-useless-e4ce6ebf953c) - 1.2-1.3x synthetic, 0% end-to-end.
 - [A Hard Look at Softmax: Torch vs MLX](https://aditvenk.substack.com/p/a-hard-look-at-softmax-torch-vs-mlx) - dissects MLX's hand-tuned softmax shader.
 
+## 2026 platform shifts (added 2026-08-24)
+
+- [WWDC26 330: Metal 4 tensors + neural accelerators](https://developer.apple.com/videos/play/wwdc2026/330/) and [WWDC25 262](https://developer.apple.com/videos/play/wwdc2025/262/) - the MTLTensor / MPP programming model.
+- [Apple ML Research: LLMs with MLX on M5](https://machinelearning.apple.com/research/exploring-llms-mlx-m5) - ~3.97x TTFT, 1.19-1.27x decode from the neural accelerators.
+- [WWDC26 233: distributed MLX](https://developer.apple.com/videos/play/wwdc2026/233/) + [MLX distributed docs](https://ml-explore.github.io/mlx/build/html/usage/distributed.html) + [TB5 RDMA cluster build](https://www.sean-weldon.com/blog/2026-06-16-clustering-mac-studios-for-local-ai-apple-rdma-over-thunderbolt-5) - JACCL, ring vs RDMA.
+- [WWDC26 388: Metal performance tools](https://developer.apple.com/videos/play/wwdc2026/388/) - always-on metrics, `metalperftrace` CLI (macOS 27).
+- [vllm-project/vllm-metal](https://github.com/vllm-project/vllm-metal) - paged varlen attention as the default backend; serving-grade KV.
+- [PyTorch 2.13 release](https://pytorch.org/blog/pytorch-2-13-release-blog/) - hand-written Metal kernels (FlexAttention) in the MPS backend.
+- Core AI supersedes Core ML for generative workloads in the macOS 27 cycle ([WWDC26 324](https://developer.apple.com/videos/play/wwdc2026/324/)); documented custom-Metal-kernel hook.
+
 ## Twitter/X
 
 Must-follows:

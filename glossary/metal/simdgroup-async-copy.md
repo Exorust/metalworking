@@ -47,4 +47,4 @@ scheduler interleaves. That substitution, DMA overlap traded for ILP overlap, is
 the single clearest example of why current Apple kernels look different from their
 CUDA cousins, and why a future public async-copy API would reshape them again.
 
-Next: [MPS](mps.md)
+Next: [MTLTensor and MPP](mtltensor-and-mpp.md)

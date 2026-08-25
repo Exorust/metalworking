@@ -42,4 +42,4 @@ region over: the Neural Engine, also undocumented, also reachable only through
 private interfaces, at ~6.6 TFLOPS/watt. The GPU is one of *three* matrix engines
 on this die, and Metal only talks to one of them.
 
-Next section: [Metal, the stack](../metal/metal-the-api.md)
+Next: [Neural accelerators](neural-accelerators.md)

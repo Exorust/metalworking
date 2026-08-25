@@ -37,6 +37,7 @@ referenced repo at its pinned commit for browsing beyond the excerpts.
 - [F16](glossary/machine/f16.md) - faster for stall and register reasons, not throughput reasons
 - [Special Paths](glossary/machine/special-paths.md) - the fast exp2; the emulated float atomics
 - [AMX](glossary/machine/amx.md) - the other matrix engine on the die
+- [Neural Accelerators](glossary/machine/neural-accelerators.md) - the M5's real tensor unit, and what it changes
 
 ## Metal, the Stack
 
@@ -51,8 +52,10 @@ referenced repo at its pinned commit for browsing beyond the excerpts.
 - [Synchronization](glossary/metal/synchronization.md) - barriers cost ~2 cycles; design accordingly
 - [simdgroup_matrix](glossary/metal/simdgroup-matrix.md) - the tensor-core analogue that isn't one
 - [simdgroup_async_copy](glossary/metal/simdgroup-async-copy.md) - the dead `cp.async`, and why kernels look the way they do
+- [MTLTensor and MPP](glossary/metal/mtltensor-and-mpp.md) - Metal 4's tensor model: descriptors, cooperative tensors
 - [MPS](glossary/metal/mps.md) - the cuBLAS analogue, and why it's beatable
-- [Profiling](glossary/metal/profiling.md) - the honest page: there is no Nsight
+- [Profiling](glossary/metal/profiling.md) - the honest page: there is no Nsight (yet)
+- [Disassembly](glossary/metal/disassembly.md) - reading what the compiler actually emitted
 
 ## MLX
 
@@ -65,6 +68,7 @@ referenced repo at its pinned commit for browsing beyond the excerpts.
 - [mx.fast](glossary/mlx/mx-fast.md) - fused ops, the SDPA dispatch gate, and the custom-kernel escape hatch
 - [Quantization](glossary/mlx/quantization.md) - group-wise affine, QMV/QMM, and bandwidth arithmetic
 - [mx.compile](glossary/mlx/mx-compile.md) - elementwise fusion, deliberately scoped
+- [Distributed](glossary/mlx/distributed.md) - Mac clusters over Thunderbolt 5 RDMA
 
 ## Techniques
 
@@ -79,6 +83,7 @@ referenced repo at its pinned commit for browsing beyond the excerpts.
 - [Fusion and Epilogues](glossary/techniques/fusion-and-epilogues.md) - the platform's most profitable technique
 - [Online Softmax](glossary/techniques/online-softmax.md) - the five-line algorithm behind flash attention
 - [Flash Attention](glossary/techniques/flash-attention.md) - never materialize the score matrix
+- [The KV Cache](glossary/techniques/kv-cache.md) - the structure decode streams, and its K/V asymmetry
 - [Decode vs Prefill](glossary/techniques/decode-vs-prefill.md) - one API, two workloads, separate kernels
 
 ## Kernels: the Case Studies
@@ -94,6 +99,7 @@ referenced repo at its pinned commit for browsing beyond the excerpts.
 - [Steel Attention](glossary/kernels/steel-attention.md) - the whole flash-attention algorithm, readable
 - [metal-flash-attention](glossary/kernels/mfa-codegen.md) - the codegen school
 - [llama.cpp Attention](glossary/kernels/llamacpp-attention.md) - the enumeration school, quantized to the bone
+- [The NAX GEMM](glossary/kernels/nax-gemm.md) - the fourth school: describe the matmul, let the hardware place it
 
 ## War Stories
 

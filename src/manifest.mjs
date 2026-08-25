@@ -15,6 +15,7 @@ export const SECTIONS = [
     ["f16", "F16", "fp16"],
     ["special-paths", "Special Paths", ""],
     ["amx", "AMX", ""],
+    ["neural-accelerators", "Neural Accelerators", "Tensor Core"],
   ]},
   { dir: "metal", title: "Metal, the Stack", pages: [
     ["metal-the-api", "Metal, the API", "CUDA"],
@@ -26,8 +27,10 @@ export const SECTIONS = [
     ["synchronization", "Synchronization", ""],
     ["simdgroup-matrix", "simdgroup_matrix", "wmma"],
     ["simdgroup-async-copy", "simdgroup_async_copy", "cp.async"],
+    ["mtltensor-and-mpp", "MTLTensor and MPP", "TMA"],
     ["mps", "MPS", "cuBLAS"],
     ["profiling", "Profiling", "Nsight"],
+    ["disassembly", "Disassembly", "SASS"],
   ]},
   { dir: "mlx", title: "MLX", pages: [
     ["mlx-overview", "MLX, an Overview", ""],
@@ -37,6 +40,7 @@ export const SECTIONS = [
     ["mx-fast", "mx.fast", ""],
     ["quantization", "Quantization", ""],
     ["mx-compile", "mx.compile", ""],
+    ["distributed", "Distributed", "NCCL"],
   ]},
   { dir: "techniques", title: "Techniques", pages: [
     ["arithmetic-intensity", "Arithmetic Intensity", ""],
@@ -48,6 +52,7 @@ export const SECTIONS = [
     ["fusion-and-epilogues", "Fusion and Epilogues", ""],
     ["online-softmax", "Online Softmax", ""],
     ["flash-attention", "Flash Attention", ""],
+    ["kv-cache", "The KV Cache", ""],
     ["decode-vs-prefill", "Decode vs Prefill", ""],
   ]},
   { dir: "kernels", title: "Kernels", pages: [
@@ -60,6 +65,7 @@ export const SECTIONS = [
     ["steel-attention", "Steel Attention", ""],
     ["mfa-codegen", "metal-flash-attention", ""],
     ["llamacpp-attention", "llama.cpp Attention", ""],
+    ["nax-gemm", "The NAX GEMM", ""],
   ]},
   { dir: "war-stories", title: "War Stories", pages: [
     ["three-questions", "The Three Questions", ""],

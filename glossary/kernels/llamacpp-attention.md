@@ -56,4 +56,4 @@ because non-matmul ops dominate. The quantized GEMM family shares the file
 [~line 10048](https://github.com/ggml-org/llama.cpp/blob/3653e6d6d547ec763317d9ecd0ace334a7e21359/ggml/src/ggml-metal/ggml-metal.metal#L10048));
 most [war stories](../war-stories/sparse-v.md) are fought inside it.
 
-Next section: [War stories](../war-stories/three-questions.md)
+Next: [The NAX GEMM](nax-gemm.md)

@@ -33,6 +33,7 @@ get metal-matmul          https://github.com/0xekez/metal-matmul                
 get m5-gemm               https://github.com/yaroslavvb/m5-gemm                 29414bebb522ddacaa009959f2bcdad9f5b3e5cf
 get metal-flash-attention https://github.com/philipturner/metal-flash-attention 8671cddc38f19a6eadb804dee6a3ca2954b8bf32
 get mlx-steel-kernels     https://github.com/ml-explore/mlx                     47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6 mlx/backend/metal/kernels
+get mlx-current           https://github.com/ml-explore/mlx                     43d2f06cb87e76895bf9a152bade4fee83408643 mlx/backend/metal/scaled_dot_product_attention.cpp python/mlx/nn/layers/quantized.py
 get llama-cpp-metal       https://github.com/ggml-org/llama.cpp                 3653e6d6d547ec763317d9ecd0ace334a7e21359 ggml/src/ggml-metal
 get luminal               https://github.com/luminal-ai/luminal                 bea18ecfb01c4e454e3f2d1979f20d8e85286f64
 get applegpu              https://github.com/dougallj/applegpu                  4c5bae61086b8067231120c98b4756d7696d399c

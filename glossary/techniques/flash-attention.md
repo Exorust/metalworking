@@ -47,12 +47,25 @@ correction. Same hardware, same math, three defensible kernels.
 Boundaries of the technique on this platform, both load-bearing for practice.
 **Decode is a different problem**: one query row can't fill an 8×8 tile, so every
 implementation ships a separate [vector kernel](decode-vs-prefill.md). **The
-backward pass is unfinished business**: MLX's fused attention
-[has no Metal backward](../mlx/mx-fast.md) (training falls back to the unfused
-graph), and the one open-source backward
+backward pass is unfinished business.** MLX's fused attention has no Metal
+backward; the entire GPU implementation, verbatim:
+
+```cpp
+bool ScaledDotProductAttentionVJP::use_fallback(const array& q, Stream s) {
+  return true;
+}
+
+void ScaledDotProductAttentionVJP::eval_gpu(
+    const std::vector<array>& inputs,
+    std::vector<array>& outputs) {
+  throw std::runtime_error("NYI");
+```
+— [MLX `scaled_dot_product_attention.cpp:796-803`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/scaled_dot_product_attention.cpp#L796-L803)
+(still true on main; training falls back to the
+[unfused graph](../mlx/mx-fast.md)). And the one open-source backward
 ([MFA's split dQ / dK-dV design](../kernels/mfa-codegen.md), forced by
 [emulated float atomics](../machine/special-paths.md)) ships in Draw Things, not
 in a framework. If you're looking for the ecosystem's most valuable unwritten
 kernel, it's this one.
 
-Next: [Decode vs prefill](decode-vs-prefill.md)
+Next: [The KV cache](kv-cache.md)
