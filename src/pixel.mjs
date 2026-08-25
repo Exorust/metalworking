@@ -16,21 +16,34 @@ export const FONT = {
   Y: ["10001","01010","00100","00100","00100"],
 };
 
-export function pixelLine(word, cls = "px-art") {
+// Second face: 7x7 with 2-cell strokes. Solid and chunky where FONT is thin
+// and outlined, so the two words of the banner read as different typefaces.
+export const HEAVY = {
+  W: ["1100011","1100011","1100011","1100011","1101011","1111111","0110110"],
+  O: ["0111110","1111111","1100011","1100011","1100011","1111111","0111110"],
+  R: ["1111110","1111111","1100011","1111111","1111100","1100110","1100011"],
+  K: ["1100011","1100110","1101100","1111000","1101100","1100110","1100011"],
+  I: ["1111111","1111111","0011100","0011100","0011100","1111111","1111111"],
+  N: ["1100011","1110011","1111011","1101111","1100111","1100011","1100011"],
+  G: ["0111110","1111111","1100000","1100111","1100011","1111111","0111111"],
+};
+
+export function pixelLine(word, cls = "px-art", font = FONT) {
   const P = 8, GAP = 1, LGAP = 6; // px per cell, cell gap, letter gap
-  let x = 0; const letters = [];
+  let x = 0, rows = 0; const letters = [];
   for (const ch of word) {
     if (ch === " ") { x += 3 * (P + GAP); continue; }
-    const g = FONT[ch];
+    const g = font[ch];
     const rects = [];
-    for (let r = 0; r < 5; r++)
-      for (let c = 0; c < 5; c++)
+    rows = Math.max(rows, g.length);
+    for (let r = 0; r < g.length; r++)
+      for (let c = 0; c < g[r].length; c++)
         if (g[r][c] === "1")
           rects.push(`<rect x="${x + c * (P + GAP)}" y="${r * (P + GAP)}" width="${P}" height="${P}"/>`);
     letters.push({ x, body: rects.join("") });
-    x += 5 * (P + GAP) + LGAP;
+    x += g[0].length * (P + GAP) + LGAP;
   }
-  const w = x - LGAP, h = 5 * (P + GAP) - GAP;
+  const w = x - LGAP, h = rows * (P + GAP) - GAP;
   // One <g> per letter so the landing page can "type" them in sequence.
   const body = letters.map(L =>
     `<g class="px-letter" data-x="${L.x}"><g class="px-shadow" transform="translate(3.5,3.5)">${L.body}</g><g class="px-fill">${L.body}</g></g>`).join("");
@@ -60,6 +73,6 @@ export function pixelArrow() {
 
 // Landing composition mirrors banner.png: big METAL, smaller WORKING, tagline.
 export const TITLE_ART =
-  `<div class="pixel-title">${pixelLine("METAL", "px-art px-big")}${pixelLine("WORKING", "px-art px-small")}` +
+  `<div class="pixel-title">${pixelLine("METAL", "px-art px-big")}${pixelLine("WORKING", "px-art px-small px-heavy", HEAVY)}` +
   `<div class="tagline">The craft of making Apple Silicon GPUs go fast.</div></div>`;
 export const MARK = pixelLine("M", "px-mark");

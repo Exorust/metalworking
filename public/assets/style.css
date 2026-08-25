@@ -322,6 +322,8 @@ body {
 .px-art { display: block; height: auto; }
 .px-big { width: min(620px, 92%); }
 .px-small { width: min(380px, 62%); margin-top: 14px; }
+/* the heavy face is solid by design; the offset outline would muddy it */
+.px-heavy .px-shadow { display: none; }
 .px-fill rect { fill: var(--px); }
 .px-shadow rect { fill: none; stroke: var(--fg); stroke-width: 0.9; opacity: 0.6; }
 .tagline { color: var(--muted); margin-top: 1.3rem; font-size: 0.95rem; }
