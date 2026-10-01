@@ -6,6 +6,7 @@ export const DEFAULT_DESC =
 
 export const SECTIONS = [
   { dir: "machine", title: "The Machine", pages: [
+    ["nvidia-to-metal", "NVIDIA to Metal", ""],
     ["gpu-core", "GPU Core", "SM"],
     ["simdgroup", "Simdgroup", "warp"],
     ["registers", "Registers", ""],

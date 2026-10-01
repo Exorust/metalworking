@@ -28,6 +28,7 @@ referenced repo at its pinned commit for browsing beyond the excerpts.
 
 *The M-series GPU, as a diff against the GPU you already know.*
 
+- [NVIDIA to Metal](glossary/machine/nvidia-to-metal.md) - every CUDA term next to its Apple counterpart; start here
 - [GPU Core](glossary/machine/gpu-core.md) - the SM analogue, and the numbers that differ
 - [Simdgroup](glossary/machine/simdgroup.md) - the warp, renamed
 - [Registers](glossary/machine/registers.md) - ~208 KB per core, the real budget, and the 10× spill cliff
