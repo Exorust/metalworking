@@ -23,7 +23,7 @@ use site is the interesting half:
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
 ```
-— [`async_copy.metal:101-115`](https://github.com/0xekez/metal-matmul/blob/04e80810bbf7ba96ebe26ff84a346d179ee50888/async_copy.metal#L101-L115), abridged
+Source: [`async_copy.metal:101-115`](https://github.com/0xekez/metal-matmul/blob/04e80810bbf7ba96ebe26ff84a346d179ee50888/async_copy.metal#L101-L115), abridged
 
 Read `if (s_pos==0)`: **one simdgroup issues the copy for the whole threadgroup**,
 fires both transfers, waits on the events; everyone else just waits at the

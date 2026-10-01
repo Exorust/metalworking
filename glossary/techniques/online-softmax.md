@@ -38,7 +38,7 @@ Recognition guide: the same five lines in two production dialects.
     // Update O
     Otile.template row_bin_op<MulOp>(factor);
 ```
-— [MLX `steel_attention.h:397-420`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/attn/kernels/steel_attention.h#L397-L420), abridged
+Source: [MLX `steel_attention.h:397-420`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/attn/kernels/steel_attention.h#L397-L420), abridged
 
 ```swift
     float correction = 1;
@@ -47,7 +47,7 @@ Recognition guide: the same five lines in two production dialects.
       m = m_new;
     }
 ```
-— [metal-flash-attention `AttentionKernel+Softmax.swift:293-298`](https://github.com/philipturner/metal-flash-attention/blob/8671cddc38f19a6eadb804dee6a3ca2954b8bf32/Sources/FlashAttention/Attention/AttentionKernel/AttentionKernel+Softmax.swift#L293-L298)
+Source: [metal-flash-attention `AttentionKernel+Softmax.swift:293-298`](https://github.com/philipturner/metal-flash-attention/blob/8671cddc38f19a6eadb804dee6a3ca2954b8bf32/Sources/FlashAttention/Attention/AttentionKernel/AttentionKernel+Softmax.swift#L293-L298)
 
 (Note MFA's `if` guard vs MLX's unconditional multiply: a genuine branch-cost vs
 multiply-cost disagreement between two good kernels.) Both compute in **base 2**,

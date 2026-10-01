@@ -16,7 +16,7 @@ What this buys:
   all.
 - **No transfer engineering.** No `cudaMemcpy`, no pinned host memory, no
   overlap-copy-with-compute streams choreography. A whole genre of CUDA
-  optimization simply doesn't exist here.
+  optimization doesn't exist here.
 - **Cheap CPU⇄GPU cooperation**, with a caveat: data is free to share, but
   *synchronizing* still costs. Waiting on GPU results forces a pipeline drain, which
   is why [MLX is lazy](../mlx/lazy-evaluation.md) and why halving forced syncs is a

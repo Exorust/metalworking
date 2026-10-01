@@ -19,7 +19,7 @@ struct BaseNAXFrag {
 
   STEEL_CONST short kElemsPerFrag = (kFragRows * kFragCols) / 32;
 ```
-— [MLX `steel/gemm/nax.h:27-31`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/nax.h#L27-L31);
+Source: [MLX `steel/gemm/nax.h:27-31`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/nax.h#L27-L31);
 the file opens with
 `#include <MetalPerformancePrimitives/MetalPerformancePrimitives.h>` and
 wraps MPP's tensor ops in the same loader/MMA/epilogue decomposition
@@ -53,7 +53,7 @@ What distinguishes the school, against the other three case-study lineages:
   fallback discipline MLX uses (NAX steel compiles alongside plain steel;
   dispatch picks per hardware).
 
-Status, honestly: this school is the youngest, its tuning is visibly in
+Status: this school is the youngest, its tuning is visibly in
 flux (recent MLX commits adjust NAX tile picks and batch limits release by
 release), and nothing here runs on pre-M5 hardware. Read it as the direction
 of travel, with the [tiled GEMM](gemm-tiled.md) still the foundation course.

@@ -43,7 +43,7 @@ Two behavioral notes that differ from a modern SM:
   simple coalesced staging, frequent syncs, no clever scatter tricks.
 
 There is no `cudaFuncAttributePreferredSharedMemoryCarveout` equivalent. The 32 KB
-cap is the cap. When a working set won't fit, the answer is almost always "keep more
+cap is fixed. When a working set won't fit, the answer is almost always "keep more
 of it in registers," not "get more shared memory."
 
 Next: [Unified memory](unified-memory.md)

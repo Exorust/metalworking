@@ -13,7 +13,7 @@ is the long tail between them.
 
 Why that tail matters here more than on NVIDIA: an unfused elementwise chain
 (say, SiLU → multiply → add in a transformer MLP) writes each intermediate to
-[unified memory](../machine/unified-memory.md) and reads it back. Pure
+[unified memory](../machine/unified-memory.md) and reads it back. That is pure
 [bandwidth](../techniques/roofline.md) burn on the platform's scarcest resource,
 plus [per-dispatch overhead](../metal/command-buffers.md) on each tiny kernel.
 Fusing the chain into one generated kernel deletes both. This is

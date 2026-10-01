@@ -25,7 +25,7 @@ chip class *is* a practical ceiling (13.5 TFLOPS fp32 on a 40-core M5 Max, from
 
 ![Roofline chart: performance versus arithmetic intensity, with the measured bandwidth slope, the practical compute ceiling, the ridge point, and example workloads on each side](../../diagrams/roofline.svg)
 
-*The chart the page has been describing. Everything left of the ridge point is
+*This is the chart the page has been describing. Everything left of the ridge point is
 capped by the amber slope no matter how clever the ALU work; everything right
 of it answers to the green ceiling. The example points are this glossary's own
 recurring cast.*

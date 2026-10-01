@@ -41,7 +41,7 @@ unroll the way the source suggests, and instruction selection surprises
 (the [compilation-pipeline page](compilation-pipeline.md)'s "expect one
 surprise every time you look" is this page's summary).
 
-Two honest caveats. First, coverage tracks the reverse-engineering effort,
+Two caveats. First, coverage tracks the reverse-engineering effort,
 not Apple's release schedule: newest-generation instructions (the
 [NAX](../machine/neural-accelerators.md) tensor paths especially) lag until
 someone maps them. Second, everything here is unsupported surface, the same

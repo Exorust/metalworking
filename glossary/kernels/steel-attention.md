@@ -16,7 +16,7 @@ constant bool has_mask [[function_constant(300)]];
 constant bool do_causal [[function_constant(301)]];
 constant bool has_sinks [[function_constant(302)]];
 ```
-— [`steel_attention.h:11-16`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/attn/kernels/steel_attention.h#L11-L16)
+Source: [`steel_attention.h:11-16`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/attn/kernels/steel_attention.h#L11-L16)
 
 The register layout tells you the loop's shape: Q resident, K/V streaming, and
 `Stile` (the score tile that naive attention writes to DRAM) as pure
@@ -29,7 +29,7 @@ The register layout tells you the loop's shape: Q resident, K/V streaming, and
   MMATile<AccumType, 1, 1, MMAFrag_acc_t> Vtile;
   MMATile<AccumType, TQ, TD, MMAFrag_acc_t> Otile;
 ```
-— [`steel_attention.h:186-190`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/attn/kernels/steel_attention.h#L186-L190)
+Source: [`steel_attention.h:186-190`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/attn/kernels/steel_attention.h#L186-L190)
 
 `Stile` is born from `Q·Kᵀ`, masked in place, softmaxed in place, multiplied
 against V, and dies without ever touching memory. This in-place transformation is
@@ -54,15 +54,14 @@ M_LOG2E_F` at [line 166](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d1
     // Update O
     Otile.template row_bin_op<MulOp>(factor);
 ```
-— [`steel_attention.h:391-420`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/attn/kernels/steel_attention.h#L391-L420), abridged
+Source: [`steel_attention.h:391-420`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/attn/kernels/steel_attention.h#L391-L420), abridged
 
 `factor` is the correction `c`; the final `DivOp` normalize is at
 [line 460](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/attn/kernels/steel_attention.h#L460).
 If the [online-softmax page](../techniques/online-softmax.md) landed, this file
 holds no surprises, which is the point of reading it second.
 
-Details that reward attention: causal handling is a **loop-bound computation, not
-a mask**. `kb_lim` at
+Other details: causal handling is a **loop-bound computation, not a mask**. `kb_lim` at
 [lines 239-247](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/attn/kernels/steel_attention.h#L239-L247)
 means tiles above the diagonal are never visited
 ([question 1: delete work](../war-stories/three-questions.md)). K loads

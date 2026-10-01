@@ -25,7 +25,7 @@ for (ushort i = 0; i < DIM * 8; i += 8) {
   simdgroup_multiply_accumulate(acc, A_simd, B_simd, acc);
 }
 ```
-— [m5-gemm `sync_copy.metal:29-35`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L29-L35)
+Source: [m5-gemm `sync_copy.metal:29-35`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L29-L35)
 
 Rules of use, all matching your `wmma` instincts:
 

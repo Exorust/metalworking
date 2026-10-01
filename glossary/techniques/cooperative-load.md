@@ -33,7 +33,7 @@ inline void load_tile(
       dst4[idx] = src4[uint(r) * stride4 + c];
     }
 ```
-— [m5-gemm `sync_copy.metal:46-71`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L46-L71), abridged
+Source: [m5-gemm `sync_copy.metal:46-71`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L46-L71), abridged
 
 With a 64×16 tile and 128 threads, that's two `float4` loads per thread; the
 whole staging step is a few hundred instructions across the group.
@@ -43,7 +43,7 @@ The productionized version is steel's
 arithmetic (elements per thread, thread-to-tile mapping) from template parameters
 at compile time, expresses vector width as an `alignas` struct so the compiler
 emits the widest legal load, and adds a bounds-checked `load_safe` twin for
-ragged edges, selected per-pipeline by
+ragged edges, selected per pipeline by
 [function constants](../metal/function-constants.md) so aligned dispatches never
 pay for checks.
 

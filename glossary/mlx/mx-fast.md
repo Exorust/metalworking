@@ -11,7 +11,7 @@ custom kernels without leaving Python.
 The fused ops (`scaled_dot_product_attention`, `rms_norm`, `layer_norm`, `rope`)
 exist because of [the platform's one law](../machine/unified-memory.md): each is a
 handful of graph ops fused into one kernel to avoid materializing intermediates.
-[Fusion](../techniques/fusion-and-epilogues.md) as a product surface. SDPA is the
+This is [fusion](../techniques/fusion-and-epilogues.md) as a product surface. SDPA is the
 big one: it runs the [steel attention kernel](../kernels/steel-attention.md) for
 prefill and the [vector kernels](../techniques/decode-vs-prefill.md) for decode.
 
@@ -33,7 +33,7 @@ attention fused?" is answered:
 
   return !(supports_sdpa_full || supports_sdpa_vector);
 ```
-— [`scaled_dot_product_attention.cpp:629-644`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/scaled_dot_product_attention.cpp#L629-L644), abridged
+Source: [`scaled_dot_product_attention.cpp:629-644`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/scaled_dot_product_attention.cpp#L629-L644), abridged
 
 Fall outside those conditions (an unusual head dim, a mask type the kernel lacks,
 training mode) and you silently get the unfused fallback graph. On current MLX
@@ -68,7 +68,7 @@ kernel whose performance depends on those
 ([register-pressure-critical GEMMs](../machine/registers.md)), drop to PyObjC and
 [raw Metal](../metal/metal-the-api.md) instead. It's the right tool for fused
 elementwise/reduction ops, and the wrong tool for beating steel. That last
-clause is measured, not folklore: [the MTPLX port
+clause is measured: [the MTPLX port
 ledger](../war-stories/the-failures.md) shows exactly which side of the line
 each kernel type lands on.
 

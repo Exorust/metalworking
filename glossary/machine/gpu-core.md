@@ -18,8 +18,8 @@ capacity and efficiency.
 ![Side-by-side memory hierarchies: NVIDIA A100 SMs with big shared memory over a 40 MB L2 and GPU-only HBM, with host RAM across PCIe; Apple GPU cores with big registers and small threadgroup memory over a small L2, SLC, and unified LPDDR shared with the CPU](../../memory-hierarchy.svg)
 
 *The two hierarchies side by side. Reading down: Apple inverts the
-register/shared-memory ratio, has no 40 MB L2 safety net, and adds an SLC tier —
-then wins the bottom row, where NVIDIA's DRAM is GPU-only with the CPU across
+register/shared-memory ratio, has no 40 MB L2 safety net, and adds an SLC tier.
+It then wins the bottom row, where NVIDIA's DRAM is GPU-only with the CPU across
 PCIe and Apple's is one shared pool. On M3 and later, Dynamic Caching allocates
 the per-core memories on demand from one cache pool instead of fixed partitions.*
 

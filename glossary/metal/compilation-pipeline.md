@@ -42,8 +42,8 @@ and why Python harnesses need no Xcode at all.
 
 **Inspecting what the compiler actually emitted is community tooling, not vendor
 tooling.** There is no `cuobjdump`. The reverse-engineered
-[applegpu](https://github.com/dougallj/applegpu) disassembler is the Godbolt of
-this world (`compiler_explorer.py`: MSL in, ISA out), and the standard move when a
+[applegpu](https://github.com/dougallj/applegpu) disassembler is the closest thing
+to Godbolt here (`compiler_explorer.py`: MSL in, ISA out), and the standard move when a
 kernel underperforms and you suspect [spills](../machine/registers.md) or missed
 unrolling. Expect to find one surprise every time you look.
 

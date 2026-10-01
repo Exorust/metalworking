@@ -31,7 +31,7 @@ void eval(array& arr) {
   if (encoder.needs_commit()) {
     encoder.commit(...);
 ```
-— [`mlx/backend/metal/eval.cpp:29-62`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/eval.cpp#L29-L62), abridged
+Source: [`mlx/backend/metal/eval.cpp:29-62`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/eval.cpp#L29-L62), abridged
 
 ![MLX's record-then-commit model: ops append graph nodes instantly, eval walks the graph and batches kernels into command buffers; an accidental mid-loop eval forces a drain every iteration](../../diagrams/lazy-evaluation.svg)
 

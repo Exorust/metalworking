@@ -28,7 +28,7 @@ The chain for a matmul, concretely: the lazy graph hands `Matmul` to the
         } else if (!transpose_a && transpose_b) { /* nt with large k */   \
           bm = 64; bn = 32; bk = 32; wm = 2; wn = 2;                      \
 ```
-— [`mlx/backend/metal/matmul.cpp:89-124`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/matmul.cpp#L89-L124), abridged and reformatted
+Source: [`mlx/backend/metal/matmul.cpp:89-124`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/matmul.cpp#L89-L124), abridged and reformatted
 
 Read what that macro is: a hand-tuned lookup from (chip class, size, dtype,
 transpose pattern) to the [tile shape](../kernels/steel-gemm-fused.md). cuBLAS's
@@ -44,7 +44,7 @@ is encoded.
 the steel fast path; the green spine is the path this glossary's case studies
 read.*
 
-Branches before steel, because falling into the wrong one is a
+Several branches come before steel, and falling into the wrong one is a
 classic silent slowdown: **matrix-vector shapes** route to `gemv` kernels rather
 than GEMM; **very skinny/small** cases have split-K and non-steel paths;
 **[quantized](quantization.md)** weights go to an entirely different kernel family

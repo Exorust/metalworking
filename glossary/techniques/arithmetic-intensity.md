@@ -27,7 +27,7 @@ The two canonical cases:
   [not doing the traffic at all](fusion-and-epilogues.md), which is why fusion is
   the platform's most profitable technique.
 
-LLM inference makes the dichotomy vivid:
+LLM inference shows both cases in one workload:
 [prefill is big-matmul-shaped (compute bound); decode is dot-product-shaped
 (bandwidth bound)](decode-vs-prefill.md). That's why decode speed
 [tracks the memory-bandwidth spec linearly](../machine/unified-memory.md) across

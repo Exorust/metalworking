@@ -4,8 +4,8 @@
 [BlockLoader](steel-blockloader.md), [BlockMMA](steel-blockmma.md), and
 [epilogues](../techniques/fusion-and-epilogues.md) are factored out: ~350 lines of
 wiring, most of which is [function-constant](../metal/function-constants.md)
-dispatch. The kernel is the least interesting file in the library, which is the
-achievement.**
+dispatch. The kernel is the least interesting file in the library, which shows the
+decomposition worked.**
 
 The head declares both specialization mechanisms at once: template parameters
 (shape; fixed per compiled variant) and function constants (behavior; fixed per
@@ -27,7 +27,7 @@ template <
     typename AccumType = float>
 [[kernel, max_total_threads_per_threadgroup(WM* WN * 32)]] void gemm(
 ```
-— [`steel_gemm_fused.h:9-29`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/kernels/steel_gemm_fused.h#L9-L29), reformatted
+Source: [`steel_gemm_fused.h:9-29`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/kernels/steel_gemm_fused.h#L9-L29), reformatted
 
 Note [`max_total_threads_per_threadgroup`](../machine/registers.md) as standard
 practice, and which
@@ -51,7 +51,7 @@ component interfaces, containing zero bounds checks because
     ...
     return mma_op.store_result(D, params->ldd);
 ```
-— [`steel_gemm_fused.h:172-204`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/kernels/steel_gemm_fused.h#L172-L204), abridged
+Source: [`steel_gemm_fused.h:172-204`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/kernels/steel_gemm_fused.h#L172-L204), abridged
 
 The unaligned branches below
 ([lines 209-345](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/kernels/steel_gemm_fused.h#L209-L345))

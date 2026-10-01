@@ -5,7 +5,7 @@ Thunderbolt 5, the JACCL backend does RDMA between machines at microsecond
 latencies, which is why "no NVLink" stopped being the end of the scaling
 story.**
 
-CUDA equivalent: NCCL plus the fabric underneath it. The honest comparison:
+CUDA equivalent: NCCL plus the fabric underneath it. The comparison:
 NVLink moves hundreds of GB/s between GPUs in one chassis; Thunderbolt 5
 RDMA moves tens of GB/s between chassis. What makes the Apple version
 interesting anyway is the memory math: each node brings up to 512 GB of
@@ -40,8 +40,8 @@ dominated, so what matters is the per-token round-trip count (pipeline
 parallelism's advantage); prefill is throughput dominated and tolerates
 chattier schemes. And the platform's [law](../machine/unified-memory.md)
 still rules: a cluster whose links are slower than local memory bandwidth
-only wins when the alternative is not fitting at all. That is exactly the
-regime local-LLM clusters live in.
+only wins when the alternative is not fitting at all, which is the regime
+local-LLM clusters live in.
 
 Setup realities worth knowing before buying cables: RDMA over Thunderbolt
 requires enabling it once from Recovery mode; JACCL wants the TB5 mesh wired

@@ -21,7 +21,7 @@ void __metal_wait_simdgroup_events(
   int, thread _simdgroup_event_t**)
   __asm("air.wait_simdgroup_events");
 ```
-— [metal-matmul `async_copy.metal:9-28`](https://github.com/0xekez/metal-matmul/blob/04e80810bbf7ba96ebe26ff84a346d179ee50888/async_copy.metal#L9-L28), abridged
+Source: [metal-matmul `async_copy.metal:9-28`](https://github.com/0xekez/metal-matmul/blob/04e80810bbf7ba96ebe26ff84a346d179ee50888/async_copy.metal#L9-L28), abridged
 
 then use it like `cp.async`: kick off the copy, compute, wait on the event. The
 counterintuitive finding from the [original GEMM essay](https://percisely.xyz/gemm):
@@ -29,7 +29,8 @@ it was fastest when a *single simdgroup* issued the copy for the whole threadgro
 because the DMA hardware does the moving and parallelizing the ask bought nothing.
 [metal-flash-attention](../kernels/mfa-codegen.md) built its tile staging on the
 same intrinsics, and documents an M1-era hardware bug where an async copy whose
-result is never read **hangs the GPU until reboot**. Undocumented-API life.
+result is never read **hangs the GPU until reboot**. That is the risk of building on
+an undocumented API.
 
 **Metal 4 (macOS 26) closed the door**: the compiler rejects every `__asm("air.*")`
 declaration outright, and LLVM-IR-level workarounds crash the backend. There is no

@@ -21,7 +21,7 @@ of 1024 floats in registers,
     for (ushort j = 0; j < SIMD_TILE; j++)
       acc[i][j] = simdgroup_float8x8(0);
 ```
-— [m5-gemm `sync_copy.metal:104-107`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L104-L107)
+Source: [m5-gemm `sync_copy.metal:104-107`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L104-L107)
 
 accumulated into on every K iteration, stored once in the epilogue. Steel's
 [`BlockMMA`](../kernels/steel-blockmma.md) is the same idea as a template: a

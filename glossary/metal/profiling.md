@@ -42,8 +42,8 @@ independently converge on:
    [bandwidth probe](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/bandwidth.metal)
    for DRAM; [metal-benchmarks](https://github.com/philipturner/metal-benchmarks)
    tables for ALU).
-2. **Differential benchmarking.** Can't see stall reasons? Change one thing and
-   re-measure. The [m5-gemm README's](../kernels/gemm-double-buffered.md)
+2. **Differential benchmarking.** When you can't see stall reasons, change one thing
+   and re-measure. The [m5-gemm README's](../kernels/gemm-double-buffered.md)
    "things that did not help" section is this method producing knowledge.
 3. **[Disassembly](compilation-pipeline.md) when arithmetic says impossible.**
    [applegpu](https://github.com/dougallj/applegpu)'s `compiler_explorer.py` shows

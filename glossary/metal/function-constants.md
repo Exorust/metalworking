@@ -22,7 +22,7 @@ constant bool align_M [[function_constant(200)]];
 constant bool align_N [[function_constant(201)]];
 constant bool align_K [[function_constant(202)]];
 ```
-— [`steel_gemm_fused.h:9-16`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/kernels/steel_gemm_fused.h#L9-L16)
+Source: [`steel_gemm_fused.h:9-16`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/kernels/steel_gemm_fused.h#L9-L16)
 
 When the host knows the matrix divides evenly by the tile (`align_M && align_N`),
 the compiled pipeline contains **only the fast path**: unchecked vectorized loads,

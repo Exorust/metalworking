@@ -27,10 +27,9 @@ checks (if your tok/s is far off `bandwidth ÷ model bytes`, something is broken
 decay dropping from **50% to 6.7%** just by locking fans to max. Laptop and
 fanless chips throttle under sustained ML load; a benchmark's first ten seconds
 and its steady state are different machines. Fan control (or a Mac Studio) is
-part of [measurement methodology](../techniques/roofline.md) here, not an
-enthusiast quirk.
+part of [measurement methodology](../techniques/roofline.md) here.
 
-And one honorable mention that rounds out the platform picture: the **ANE
+One honorable mention: the **ANE
 exists**. The Neural Engine, the third matrix engine on the die after the GPU
 and [AMX](../machine/amx.md), reaches ~6.6 TFLOPS/watt (vs ~1 for the GPU) but
 speaks only Apple's model frameworks (Core ML, superseded for generative

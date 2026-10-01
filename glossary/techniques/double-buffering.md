@@ -6,7 +6,7 @@
 buying it through ILP rather than DMA.**
 
 CUDA equivalent: the multi-stage `cp.async` pipeline of every modern CUDA GEMM.
-The crucial local difference: [the DMA engine is not available](../metal/simdgroup-async-copy.md),
+The local difference: [the DMA engine is not available](../metal/simdgroup-async-copy.md),
 so there's no true copy/compute overlap; the *same threads* issue both the loads
 and the math. What makes it work anyway: the prefetch loads and the current tile's
 MMAs have no data dependence, so the hardware scheduler interleaves them,
@@ -32,7 +32,7 @@ before compute, one barrier per iteration.
     cur = nxt;
   }
 ```
-— [m5-gemm `sync_copy_db.metal:87-126`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy_db.metal#L87-L126), abridged
+Source: [m5-gemm `sync_copy_db.metal:87-126`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy_db.metal#L87-L126), abridged
 
 ![Three timelines comparing single-buffered serial load/compute, double-buffered overlap through ILP, and the dead DMA era's true copy-engine overlap](../../diagrams/double-buffering.svg)
 

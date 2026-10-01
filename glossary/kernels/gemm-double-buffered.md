@@ -26,7 +26,7 @@ a prologue prefetch, one barrier per iteration instead of two.
     cur = nxt;
   }
 ```
-— [`sync_copy_db.metal:87-126`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy_db.metal#L87-L126), abridged
+Source: [`sync_copy_db.metal:87-126`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy_db.metal#L87-L126), abridged
 
 The single barrier is doing double duty: "the prefetch landed" and "everyone's
 done with the buffer we're about to overwrite" are the same condition when the
@@ -51,16 +51,17 @@ Three regimes, three winners. At 1024², launch and DRAM-fetch latency dominate 
 the prefetch pipeline hides them: **3× over both** alternatives, and note this is
 the regime [LLM decode](../techniques/decode-vs-prefill.md) lives in. At 4096²,
 the simpler kernel wins because its smaller loop
-[unrolls better](../metal/compilation-pipeline.md); compiler quality beats
-algorithm. At 8192², everything hits the
+[unrolls better](../metal/compilation-pipeline.md), so compiler quality matters
+more than the algorithm here. At 8192², everything hits the
 [bandwidth wall](../techniques/arithmetic-intensity.md) and
 [MPS](../metal/mps.md) converges with the hand-written kernels.
 
 The README's "things that did not help" section is required reading as
 [methodology](../metal/profiling.md): offline `-O3 -ffast-math` compilation
 (bit-identical to runtime), bigger simdgroup tiles
-([10× slower from spills](../machine/registers.md)), `SW=3` threadgroups. Negative
-results, measured and published: the norm this glossary's
-[war stories](../war-stories/the-failures.md) wish the whole ecosystem followed.
+([10× slower from spills](../machine/registers.md)), `SW=3` threadgroups. The
+author measured these negative results and published them, which is the norm this
+glossary's [war stories](../war-stories/the-failures.md) wish the whole ecosystem
+followed.
 
 Next: [The async-copy ghost](gemm-async-ghost.md)

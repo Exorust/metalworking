@@ -17,9 +17,9 @@ What a CUDA-stack person should recalibrate:
   can genuinely cooperate on the same buffers (quantize on CPU while the GPU
   decodes, in the same address space).
 - **Everything is lazy.** Operations build a graph; computation happens at
-  [`mx.eval`](lazy-evaluation.md). This is not a compiler-ambition thing the way
-  torch.compile is. It's primarily a [dispatch-batching](../metal/command-buffers.md)
-  thing, and it's load-bearing for performance on this platform.
+  [`mx.eval`](lazy-evaluation.md). Its main purpose is
+  [dispatch-batching](../metal/command-buffers.md) rather than the compiler work
+  torch.compile does, and it's load-bearing for performance on this platform.
 - **Function transforms, not autograd tape.** `mx.grad`, `mx.vmap`,
   [`mx.compile`](mx-compile.md) compose like JAX's transforms. Training exists and
   works; inference is where the ecosystem's energy is.

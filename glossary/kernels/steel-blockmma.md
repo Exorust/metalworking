@@ -20,7 +20,7 @@ struct BlockMMA {
   MMATile<AccumType, 1, TN, MMAFrag_acc_t> Btile;
   MMATile<AccumType, TM, TN, MMAFrag_acc_t> Ctile;
 ```
-— [`steel/gemm/mma.h:453-483`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/mma.h#L453-L483), abridged
+Source: [`steel/gemm/mma.h:453-483`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/mma.h#L453-L483), abridged
 
 `WM × WN` is the simdgroup arrangement (m5-gemm's `SW × SW`); `TM × TN` is each
 simdgroup's accumulator grid (`SIMD_TILE × SIMD_TILE`); `Ctile` lives in
@@ -48,7 +48,7 @@ fragment, `tile_matmad`, advance:
     }
   }
 ```
-— [`steel/gemm/mma.h:513-537`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/mma.h#L513-L537), abridged
+Source: [`steel/gemm/mma.h:513-537`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/mma.h#L513-L537), abridged
 
 Two production touches: transposition is handled by the stride constants
 (`A_str_m/A_str_k` swap; the code never branches on transpose), and the
@@ -60,13 +60,13 @@ The ending is where [fusion](../techniques/fusion-and-epilogues.md) plugs in:
 element *in registers*, then stores once
 ([`mma.h:540-551`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/mma.h#L540-L551));
 `apply_epilogue(C, ...)` variants additionally read an input matrix for
-`α·AB + β·C`-shaped endings. Bias, activation, scaling: zero extra memory
+`α·AB + β·C`-shaped endings. Bias, activation, and scaling add no extra memory
 passes, by construction.
 
 One caveat before you generalize from this file:
 [attention needs a different `mma.h`](steel-attention.md). A GEMM accumulator
 only accumulates; attention's score tile must be *read and transformed in place*
 between two matmuls, which demands a different fragment layout. Steel maintains
-both. Same philosophy, different geometry.
+both, with the same design philosophy and different geometry.
 
 Next: [The fused GEMM kernel](steel-gemm-fused.md)

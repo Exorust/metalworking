@@ -10,7 +10,7 @@ famous); the platform inflection is that on
 [bandwidth-bound](../machine/unified-memory.md) hardware its size converts
 directly into decode latency.
 
-The arithmetic that runs everything: per token, per layer, the cache holds one
+The arithmetic: per token, per layer, the cache holds one
 K and one V vector per KV head. For a typical dense 7-8B model
 (`n_layers ≈ 32`, `n_kv_heads × head_dim ≈ 1024`, fp16) that is ~128 KB per
 token, so a 32K-token context carries a ~4 GB cache, and every decoded token
@@ -36,8 +36,8 @@ average, which absorbs noise). Its mixed K8/V4 configuration cut a 6.21 GB
 fp16 cache to 5.08 GB with greedy output verified identical to baseline. The
 general rule: treat K's precision as accuracy-critical and V's as a bandwidth
 knob. Practitioner reports of `kv_bits=4` corrupting long prefilled contexts
-are this asymmetry being ignored, and note the flip side: quantized KV does
-not speed up [prefill](decode-vs-prefill.md) at all, since prefill's cost is
+are this asymmetry being ignored. Quantized KV also does not speed up
+[prefill](decode-vs-prefill.md) at all, since prefill's cost is
 the matmuls, not cache streaming.
 
 **Layout matters at the kernel level.** The simple layout is one contiguous

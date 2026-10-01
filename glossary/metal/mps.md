@@ -15,7 +15,7 @@ repeatedly matched or beaten it with open kernels:
   everything is [bandwidth bound](../machine/unified-memory.md).
 - llama.cpp **deleted its MPS path** in 2023
   ([PR #2615](https://github.com/ggml-org/llama.cpp/pull/2615)) in favor of its own
-  simdgroup kernels: ~88% ALU utilization on a 4096² matmul, with the honest
+  simdgroup kernels: ~88% ALU utilization on a 4096² matmul, with the
   caveat that end-to-end gains were ~40% because non-matmul ops dominate.
 - [MLX](../mlx/mlx-overview.md) uses its own [steel library](../mlx/steel.md), not
   MPS, for core ops.
@@ -34,7 +34,7 @@ and gives honest GPU-time numbers via
 [command-buffer timestamps](profiling.md); the
 [m5-gemm harness](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/mps_matmul.py)
 is a compact PyObjC example. If your custom kernel doesn't beat MPS at your shapes,
-ship MPS. That's not defeat; that's the
+ship MPS. That's the
 [three questions](../war-stories/three-questions.md) working as intended.
 
 Next: [Profiling](profiling.md)

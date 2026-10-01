@@ -52,7 +52,7 @@ pre-NAX kernel uses, and this page is the fork to watch.
 
 One caution for porters: this is macOS 26+ / M5-era surface. Everything else
 in this glossary's [Metal section](metal-the-api.md) runs back to M1;
-tensor-ops code needs a fallback path, which is exactly how MLX structures
+tensor-ops code needs a fallback path, which is how MLX structures
 its parallel NAX steel.
 
 Next: [MPS](mps.md)

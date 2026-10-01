@@ -13,9 +13,10 @@ attention implementation in this glossary computes softmax **in base 2**: fold
 ```cpp
   const AccumType scale = params->scale * M_LOG2E_F;
 ```
-— [MLX `steel_attention.h:166`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/attn/kernels/steel_attention.h#L166)
+Source: [MLX `steel_attention.h:166`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/attn/kernels/steel_attention.h#L166)
 
-Same math as `exp`, one fewer multiply per element, hardware path guaranteed. See
+This is the same math as `exp` with one fewer multiply per element, and it is
+guaranteed to take the hardware path. See
 [online softmax](../techniques/online-softmax.md) for where this lands in the
 algorithm.
 

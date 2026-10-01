@@ -22,11 +22,11 @@ template <
     short TROWS = tgp_size / TCOLS>
 struct BlockLoader {
 ```
-— [`steel/gemm/loader.h:14-25`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/loader.h#L14-L25)
+Source: [`steel/gemm/loader.h:14-25`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/loader.h#L14-L25)
 
 `n_reads` = tile elements ÷ threadgroup size = each thread's share; `TCOLS`/`TROWS`
-derive the thread-to-tile mapping. Any tile shape, any threadgroup size, zero
-runtime arithmetic.
+derive the thread-to-tile mapping. This works for any tile shape and any
+threadgroup size with zero runtime arithmetic.
 
 The hot path expresses vector width as an aligned type rather than a `float4`
 cast, so the compiler emits the widest load the `alignment` parameter permits:
@@ -44,16 +44,17 @@ cast, so the compiler emits the widest load the `alignment` parameter permits:
     }
   }
 ```
-— [`steel/gemm/loader.h:42-44, 73-80`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/loader.h#L73-L80)
+Source: [`steel/gemm/loader.h:42-44, 73-80`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/loader.h#L73-L80)
 
 What production adds that the hand-written kernel never needed:
 **`load_safe(short2 src_tile_dim)`**
 ([lines 83-128](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/loader.h#L83-L128))
 bounds-checks and zero-fills for tiles hanging off the matrix edge. m5-gemm
-required sizes divisible by 64; MLX can't. The elegance is in *when* each variant
+required sizes divisible by 64; MLX can't. The difference is in *when* each variant
 runs: [function constants](../metal/function-constants.md) let the
 [wiring kernel](steel-gemm-fused.md) compile pipelines where aligned dispatches
-contain only `load_unsafe`. Edge handling that costs nothing off the edge.
+contain only `load_unsafe`, so edge handling costs nothing when no tile is off the
+edge.
 
 The smallest detail is the most load-bearing for composability:
 
@@ -62,7 +63,7 @@ The smallest detail is the most load-bearing for composability:
     src += tile_stride;
   }
 ```
-— [`steel/gemm/loader.h:130-133`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/loader.h#L130-L133)
+Source: [`steel/gemm/loader.h:130-133`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/loader.h#L130-L133)
 
 The loader owns its pointer arithmetic; the K-loop just calls `next()`. Three
 verbs (load, next, done) are the whole interface, which is what lets quantized

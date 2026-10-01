@@ -28,8 +28,8 @@ positions. The entire change:
     if (attn_weight < 1e-6f) continue;  // skip negligible positions
 #endif
 ```
-— in the [llama.cpp FA kernel's](../kernels/llamacpp-attention.md) accumulate
-loop; live in the author's fork at `ggml-metal.metal:8926`, with an ablation
+It goes in the [llama.cpp FA kernel's](../kernels/llamacpp-attention.md) accumulate
+loop and is live in the author's fork at `ggml-metal.metal:8926`, with an ablation
 writeup in the companion repo (fetched by this repo's `fetch.sh` as
 `llamacpp-turboquant-fork` / `turboquant-plus-llamacpp`).
 

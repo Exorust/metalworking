@@ -26,8 +26,8 @@ Why it appears in a GPU glossary:
 ![One die, three matrix engines: the CPU cluster with AMX, the GPU cores, and the Neural Engine, sharing the unified memory fabric, each reachable through a different API](../../diagrams/three-engines.svg)
 
 *Where AMX sits. Three matrix engines share one bandwidth budget; Metal talks
-only to the middle one, and the API rows at the bottom are the whole
-accessibility story.*
+only to the middle one, and the API rows at the bottom are the only ways to
+reach each engine.*
 
 Apple has never documented the instruction set. The definitive reference is
 [corsix/amx](https://github.com/corsix/amx) (MIT): per-instruction docs with an

@@ -27,7 +27,7 @@ The assembly point, MSL as string interpolation:
     }
     """
 ```
-— [`AttentionKernel+Source.swift:23-54`](https://github.com/philipturner/metal-flash-attention/blob/8671cddc38f19a6eadb804dee6a3ca2954b8bf32/Sources/FlashAttention/Attention/AttentionKernel/AttentionKernel+Source.swift#L23-L54), abridged
+Source: [`AttentionKernel+Source.swift:23-54`](https://github.com/philipturner/metal-flash-attention/blob/8671cddc38f19a6eadb804dee6a3ca2954b8bf32/Sources/FlashAttention/Attention/AttentionKernel/AttentionKernel+Source.swift#L23-L54), abridged
 
 Where [MLX templates](steel-gemm-fused.md) and
 [llama.cpp enumerates](llamacpp-attention.md), MFA *writes a bespoke kernel*:
@@ -47,7 +47,7 @@ with a branch. Note the guard MLX doesn't have:
       m = m_new;
     }
 ```
-— [`AttentionKernel+Softmax.swift:293-298`](https://github.com/philipturner/metal-flash-attention/blob/8671cddc38f19a6eadb804dee6a3ca2954b8bf32/Sources/FlashAttention/Attention/AttentionKernel/AttentionKernel+Softmax.swift#L293-L298);
+Source: [`AttentionKernel+Softmax.swift:293-298`](https://github.com/philipturner/metal-flash-attention/blob/8671cddc38f19a6eadb804dee6a3ca2954b8bf32/Sources/FlashAttention/Attention/AttentionKernel/AttentionKernel+Softmax.swift#L293-L298);
 row reductions via [`simd_shuffle_xor`](../machine/simdgroup.md), running-sum
 update `l = l * correction + l_new` at
 [line 321](https://github.com/philipturner/metal-flash-attention/blob/8671cddc38f19a6eadb804dee6a3ca2954b8bf32/Sources/FlashAttention/Attention/AttentionKernel/AttentionKernel+Softmax.swift#L321)
@@ -73,7 +73,7 @@ Three signature positions distinguish the project:
 
 Companion reading: llama.cpp
 [PR #5021](https://github.com/ggml-org/llama.cpp/pull/5021), where Gerganov
-builds his FA kernel across 154 public comments. The best line-by-line narration
-of these decisions being made anywhere.
+builds his FA kernel across 154 public comments. It is the best line-by-line
+narration of these decisions being made anywhere.
 
 Next: [llama.cpp attention](llamacpp-attention.md)

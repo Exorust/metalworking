@@ -39,12 +39,12 @@ right is the thing the algorithm exists to avoid writing.*
 
 What to take from the three-implementation comparison
 ([MLX](../kernels/steel-attention.md) · [MFA](../kernels/mfa-codegen.md) ·
-[llama.cpp](../kernels/llamacpp-attention.md)): the algorithm is settled; the
-engineering disagreements are where the insight lives. Codegen vs templates vs
+[llama.cpp](../kernels/llamacpp-attention.md)): the algorithm is settled, and
+what you learn comes from the engineering disagreements. Codegen vs templates vs
 enumeration; spill-tolerance vs spill-avoidance; branch-guarded vs unconditional
-correction. Same hardware, same math, three defensible kernels.
+correction. On the same hardware with the same math, all three kernels are defensible.
 
-Boundaries of the technique on this platform, both load-bearing for practice.
+The technique has two boundaries on this platform, and both matter in practice.
 **Decode is a different problem**: one query row can't fill an 8×8 tile, so every
 implementation ships a separate [vector kernel](decode-vs-prefill.md). **The
 backward pass is unfinished business.** MLX's fused attention has no Metal
@@ -60,7 +60,7 @@ void ScaledDotProductAttentionVJP::eval_gpu(
     std::vector<array>& outputs) {
   throw std::runtime_error("NYI");
 ```
-— [MLX `scaled_dot_product_attention.cpp:796-803`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/scaled_dot_product_attention.cpp#L796-L803)
+Source: [MLX `scaled_dot_product_attention.cpp:796-803`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/scaled_dot_product_attention.cpp#L796-L803)
 (still true on main; training falls back to the
 [unfused graph](../mlx/mx-fast.md)). And the one open-source backward
 ([MFA's split dQ / dK-dV design](../kernels/mfa-codegen.md), forced by

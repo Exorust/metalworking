@@ -10,7 +10,7 @@ optimization" to first principle. An unfused elementwise chain pays full
 round-trip [DRAM traffic](../machine/unified-memory.md) per op plus
 [dispatch overhead](../metal/command-buffers.md) per kernel, and elementwise ops
 have [arithmetic intensity near zero](arithmetic-intensity.md): all cost, no
-reuse. Every layer of the local stack embodies the response:
+reuse. Every layer of the local stack uses fusion:
 
 - **Epilogue fusion**, the mechanical form. A GEMM's ending (`α·AB + β·C`, bias,
   activation) is applied to results *while they're still in
@@ -27,13 +27,13 @@ reuse. Every layer of the local stack embodies the response:
     }
   };
   ```
-  — [`steel/gemm/transforms.h:38-54`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/transforms.h#L38-L54), abridged;
+  Source: [`steel/gemm/transforms.h:38-54`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/transforms.h#L38-L54), abridged;
   applied in [`BlockMMA::store_result`](../kernels/steel-blockmma.md). Anything
   expressible as an epilogue costs zero extra memory passes.
 
 - **Fused ops as products**: [`mx.fast`](../mlx/mx-fast.md)'s attention and norm
   kernels exist because the unfused graphs were bandwidth disasters.
-  [Flash attention](flash-attention.md) is the genre's masterpiece; the "fused
+  [Flash attention](flash-attention.md) is the extreme case; the "fused
   intermediate" is an entire L×L matrix that never exists.
 - **Automatic fusion**: [`mx.compile`](../mlx/mx-compile.md) fuses elementwise
   chains mechanically; [Luminal](https://docs.luminalai.com/blog/gpu) pushes the

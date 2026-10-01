@@ -18,7 +18,7 @@ matmul(
     ushort3 t_tg_pos       [[thread_position_in_threadgroup]],
     ushort3 tg_pos         [[threadgroup_position_in_grid]])
 ```
-— [m5-gemm `sync_copy.metal:84-96`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L84-L96), abridged
+Source: [m5-gemm `sync_copy.metal:84-96`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L84-L96), abridged
 
 Reading guide, CUDA → MSL:
 

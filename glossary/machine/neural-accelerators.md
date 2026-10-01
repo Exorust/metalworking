@@ -29,7 +29,7 @@ struct BaseNAXFrag {
 
   STEEL_CONST short kElemsPerFrag = (kFragRows * kFragCols) / 32;
 ```
-— [MLX `steel/gemm/nax.h:27-31`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/nax.h#L27-L31),
+Source: [MLX `steel/gemm/nax.h:27-31`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/nax.h#L27-L31),
 which includes `<MetalPerformancePrimitives/MetalPerformancePrimitives.h>` at
 the top of the file: the new hardware arrives through a library, not new
 intrinsics.
@@ -44,12 +44,12 @@ intrinsics.
   [Metal 4 tensor-ops page](../metal/mtltensor-and-mpp.md) covers the model;
   the [NAX GEMM case study](../kernels/nax-gemm.md) reads real code.
 
-Ecosystem status, honestly: MLX ships a parallel [steel](../mlx/steel.md)
+Ecosystem status: MLX ships a parallel [steel](../mlx/steel.md)
 fork for it (`gemm/nax.h`, `attn/nax.h`, `quantized_nax`, `fp_quantized_nax`);
 llama.cpp has a tensor-API matmul path; and the tuning is young. Recent MLX
 work is disproportionately NAX-shaped (qmv batch limits raised for M5-class
 GPUs, NVFP4 QMV optimization, per-expert tile picks in `gather_qmm_rhs_nax`),
-which is what a fast-moving fast path looks like. `simdgroup_matrix` remains
+which shows how quickly this path is still changing. `simdgroup_matrix` remains
 the portable primitive and the one most shipped kernels still use; this page
 is why the glossary keeps teaching both.
 

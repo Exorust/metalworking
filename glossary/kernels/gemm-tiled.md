@@ -21,7 +21,7 @@ constant constexpr ushort BM = SW * SIMD_TILE * 8;  // threadgroup output rows
 constant constexpr ushort BN = SW * SIMD_TILE * 8;  // threadgroup output cols
 constant constexpr ushort BK = TILE_K * 8;          // reduction tile
 ```
-— [`sync_copy.metal:18-20`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L18-L20)
+Source: [`sync_copy.metal:18-20`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L18-L20)
 
 **The most consequential line** is an attribute:
 
@@ -29,7 +29,7 @@ constant constexpr ushort BK = TILE_K * 8;          // reduction tile
 kernel void __attribute__((max_total_threads_per_threadgroup(SW * SW * 32)))
 matmul(
 ```
-— [`sync_copy.metal:84-85`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L84-L85)
+Source: [`sync_copy.metal:84-85`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L84-L85)
 
 The author calls it the single biggest practical win: it lets the
 [register allocator](../machine/registers.md) commit to 128 threads and stop
@@ -53,7 +53,7 @@ registers, barrier, advance:
     threadgroup_barrier(mem_flags::mem_threadgroup);
   }
 ```
-— [`sync_copy.metal:113-128`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L113-L128), abridged
+Source: [`sync_copy.metal:113-128`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L113-L128), abridged
 
 `load_tile` is [the reference cooperative load](../techniques/cooperative-load.md);
 the `acc` grid is [register blocking](../techniques/register-blocking.md) in its
