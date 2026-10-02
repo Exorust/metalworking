@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1380 584" role="img" aria-label="Two hierarchies side by side. Software, top to bottom: a thread, a threadgroup of four simdgroups with 32 KB of threadgroup memory, and a grid of threadgroups over device memory. Hardware, top to bottom: an arithmetic unit, a GPU core with a 208 KB register file, 60 KB of threadgroup memory and an 8 KB L1 cache, and a GPU of 10 to 40 cores over unified memory shared with the CPU. Each software level runs on the hardware level beside it." font-family="Azeret Mono, ui-monospace, Menlo, monospace">
+  <!-- Left = what one kernel launch creates, right = what is on the chip.
+       Green = one thread and the simdgroup it belongs to; highlighted boxes pair a
+       threadgroup with the core it runs on. Amber = the memory shared with the CPU,
+       and the one naming trap. NVIDIA names sit under each box in gray. -->
+  <rect width="1380" height="584" rx="6" fill="#0d180a"/>
+  <defs>
+    <g id="al-dots">
+      <circle cx="17.75" cy="16" r="4.5"/><circle cx="30.25" cy="16" r="4.5"/><circle cx="42.75" cy="16" r="4.5"/><circle cx="55.25" cy="16" r="4.5"/><circle cx="67.75" cy="16" r="4.5"/><circle cx="80.25" cy="16" r="4.5"/><circle cx="92.75" cy="16" r="4.5"/><circle cx="105.25" cy="16" r="4.5"/>
+      <circle cx="17.75" cy="30" r="4.5"/><circle cx="30.25" cy="30" r="4.5"/><circle cx="42.75" cy="30" r="4.5"/><circle cx="55.25" cy="30" r="4.5"/><circle cx="67.75" cy="30" r="4.5"/><circle cx="80.25" cy="30" r="4.5"/><circle cx="92.75" cy="30" r="4.5"/><circle cx="105.25" cy="30" r="4.5"/>
+      <circle cx="17.75" cy="44" r="4.5"/><circle cx="30.25" cy="44" r="4.5"/><circle cx="42.75" cy="44" r="4.5"/><circle cx="55.25" cy="44" r="4.5"/><circle cx="67.75" cy="44" r="4.5"/><circle cx="80.25" cy="44" r="4.5"/><circle cx="92.75" cy="44" r="4.5"/><circle cx="105.25" cy="44" r="4.5"/>
+      <circle cx="17.75" cy="58" r="4.5"/><circle cx="30.25" cy="58" r="4.5"/><circle cx="42.75" cy="58" r="4.5"/><circle cx="55.25" cy="58" r="4.5"/><circle cx="67.75" cy="58" r="4.5"/><circle cx="80.25" cy="58" r="4.5"/><circle cx="92.75" cy="58" r="4.5"/><circle cx="105.25" cy="58" r="4.5"/>
+    </g>
+  </defs>
+  <text x="40" y="44" font-size="13" fill="#a6cc97">SOFTWARE: WHAT ONE LAUNCH CREATES</text>
+  <text x="780" y="44" font-size="13" fill="#a6cc97">HARDWARE: WHAT IS ON THE CHIP</text>
+
+  <!-- ===== thread / arithmetic unit ===== -->
+  <text x="40" y="80" font-size="11.5" fill="#a6cc97">THREAD</text>
+  <circle cx="52" cy="106" r="7" fill="#77ef5e"/>
+  <text x="72" y="110" font-size="10" fill="#d9ead0">one run of your kernel function, with its own registers</text>
+  <text x="40" y="140" font-size="9.5" fill="#b9bfa9">NVIDIA: CUDA thread</text>
+  <text x="780" y="80" font-size="11.5" fill="#a6cc97">ARITHMETIC UNIT</text>
+  <rect x="786" y="91" width="12" height="30" fill="#a6cc97"/>
+  <text x="812" y="110" font-size="10" fill="#d9ead0">executes the instructions of a thread</text>
+  <text x="780" y="140" font-size="9.5" fill="#b9bfa9">NVIDIA: CUDA core</text>
+  <g stroke="#6f9a62" fill="#6f9a62"><line x1="616" y1="106" x2="754" y2="106" stroke-width="1.5"/><path d="M754 101 L764 106 L754 111 Z" stroke="none"/></g>
+  <text x="690" y="96" font-size="9.5" fill="#6f9a62" text-anchor="middle">runs on</text>
+
+  <!-- ===== threadgroup / GPU core ===== -->
+  <text x="40" y="182" font-size="11.5" fill="#a6cc97">THREADGROUP</text>
+  <text x="600" y="182" font-size="9.5" fill="#6f9a62" text-anchor="end">you choose its size: 128 threads here</text>
+  <rect x="40" y="192" width="560" height="150" fill="#12240d" stroke="#24361d"/>
+  <rect x="56" y="204" width="528" height="26" fill="#1c3315" rx="3"/>
+  <text x="320" y="221" font-size="10" fill="#d9ead0" text-anchor="middle">threadgroup memory: 32 KB, shared by all its threads</text>
+  <rect x="56" y="240" width="123" height="90" fill="#2c5423" stroke="#77ef5e" stroke-width="1.5"/>
+  <use href="#al-dots" x="56" y="240" fill="#77ef5e"/>
+  <text x="117.5" y="320" font-size="9" fill="#d9ead0" text-anchor="middle">simdgroup 0</text>
+  <rect x="191" y="240" width="123" height="90" fill="#1c3315" stroke="#2c4423"/>
+  <use href="#al-dots" x="191" y="240" fill="#6f9a62"/>
+  <text x="252.5" y="320" font-size="9" fill="#6f9a62" text-anchor="middle">simdgroup 1</text>
+  <rect x="326" y="240" width="123" height="90" fill="#1c3315" stroke="#2c4423"/>
+  <use href="#al-dots" x="326" y="240" fill="#6f9a62"/>
+  <text x="387.5" y="320" font-size="9" fill="#6f9a62" text-anchor="middle">simdgroup 2</text>
+  <rect x="461" y="240" width="123" height="90" fill="#1c3315" stroke="#2c4423"/>
+  <use href="#al-dots" x="461" y="240" fill="#6f9a62"/>
+  <text x="522.5" y="320" font-size="9" fill="#6f9a62" text-anchor="middle">simdgroup 3</text>
+  <text x="40" y="360" font-size="9.5" fill="#6f9a62">simdgroup: 32 threads that execute the same instruction together</text>
+  <text x="40" y="378" font-size="9.5" fill="#b9bfa9">NVIDIA: thread block with shared memory; a simdgroup is a warp</text>
+  <text x="780" y="182" font-size="11.5" fill="#a6cc97">GPU CORE</text>
+  <text x="1340" y="182" font-size="9.5" fill="#6f9a62" text-anchor="end">holds several threadgroups at one time</text>
+  <rect x="780" y="192" width="560" height="150" fill="#12240d" stroke="#24361d"/>
+  <rect x="796" y="206" width="300" height="30" fill="#2c5423" stroke="#77ef5e" stroke-width="1.5"/>
+  <text x="808" y="225" font-size="10" fill="#d9ead0">register file ~208 KB</text>
+  <rect x="796" y="246" width="87" height="30" fill="#1c3315" stroke="#2c4423"/>
+  <text x="893" y="265" font-size="10" fill="#d9ead0">threadgroup memory ~60 KB</text>
+  <rect x="796" y="286" width="12" height="30" fill="#0f1e0c" stroke="#6f9a62"/>
+  <text x="818" y="305" font-size="10" fill="#d9ead0">L1 data cache ~8 KB</text>
+  <text x="796" y="333" font-size="9" fill="#6f9a62">bar length is proportional to size</text>
+  <g fill="#a6cc97"><rect x="1206" y="206" width="12" height="110"/><rect x="1232" y="206" width="12" height="110"/><rect x="1258" y="206" width="12" height="110"/><rect x="1284" y="206" width="12" height="110"/><rect x="1310" y="206" width="12" height="110"/></g>
+  <text x="1264" y="333" font-size="9" fill="#6f9a62" text-anchor="middle">arithmetic units</text>
+  <text x="780" y="360" font-size="9.5" fill="#b9bfa9">NVIDIA: Streaming Multiprocessor (SM)</text>
+  <text x="780" y="378" font-size="9.5" fill="#e8c268">name trap: an NVIDIA "CUDA core" is one arithmetic unit, not this box</text>
+  <g stroke="#6f9a62" fill="#6f9a62"><line x1="616" y1="266" x2="754" y2="266" stroke-width="1.5"/><path d="M754 261 L764 266 L754 271 Z" stroke="none"/></g>
+  <text x="690" y="256" font-size="9.5" fill="#6f9a62" text-anchor="middle">runs on</text>
+  <text x="690" y="284" font-size="9.5" fill="#6f9a62" text-anchor="middle">one core</text>
+
+  <!-- ===== grid / GPU ===== -->
+  <text x="40" y="418" font-size="11.5" fill="#a6cc97">GRID</text>
+  <text x="600" y="418" font-size="9.5" fill="#6f9a62" text-anchor="end">all the threadgroups of one launch</text>
+  <rect x="40" y="428" width="560" height="112" fill="#0f1e0c" stroke="#24361d"/>
+  <text x="780" y="418" font-size="11.5" fill="#a6cc97">GPU</text>
+  <text x="1340" y="418" font-size="9.5" fill="#6f9a62" text-anchor="end">10 cores on M5, 40 on M5 Max</text>
+  <rect x="780" y="428" width="560" height="112" fill="#0f1e0c" stroke="#24361d"/>
+  <rect x="56" y="440" width="84" height="42" fill="#12240d" stroke="#2c4423"/>
+  <text x="98" y="465" font-size="9" fill="#6f9a62" text-anchor="middle">threadgroup</text>
+  <rect x="152" y="440" width="84" height="42" fill="#2c5423" stroke="#77ef5e" stroke-width="1.5"/>
+  <text x="194" y="465" font-size="9" fill="#d9ead0" text-anchor="middle">threadgroup</text>
+  <rect x="248" y="440" width="84" height="42" fill="#12240d" stroke="#2c4423"/>
+  <text x="290" y="465" font-size="9" fill="#6f9a62" text-anchor="middle">threadgroup</text>
+  <rect x="344" y="440" width="84" height="42" fill="#12240d" stroke="#2c4423"/>
+  <text x="386" y="465" font-size="9" fill="#6f9a62" text-anchor="middle">threadgroup</text>
+  <rect x="440" y="440" width="84" height="42" fill="#12240d" stroke="#2c4423"/>
+  <text x="482" y="465" font-size="9" fill="#6f9a62" text-anchor="middle">threadgroup</text>
+  <text x="566" y="466" font-size="14" fill="#6f9a62" text-anchor="middle">...</text>
+  <rect x="796" y="440" width="84" height="42" fill="#12240d" stroke="#2c4423"/>
+  <text x="838" y="465" font-size="9" fill="#6f9a62" text-anchor="middle">GPU core</text>
+  <rect x="892" y="440" width="84" height="42" fill="#2c5423" stroke="#77ef5e" stroke-width="1.5"/>
+  <text x="934" y="465" font-size="9" fill="#d9ead0" text-anchor="middle">GPU core</text>
+  <rect x="988" y="440" width="84" height="42" fill="#12240d" stroke="#2c4423"/>
+  <text x="1030" y="465" font-size="9" fill="#6f9a62" text-anchor="middle">GPU core</text>
+  <rect x="1084" y="440" width="84" height="42" fill="#12240d" stroke="#2c4423"/>
+  <text x="1126" y="465" font-size="9" fill="#6f9a62" text-anchor="middle">GPU core</text>
+  <rect x="1180" y="440" width="84" height="42" fill="#12240d" stroke="#2c4423"/>
+  <text x="1222" y="465" font-size="9" fill="#6f9a62" text-anchor="middle">GPU core</text>
+  <text x="1306" y="466" font-size="14" fill="#6f9a62" text-anchor="middle">...</text>
+  <rect x="56" y="494" width="528" height="34" fill="#1c3315" rx="3"/>
+  <text x="320" y="515" font-size="10" fill="#d9ead0" text-anchor="middle">device memory (MTLBuffer): every thread can read and write it</text>
+  <rect x="796" y="494" width="528" height="34" fill="#e8c268" rx="3"/>
+  <text x="1060" y="515" font-size="10" fill="#1a1608" text-anchor="middle">unified memory: the same memory the CPU uses, so no copy</text>
+  <text x="40" y="560" font-size="9.5" fill="#b9bfa9">NVIDIA: kernel grid with global memory</text>
+  <text x="780" y="560" font-size="9.5" fill="#b9bfa9">NVIDIA: GPU with GPU RAM on the card; the host must copy data to it</text>
+  <g stroke="#6f9a62" fill="#6f9a62"><line x1="616" y1="484" x2="754" y2="484" stroke-width="1.5"/><path d="M754 479 L764 484 L754 489 Z" stroke="none"/></g>
+  <text x="690" y="474" font-size="9.5" fill="#6f9a62" text-anchor="middle">is spread over</text>
+  <text x="690" y="502" font-size="9.5" fill="#6f9a62" text-anchor="middle">all the cores</text>
+</svg>

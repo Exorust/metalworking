@@ -7,15 +7,46 @@ intuition transfers and links to the page that has the detail.**
 Read this page first, then use it as the index for the rest of the glossary. The
 other pages each explain one row.
 
-The last column of the first table uses three words:
+## The levels
+
+Two hierarchies exist at the same time. One is software: the threads that one
+kernel launch creates. The other is hardware: the parts of the chip that run them.
+Most confusion comes from mixing the two, so keep them in separate columns.
+
+![Two hierarchies side by side. Software, top to bottom: a thread, a threadgroup of four simdgroups with 32 KB of threadgroup memory, and a grid of threadgroups over device memory. Hardware, top to bottom: an arithmetic unit, a GPU core with a 208 KB register file, 60 KB of threadgroup memory and an 8 KB L1 cache, and a GPU of 10 to 40 cores over unified memory shared with the CPU. Each software level runs on the hardware level beside it.](../../diagrams/architecture-levels.svg)
+
+*Left: what one launch creates. Right: the hardware that runs it. Each row reads
+across. The NVIDIA name for each box is under it.*
+
+How the two columns connect:
+
+- **A threadgroup runs on one core.** Its threads can share
+  [threadgroup memory](threadgroup-memory.md) because that memory is inside the
+  core.
+- **A core holds several threadgroups at one time.** They divide its
+  [registers](registers.md) and threadgroup memory between them, and the number
+  that fit is the [occupancy](occupancy.md).
+- **The core schedules [simdgroups](simdgroup.md), not single threads.** About 24
+  simdgroups (about 768 threads) keep all its arithmetic units busy.
+- **A grid is usually larger than the chip.** The threadgroups that do not fit
+  wait, and each one starts when a core has room.
+- **"Core" names a different level on each side.** An Apple
+  [GPU core](gpu-core.md) is the size of an NVIDIA Streaming Multiprocessor. An
+  NVIDIA "CUDA core" is one arithmetic unit inside it.
+
+If you can change it in your code, it is software: the grid, the threadgroup size,
+the number of simdgroups. If you can change it only with a different chip, it is
+hardware.
+
+## The chip
+
+The last column uses three words:
 
 - **Transfers**: the concept and the mechanism match. Reuse what you know.
 - **Resized**: the same concept with different numbers, and the numbers change
   which kernel design wins.
 - **Unlearn**: the CUDA habit is wrong here, because the feature is absent or its
   cost has the opposite sign.
-
-## The chip
 
 | What it is | NVIDIA | Apple M-series | Verdict |
 |---|---|---|---|
