@@ -2,11 +2,11 @@
 
 ## Where we are
 
-Chapter 14 settled the loop. The matrix multiply reaches the practical ceiling at
-4096 by 4096, and no further technique inside it changes that. What remains is
-everything around it. In a model, a matrix multiply is followed by a bias, an
-activation and a normalization, and it is preceded by whatever produced its
-input. Each of those, run as its own kernel, costs a full pass over memory. On
+Chapter 14 settled the loop. The matrix multiply reaches the practical,
+measured ceiling at 4096 by 4096, and the techniques this book covers inside it
+are used up. What remains is everything around it. In a typical transformer
+block a matrix multiply is often followed by a bias and an activation, with a
+normalization nearby, and it is preceded by whatever produced its input. Each of those, run as its own kernel, costs a full pass over memory. On
 the platform of Chapter 3, most kernels sit on the bandwidth side of the ridge,
 so fusion is the most profitable technique in this book. The matrix multiply's
 epilogue in Chapter 13 was the first example of it.
@@ -14,13 +14,13 @@ epilogue in Chapter 13 was the first example of it.
 ## Why fusion is a first principle here
 
 Fusion means computing a chain of operations in one kernel so that the
-intermediate results never touch memory. CUDA has the same concept. What differs
+intermediate arrays are never written to device memory and read back. CUDA has the same concept. What differs
 here is how much it matters. An unfused elementwise chain pays the full round
 trip of device memory traffic for every operation, plus the dispatch overhead of
 Chapter 7 for every kernel. Elementwise operations have an arithmetic intensity
 near zero, about 0.1 FLOPs per byte for an add (Chapter 3), so that traffic buys
-no reuse. On a machine with laptop-class bandwidth, this is the most expensive
-thing a program can do, and the only remedy is to avoid the traffic entirely.
+no reuse. On a machine with laptop-class bandwidth, this is among the most expensive
+things a bandwidth-bound program does, and the remedy is to avoid the round trip.
 
 Every layer of the local stack uses fusion, in four forms.
 
@@ -28,7 +28,9 @@ Every layer of the local stack uses fusion, in four forms.
 
 A matrix multiply's ending (alpha × A × B + beta × C, a bias, an activation) is
 applied to the results while they are still in registers, before their single
-memory write. Chapter 13 showed it hand-written: load the C block, scale, add,
+memory write on the unsplit path; steel's split-K variant writes partial
+products and reduces them in a later pass, so a nonlinear ending there must
+follow that reduction. Chapter 13 showed it hand-written: load the C block, scale, add,
 store, per fragment. Steel makes the ending a plug-in template parameter, so the
 same kernel can end with any operation that is expressible per element.
 
@@ -46,27 +48,30 @@ Source: [`steel/gemm/transforms.h:38-54`](https://github.com/ml-explore/mlx/blob
 
 The transform is applied in the matrix-multiply component's `store_result`
 (Chapter 18) to every accumulator element in registers before the one store.
-`x` is the accumulated product and `c` is the existing output element, so this
-one type reproduces the hand-written epilogue of Chapter 13, and a different
-type in the same slot gives a different ending. Anything expressible as an
-epilogue (a bias, an activation, a scaling) costs zero extra passes over memory,
-because the only memory operations are the ones the kernel was already going to
-do.
+`x` is the accumulated product and `c` is the corresponding element of the
+additive input C, which steel reads from its own buffer and which need not be
+the output's old contents, so this one type reproduces the hand-written epilogue
+of Chapter 13, and a different type in the same slot gives a different ending.
+Anything expressible as an epilogue (a bias, an activation, a scaling) costs no
+extra pass over the output; the operands the ending itself needs, a bias vector
+or the C matrix, are still read once.
 
 ## Fused operations as products
 
 MLX's `mx.fast` namespace exists because the unfused graphs were badly
 bandwidth bound. Its attention, its normalizations and its rotary embedding are
-each a handful of graph operations fused into one kernel (Chapter 21 covers the
-attention case). Flash attention is the extreme form of fusion. Its "fused
-intermediate" is an entire L by L score matrix that never exists in memory, and
+each a handful of graph operations fused into one kernel, or two for the
+decode attention that combines partial results in a second dispatch (Chapters
+21 and 22). Flash attention is the extreme form of fusion. Its "fused
+intermediate" is an entire L by L score matrix per head, L the sequence length,
+that never exists in memory, and
 Chapter 20 derives the algorithm that makes that possible.
 
 ## Automatic fusion
 
 `mx.compile` (Chapter 19) fuses elementwise chains mechanically. It traces the
-graph once, turns runs of elementwise operations into generated kernels, and
-replays them. Luminal takes the same idea further with search: it uses one
+graph once per input shape and data type, turns runs of elementwise operations
+into generated kernels, and replays them. Luminal takes the same idea further with search: it uses one
 command buffer per forward pass, and it rediscovered flash attention by searching
 over fusions. This gives a division of labor to settle before you write any
 kernel. The compiler fuses elementwise chains adequately, so custom kernels
@@ -89,7 +94,8 @@ round trip". That is the first of the three questions of Chapter 24, and most of
 the measured wins in Part 7 are fusions or deletions under other names. The test
 is the sixty-second arithmetic of Chapter 3: count the bytes the unfused version
 moves, count the bytes the fused version moves, and the difference, divided by
-the measured bandwidth, is the time you can save.
+the measured bandwidth, estimates the time you can save if those kernels are
+bandwidth bound; then measure the difference.
 
 ## Where the matmul stands
 
@@ -112,15 +118,18 @@ them. The example changes from a kernel to a framework in the next chapter.
 
 ### Answers
 
-1. Each kernel reads and writes the 64 MiB output once: 128 MiB per kernel, 256
-   MiB for both. At 516 GB/s that is about 0.5 milliseconds, against about 10
-   milliseconds for the multiply itself; the fused epilogue adds no traffic.
+1. The output is 4096 × 4096 × 4 bytes = 64 MiB. Each kernel reads and writes
+   it once: 128 MiB per kernel, 256 MiB = 268,435,456 bytes for both. At 516
+   GB/s that is about 0.52 milliseconds, against 2 × 4096³ / 13.5 TFLOPS = 10.2
+   milliseconds for the multiply itself. The fused epilogue adds no output
+   traffic; the bias vector it reads is 16 KB.
 2. Because its quantize and dequantize steps ran as separate kernels, each paying
    a full round trip for its intermediate; the savings on the cache were smaller
    than the traffic the intermediates cost until they were fused away.
 3. Elementwise chains go to `mx.compile`. Reductions with structure, streaming
-   softmax, and quantization-aware loops need a custom kernel, because the
-   compiler cannot see those patterns.
+   softmax, and quantization-aware loops need a kernel that already knows the
+   pattern, the framework's own fused primitive where one exists and a custom
+   kernel where not, because the compiler does not fuse those patterns.
 
 The next part follows the same decomposition into the production framework,
 starting with what MLX does with a matrix multiply before any kernel runs.
