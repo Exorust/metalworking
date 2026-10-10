@@ -65,8 +65,10 @@ loading the matching A and B fragments from the staged tiles in threadgroup
 memory. The two `simdgroup_load` calls differ in their stride argument, `DIM * 8`
 for the A tile and `BN` for the B tile, because the staged tiles have different
 widths: A is 64 rows by 16 columns, B is 16 rows by 64 columns. With `TILE_K` = 2
-the loop body runs twice per call, and the pragma makes those two iterations
-straight-line code.
+the loop body runs twice per call, and the pragma requests that those two
+iterations become straight-line code. Each call loads its own A and B fragment,
+so the 16 calls per step issue 32 loads for 16 multiplies; Chapter 12 counted
+the distinct fragments.
 
 ## Lines 38 to 82: the cooperative load, and its fallback
 
@@ -91,16 +93,21 @@ column count must be a multiple of 4 and each thread's share must be a multiple
 of 4. Both hold for the default tiles, so the scalar fallback above is compiled
 out of this configuration and exists for other tile shapes. It is the same loop
 one float at a time. The comment at lines 38 to 45 states the contract: `cols`
-and `rows * cols / nthreads` must divide cleanly, which means the kernel has no
-ragged path.
+and `rows * cols / nthreads` must divide cleanly. That is about dividing the
+tile among threads, and the code is a little more lenient than its comment,
+since `per_thread` rounds up and the `break` catches the overshoot. The matrix
+edge is a different matter: the loads carry no bounds checks and the loop uses
+`k / BK`, so the kernel has no ragged path and silently drops a shared-dimension
+remainder that is not a multiple of 16.
 
 ## Lines 84 to 111: the signature and the setup
 
 The signature was read in Chapter 6: five scalar arguments in the `constant`
 address space, `n`, `k`, `m`, `alpha` and `beta`; three buffers, `A`, `B` and
-`C`; and three position attributes. The kernel takes `alpha` and `beta` because it
-computes the full BLAS form, C = alpha × A × B + beta × C, rather than the
-textbook C = A × B. That is why Chapter 10 counted C as read as well as written.
+`C`; two position attributes and one size attribute. The kernel takes `alpha`
+and `beta` because it computes the alpha × A × B + beta × C form of BLAS, rather
+than the textbook C = A × B, and it reads C unconditionally, even when `beta` is
+zero. That is why Chapter 10 counted C as read as well as written.
 
 ```metal
   threadgroup float A_tg[BM * BK];
@@ -125,9 +132,10 @@ position in the grid picks which 64 by 64 tile of C it owns; the grid is laid ou
 with the row index in `z` and the column index in `y`, which the harness matches
 when it dispatches. The kernel then declares and zeroes the accumulator grid, 16
 fragments per simdgroup. Last, it composes the thread's linear index inside the
-threadgroup from the three-dimensional position. Chapter 6 said this kernel does
-that arithmetic by hand, because the cooperative load needs a flat index from 0
-to 127.
+threadgroup from the three-dimensional position: the harness launches
+threadgroups of (32, `SW`, `SW`), so `x` spans the 32 lanes and `y` and `z`
+name the simdgroup. Chapter 6 said this kernel does that arithmetic by hand,
+because the cooperative load needs a flat index from 0 to 127.
 
 ## Lines 113 to 128: the loop
 
@@ -159,7 +167,10 @@ Source: [`sync_copy.metal:130-143`](https://github.com/yaroslavvb/m5-gemm/blob/2
 
 The ending is the first appearance of the technique that Chapter 15 covers. For each of the 16 accumulators, the kernel loads the existing 8 by
 8 block of C from device memory into a fragment, multiplies it by `beta`,
-multiplies the accumulator by `alpha` and adds, and stores the result. The whole
+multiplies the accumulator by `alpha` and adds, and stores the result. The
+scaling uses matrix multiplies: `simdgroup_float8x8(beta)` constructs a diagonal
+matrix with `beta` on the diagonal, so `c_simd × diag(beta)` scales every
+element, and the multiply-accumulate computes `acc × diag(alpha) + c_simd`. The whole
 BLAS form is applied while the result is still in registers, on its way to its
 one store. The kernel makes no second pass over C to scale it and launches no
 separate kernel to add it. This is fusion on a small scale, and steel generalizes
@@ -167,15 +178,16 @@ the same spot into a plug-in epilogue (Chapter 18). The guard at line 133 checks
 only that the simdgroup's origin is inside the matrix, which is always true when
 the sizes are divisible by 64. That check is all the edge handling the kernel has.
 
-Count the traffic of the epilogue against the loop. The loop staged 256 steps of
-8 KB, 2 MiB of inputs per threadgroup, through threadgroup memory. The epilogue
+Count the traffic of the epilogue against the loop. For the 4096-wide example the loop staged 4096 / 16 = 256 steps of 8 KB,
+2 MiB of requested inputs per threadgroup, through threadgroup memory. The epilogue
 reads and writes one 64 by 64 tile of C, 16 KB each way, once. The output is
 written exactly once, which is what register blocking promised in Chapter 12.
 
 ## Running it yourself
 
 You do not need Xcode, because the harness compiles the source at run time
-(Chapter 6). On an Apple Silicon Mac with Python, `python matmul.py --dim 4096 --trials 5`
+(Chapter 6). On an Apple Silicon Mac with Python, NumPy and PyObjC installed,
+`python matmul.py --dim 4096 --trials 5`
 in the m5-gemm repository benchmarks both kernels against MPS, and `bandwidth.py`
 measures your machine's bandwidth roof for Chapter 10. The numbers cited in this
 book are the author's, from a 40-core M5 Max; expect different crossovers on
@@ -187,7 +199,8 @@ The matmul is unchanged at 13.5 TFLOPS, and its source is now fully accounted
 for: 144 lines, of which 12 are
 the header, 3 the tile constants, 15 the fragment loop, 45 the cooperative load
 with its fallback, 13 the signature, 14 the setup, 16 the loop, and 14 the
-epilogue; the other 12 are includes, braces and blank lines. Every line of code
+epilogue; the other 12 are seven blank lines, two includes, two braces and
+`using namespace metal;`. Every line of code
 maps to a chapter.
 
 ## Check yourself
@@ -208,7 +221,8 @@ maps to a chapter.
 2. The compile-time condition at line 56 selects the vectorized path when the
    column count and each thread's share are multiples of 4, which holds for 64 by
    16 and 16 by 64 tiles with 128 threads. The fallback would run for a tile
-   shape that fails either test.
+   shape that fails either test, for example `SIMD_TILE` = 1 with `TILE_K` = 1,
+   where a 32 by 8 tile gives 256 / 128 = 2 floats per thread.
 3. The `simdgroup_load` of C and the `simdgroup_store` of the result; the two
    multiplies work on fragments in registers. Each output element is read once
    and written once.
