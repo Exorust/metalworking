@@ -72,8 +72,8 @@
   <!-- annotations -->
   <text x="80" y="200" font-size="10.5" fill="#e8c268">falling off the fast path is silent:</text>
   <text x="80" y="218" font-size="9.5" fill="#6f9a62">MTPLX's 2.24× came from noticing M=3-6</text>
-  <text x="80" y="234" font-size="9.5" fill="#6f9a62">fell between the gemv tuning and the</text>
-  <text x="80" y="250" font-size="9.5" fill="#6f9a62">GEMM tiles</text>
+  <text x="80" y="234" font-size="9.5" fill="#6f9a62">fell between the one-row qmv tuning and</text>
+  <text x="80" y="250" font-size="9.5" fill="#6f9a62">the qmm tiles (quantized family)</text>
   <text x="80" y="290" font-size="9.5" fill="#6f9a62">sdpa has its own gate like this</text>
   <text x="80" y="306" font-size="9.5" fill="#6f9a62">(head-dim lists, sequence thresholds)</text>
 

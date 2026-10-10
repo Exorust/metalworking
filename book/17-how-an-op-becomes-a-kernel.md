@@ -5,7 +5,7 @@
 Chapter 16 left the matrix multiply as a graph node that the scheduler hands to
 its primitive at evaluation time. Between that node and a `simdgroup_matrix`
 instruction sits one C++ hop: the primitive's `eval_gpu`, which picks a kernel
-variant, picks tile sizes, binds function constants, and encodes the dispatch.
+family, picks tile sizes, binds function constants, and encodes the dispatch.
 In CUDA this is the dispatcher layer between PyTorch and cuBLAS's heuristics,
 except that here the code is open, small and readable. Once you know where these
 decisions live, you can turn "my model is slow" into "my shapes fall off the fast
@@ -15,8 +15,22 @@ path, is answered by reading exactly these files.
 ## The chain, for a matmul
 
 The lazy graph hands `Matmul` to the scheduler. `Matmul::eval_gpu`, in
-`mlx/backend/metal/matmul.cpp`, normalizes strides and transposes, then picks
-the steel template parameters from the device class and the problem shape.
+`mlx/backend/metal/matmul.cpp`, first normalizes each operand: if neither stride
+is 1 it encodes a copy to a contiguous layout before the multiply, and it
+collapses batch dimensions where it can. Then it routes, in this order.
+
+1. `gemv_wide`, for a 16-bit multiply in the transposed-B layout with 2 to 15
+   rows on M3-class chips and later, when K is a multiple of 4 and the vectors
+   align.
+2. `gemv`, when M or N is 1.
+3. `steel_matmul_axpby`, for everything else. Inside it, the first decision is
+   the hardware: `use_nax` is true when `is_nax_available()` holds, which needs
+   a generation-17 or later GPU, macOS 26.2 or later and a build without
+   `MLX_METAL_NO_NAX`, and when either the type is not 32-bit float or TF32 is
+   enabled, which `MLX_ENABLE_TF32` turns on by default. If `use_nax` is true the
+   multiply goes to the NAX fork of Chapter 29. If it is false and the output is
+   small against K, a split-K kernel runs instead. Only then does the tile macro
+   below pick the plain steel kernel's shape.
 
 ```cpp
 #define GEMM_TPARAM_MACRO(devc)                                           \
@@ -40,28 +54,43 @@ the steel template parameters from the device class and the problem shape.
 ```
 Source: [`mlx/backend/metal/matmul.cpp:89-124`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/matmul.cpp#L89-L124), abridged
 
-Read what that macro is: a hand-tuned lookup from the chip class, the size, the
-data type and the transpose pattern to a tile shape, `bm`, `bn`, `bk`, `wm`, `wn`.
-Those are the `BM`, `BN`, `BK` of Chapter 11 and the simdgroup arrangement of
-Chapter 12, chosen per shape instead of fixed by `-D` defines. It does the job of
-cuBLAS's secret heuristics, but you can search it. The device class letter is the
-last character of the Metal architecture name, and `device.cpp` spells out the
-mapping: `p` for phone, `g` for base and Pro chips, `s` for Max, `d` for Ultra.
-The macro's small-device branch is `g` and `p`; its large-device branch is `d`,
-the Ultra. A Max matches neither, so an M5 Max keeps the defaults set just
-before the macro, `bm` = `bn` = 64, `bk` = 16, `wm` = `wn` = 2: a 64 by 64 tile,
-16 deep, four simdgroups of 32 by 32, which is exactly the hand-written kernel's
-shape. On an Ultra, the first row shown gives 16-bit matrices of a reasonable
-shape a 64 by 64 tile, 16 deep, with 1 by 2 simdgroups, two simdgroups of 64
-rows by 32 columns; the second row changes the tile for the transposed-B case
-with a large shared dimension. The branches continue past the excerpt for
-smaller matmuls, and a 32-bit large matmul on an Ultra also takes the defaults,
-which the file comments mark with "float takes default".
+Read what that macro is: a hand-tuned lookup from the chip class to a tile
+shape, `bm`, `bn`, `bk`, `wm`, `wn`, which on the largest class also looks at
+the size, the data type and the transpose pattern. Those are the `BM`, `BN`,
+`BK` of Chapter 11 and the simdgroup arrangement of Chapter 12, chosen per shape
+instead of fixed by `-D` defines. It does the job of cuBLAS's secret heuristics,
+but you can search it. The device class letter is the last character of the
+Metal architecture name, and `device.cpp` spells out the mapping: `p` for phone,
+`g` for base and Pro chips, `s` for Max, `d` for Ultra. The macro's small-device
+branch is `g` and `p`; its large-device branch is `d`; everything else, which
+includes every Max, falls into a final `else` the file labels "Medium device"
+and gets `bm` = `bn` = 64, `bk` = 16, `wm` = `wn` = 2, the same values the
+function sets as defaults before the macro. That is a 64 by 64 tile, 16 deep,
+four simdgroups, the hand-written kernel's dimensions.
 
-Then the kernel name is assembled as a string, `steel_gemm_fused_...bm64_bn64...`
-and so on. The pipeline is fetched from the cache or built at run time (Chapter
-6), the alignment function constants of Chapter 8 are bound, and the dispatch is
-encoded into the shared command encoder of Chapter 16.
+The ownership differs, though. Steel's `BlockMMA` places simdgroup fragments on
+a lattice: fragment rows are spaced 8 × `wm` apart and fragment columns 8 × `wn`
+apart, with each simdgroup's origin at 8 × (id / `wn`), 8 × (id % `wn`). With
+`wm` = `wn` = 2 each simdgroup owns 32 by 32 elements interleaved with the
+other three on a 16-element stride, not a contiguous quarter as in Part 4.
+Chapter 18 reads that code.
+
+On an Ultra, the first row shown gives 16-bit matrices of a reasonable shape,
+where 2 × max(M, N) exceeds K, a 64 by 64 tile, 16 deep, with 1 by 2
+simdgroups. The second row covers the transposed-B case when K is larger than
+that; the remaining transpose patterns take a 32 by 64 tile that the excerpt
+omits. A 32-bit large matmul on an Ultra takes the defaults, which the file
+comments mark with "float takes default".
+
+Then the kernel name is assembled as a string in two stages. The base name,
+`steel_gemm_fused_...bm64_bn64...` and so on, names one template instantiation,
+and the pinned `steel_gemm_fused.metal` precompiles exactly six tile shapes per
+type into the shipped library; `MLX_METAL_JIT` is off by default, so a shape
+outside those six is not compiled at run time. The hash name appends the six
+function constants of Chapter 8, `has_batch`, `use_out_source`, `do_axpby`,
+`align_M`, `align_N` and `align_K`, and keys the pipeline state, which is built
+at pipeline creation (Chapter 6) the first time and fetched from the cache after.
+The dispatch is then encoded into the shared command encoder of Chapter 16.
 
 ![The MLX matmul dispatch tree: shape checks route to gemv or quantized families, otherwise the tile-selection macro picks steel parameters, the kernel name is assembled, and the pipeline is fetched or JIT built](../diagrams/dispatch-tree.svg)
 
@@ -73,18 +102,27 @@ the steel fast path; the green spine is the path Chapter 18 reads.*
 Several branches come before the macro, and a shape that falls into the wrong
 one runs slower without any warning.
 
-- **Matrix-vector shapes** route to `gemv` kernels rather than to the tiled
-  matrix multiply, because one row cannot fill a tile (Chapter 22).
-- **Very skinny or small cases** have split-K and other non-steel paths.
-- **Quantized weights** go to a different kernel family (Chapter 23),
-  whose fast path is shape-sensitive in its own ways.
-- **`mx.fast.scaled_dot_product_attention`** has its own dispatch gate deciding
-  between the fused kernel and a fallback graph (Chapter 21).
+- **Matrix-vector shapes** route to `gemv` when M or N is 1, and 16-bit
+  transposed-B multiplies with up to 15 rows route to `gemv_wide` on M3-class
+  chips and later, because a few rows cannot fill a tile (Chapter 22).
+- **Small outputs with a large shared dimension** take the split-K kernel when
+  NAX is off: the output tile count must be at most 2,048 on a Max or Ultra,
+  K at least 128, and K at least as large as M and N.
+- **The hardware gate** sends every eligible multiply on an M5-class GPU to the
+  NAX fork, including 32-bit multiplies unless TF32 is disabled.
+- **Quantized weights** are a separate primitive with a different kernel family
+  (Chapter 23), whose fast path is shape-sensitive in its own ways.
+- **`mx.fast.scaled_dot_product_attention`** is likewise its own primitive, with
+  its own gate deciding between the fused kernel and a fallback graph (Chapter
+  21).
 
 The measured example of the trap is the MTPLX case of Chapter 24: 2.24 times
 end-to-end from about 10 lines, which came from noticing that multi-token decode,
-3 to 6 query rows at a time, fell between the matrix-vector path and the tile
-sizes this macro assumes. The kernel existed, but its tuning grid had a hole.
+3 to 6 rows at a time, stalled the quantized matrix-vector kernel of Chapter 23,
+which is tuned for one row, while the quantized tiled kernel is tuned for many.
+The kernel existed, but its tuning grid had a hole. The same reading applies to
+every family: find the branch your shape takes, then the condition that sent it
+there.
 
 ## What this means for the kernel writer
 
@@ -95,48 +133,59 @@ First, before writing anything, read the branch your shape takes. The question
 different shape", and the fix is a change to the dispatch rather than a new kernel.
 
 Second, the tile table is where production code applies the "no single fastest
-kernel" lesson of Chapter 14. The table encodes which variant wins per
-shape, and when a new chip generation moves the crossovers, the table moves.
+kernel" lesson of Chapter 14. The table encodes which variant wins per chip
+class, and a new generation changes the route not by editing it but by passing
+the hardware gate above it: an M1 Max and an M5 Max read the same `else`, and
+the M5 then leaves for the NAX fork.
 
-Third, the pipeline cache is keyed by the assembled name and the constant values,
-so a model that meets many distinct shapes pays a pipeline build for each the
-first time, and MLX keeps every pipeline it builds for the life of the process.
+Third, the pipeline cache is keyed by the hash name, so a model that meets many
+distinct shapes and constant combinations pays a pipeline build for each the
+first time, and MLX keeps every pipeline it builds for as long as its device
+cache lives.
 
 ## Where the matmul stands
 
-For 4096 by 4096 in 32-bit on an M5 Max, the macro has no branch for the Max
-class, so the defaults stand: `bm` = `bn` = 64, `bk` = 16, `wm` = `wn` = 2, the
-shape of Part 4. The name `steel_gemm_fused_...` is assembled with those sizes, the `align_M`, `align_N` and
-`align_K` constants bind to true because 4096 divides by the tiles, and the
-aligned pipeline is dispatched. The kernel it runs is the subject of the next
-chapter.
+For 4096 by 4096 in 32-bit on an M5 Max with the pinned MLX, the hardware gate
+fires: `is_nax_available()` is true and TF32 is on by default, so the multiply
+goes to `steel_gemm_fused_nax` with a 64 by 128 tile, 256 deep, eight simdgroups,
+the fork Chapter 29 reads. On any chip before M5, or on an M5 with
+`MLX_ENABLE_TF32=0`, it takes the plain path this part follows: the Max class
+lands in the "Medium device" `else`, `bm` = `bn` = 64, `bk` = 16, `wm` = `wn` =
+2, the base name `steel_gemm_fused_...` names that precompiled instantiation,
+the `align_M`, `align_N` and `align_K` constants bind to true because 4096
+divides by every tile dimension, and the aligned pipeline is dispatched. That
+kernel is the subject of the next chapter.
 
 ## Check yourself
 
 1. A model runs a 4096 by 4096 matrix multiply in 16-bit with K = 64 on an M2
    Ultra. Which branch of the excerpt does it take, and which tile shape does it
    get? What changes on an M5 Max?
-2. A speculative decoder sends 4 query rows at a time and runs slower per row
-   than single-row decode. Which part of the dispatch chain does the chapter say
-   to read first, and why?
+2. A speculative decoder sends 4 query rows at a time against quantized weights
+   and runs slower per row than single-row decode. Which part of the dispatch
+   chain does the chapter say to read first, and why?
 3. Why does MLX assemble the kernel name as a string rather than calling one
-   kernel?
+   kernel, and what are the two keys?
 
 ### Answers
 
-1. On the Ultra, device class `d`: the large-device, large-matmul branch for
-   non-32-bit output, then the test `2 × max(M, N) > K`: 8192 > 64 is true, so
-   the "reasonable K" row, `bm` = 64, `bn` = 64, `bk` = 16, `wm` = 1, `wn` = 2.
-   On the Max, device class `s`, the macro has no branch, so the defaults stand:
-   the same 64 by 64 by 16 tile with `wm` = `wn` = 2, four simdgroups.
-2. The branches before steel and the tile table, because 4 rows is too many for
-   the matrix-vector path and too few for the tile sizes the macro assumes; the
-   MTPLX case found exactly that hole and fixed it in about 10 lines.
-3. Because one source yields many compiled variants, Chapter 8, and the name
-   encodes which template instance and which tile sizes to fetch or build; the
-   name is the cache key.
+1. On the Ultra, device class `d` and a generation-14 GPU, so NAX is off: the
+   large-device, large-matmul branch applies because 4096 × 4096 exceeds 2^20,
+   the output is not 32-bit, and `2 × max(M, N) > K` is 8192 > 64, so the
+   "reasonable K" row, `bm` = 64, `bn` = 64, `bk` = 16, `wm` = 1, `wn` = 2. On
+   the M5 Max the hardware gate fires first and the multiply goes to the NAX
+   fork with a 64 by 128 by 256 tile, `wm` = 2, `wn` = 4; the macro never runs.
+2. The quantized family's own dispatch (Chapter 23), because its matrix-vector
+   kernel is tuned for one row and its tiled kernel for many, and 4 rows falls
+   between them; the MTPLX case found exactly that hole and fixed it in about 10
+   lines of the matrix-vector kernel.
+3. Because tile sizes are template parameters (Chapter 8), so each shape is a
+   separate compiled function that needs its own host name: the base name keys
+   the library function, and the hash name, which appends the six function
+   constants, keys the pipeline state.
 
-The dispatch has chosen `steel_gemm_fused`, and the next chapter reads it as the
-hand-written kernel of Part 4 rebuilt from three components.
+The dispatch has chosen `steel_gemm_fused` on the plain path, and the next
+chapter reads it as the hand-written kernel of Part 4 rebuilt from three
+components.
 
 Next: [Steel: the GEMM as components](18-steel-the-gemm-as-components.md)

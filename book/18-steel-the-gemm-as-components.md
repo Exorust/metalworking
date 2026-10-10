@@ -223,8 +223,9 @@ MLX, so its ideas travel by reading, which is what this chapter was for.
 
 ## Where the matmul stands
 
-The example now runs as `steel_gemm_fused` with the tile shape Chapter 17 chose:
-a `BlockLoader` per operand, a `BlockMMA` per simdgroup, and the aligned
+On the plain steel path, which is every chip before M5 and an M5 with TF32
+disabled, the example runs as `steel_gemm_fused` with the tile shape Chapter 17
+chose: a `BlockLoader` per operand, a `BlockMMA` per simdgroup, and the aligned
 pipeline, since 4096 divides by every tile dimension. Its three parts map one to
 one onto Chapters 11, 12 and 13.
 

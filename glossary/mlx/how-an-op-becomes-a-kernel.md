@@ -52,7 +52,9 @@ whose fast path is [shape-sensitive in its own ways](../war-stories/three-questi
 and `mx.fast.scaled_dot_product_attention` has its
 [own dispatch gate](mx-fast.md) deciding fused-vs-fallback. The
 [MTPLX war story](../war-stories/three-questions.md), 2.24× from ~10 lines,
-came from noticing that multi-token decode (M=3-6) fell between the matrix-vector
-path and the tile sizes this macro assumes.
+came from noticing that multi-token decode (M=3-6) stalled the
+[quantized matrix-vector kernel](quantization.md), tuned for M=1, while the
+quantized tiled kernel is tuned for many rows: the same gap, in that family's
+own dispatch.
 
 Next: [Steel](steel.md)
