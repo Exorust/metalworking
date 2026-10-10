@@ -8,10 +8,9 @@ The vocabulary:
 
 | CUDA | Metal |
 |---|---|
-| `__syncthreads()` | `threadgroup_barrier(mem_flags::mem_threadgroup)` |
-| `__syncthreads()` (execution-only) | `threadgroup_barrier(mem_flags::mem_none)` |
-| `__syncwarp()` | `simdgroup_barrier(mem_flags::mem_none)` |
-| `__threadfence()` | `threadgroup_barrier(mem_flags::mem_device)` |
+| `__syncthreads()` (orders shared and global memory) | `threadgroup_barrier(mem_flags::mem_threadgroup \| mem_flags::mem_device)`; `mem_threadgroup` alone when only threadgroup memory is shared |
+| `__syncwarp()` | `simdgroup_barrier` with a memory flag; `mem_none` fences nothing and is only a scheduling hint |
+| `__threadfence_block()` | `threadgroup_barrier(mem_flags::mem_device)`, approximately (it also waits for every thread) |
 | grid-wide sync | none; end the dispatch (same as CUDA without cooperative launch) |
 
 The `mem_flags` argument states which memory the barrier orders (threadgroup
