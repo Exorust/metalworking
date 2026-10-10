@@ -4,17 +4,21 @@ import { REPO } from "./manifest.mjs";
 import { assetUrl } from "./assets.mjs";
 import { themedDiagram, hasDiagram } from "./diagram.mjs";
 
+// fromDir: null for README-level links, "book" for chapters, else a glossary section dir.
 function rewriteHref(href, fromDir) {
   if (/^https?:|^mailto:/.test(href)) return { href, external: true };
   const [path, hash = ""] = href.split("#");
   let target = path;
   if (fromDir === null) {                       // README-level links
-    if (target.startsWith("glossary/")) target = target.slice("glossary/".length);
-    else return { href: `${REPO}/blob/main/${target}`, external: true }; // SOURCES.md, LICENSE
+    if (!target.startsWith("glossary/") && !target.startsWith("book/"))
+      return { href: `${REPO}/blob/main/${target}`, external: true }; // SOURCES.md, LICENSE
+  } else if (fromDir === "book") {              // chapters link only to chapters
+    if (target.startsWith("../")) return { href: `${REPO}/blob/main/${target.replace(/^(\.\.\/)+/, "")}`, external: true };
+    target = `book/${target}`;
   } else {
     if (target.startsWith("../../")) return { href: `${REPO}/blob/main/${target.replace(/^(\.\.\/)+/, "")}`, external: true };
-    else if (target.startsWith("../")) target = target.slice(3);
-    else target = `${fromDir}/${target}`;
+    else if (target.startsWith("../")) target = `glossary/${target.slice(3)}`;
+    else target = `glossary/${fromDir}/${target}`;
   }
   return { href: `/${target.replace(/\.md$/, "/")}${hash ? "#" + hash : ""}`, external: false };
 }

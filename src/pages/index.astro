@@ -1,6 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
-import { ORDER, DEFAULT_DESC } from "../manifest.mjs";
+import { DEFAULT_DESC } from "../manifest.mjs";
 import { TITLE_ART } from "../pixel.mjs";
 import { render } from "../markdown.mjs";
 import { README } from "../content.mjs";
@@ -11,9 +11,13 @@ let md = README;
 md = md.replace(/^!\[[^\]]*\]\(banner\.png\)\n?/m, "");
 md = md.replace(/^\*\*Read it as a website:.*$\n?/m, "");
 
-const html = TITLE_ART + `<h1 class="visually-hidden">metalworking</h1>` + render(md, null);
+const cta = `<div class="forms-cta">
+  <a class="cta" href="/book/"><span class="cta-head">Read the book</span><span class="cta-sub">29 chapters in order, one matrix multiply from baseline to production</span></a>
+  <a class="cta" href="/glossary/"><span class="cta-head">Open the glossary</span><span class="cta-sub">57 entries, each one standalone, with the CUDA equivalent up front</span></a>
+</div>`;
+const html = TITLE_ART + `<h1 class="visually-hidden">metalworking</h1>` + cta + render(md, null);
 ---
 
-<Base route="/" title="README" desc={DEFAULT_DESC} prev={null} next={ORDER[1]}>
+<Base route="/" title="README" desc={DEFAULT_DESC} form="home" src="README.md" prev={null} next={null}>
   <Fragment set:html={html} />
 </Base>

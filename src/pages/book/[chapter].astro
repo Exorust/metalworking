@@ -1,0 +1,27 @@
+---
+import Base from "../../layouts/Base.astro";
+import { BOOK, BOOK_ORDER, firstProse } from "../../manifest.mjs";
+import { render } from "../../markdown.mjs";
+import { bookMd } from "../../content.mjs";
+
+export function getStaticPaths() {
+  return BOOK.flatMap((p) =>
+    p.chapters.map(([file, title]) => ({
+      params: { chapter: file },
+      props: { file, title, part: p },
+    })),
+  );
+}
+
+const { file, title, part } = Astro.props;
+const route = `/book/${file}/`;
+const md = bookMd(file) ?? `# ${title}\n\nThis chapter is not written yet.\n`;
+const i = BOOK_ORDER.findIndex((o) => o.route === route);
+const html = `<div class="kicker">Chapter ${Number(file.slice(0, 2))} · Part ${part.n}: ${part.title}</div>` + render(md, "book");
+const desc = firstProse(md).slice(0, 300);
+---
+
+<Base route={route} title={title} desc={desc} form="book" src={`book/${file}.md`}
+      prev={BOOK_ORDER[i - 1] ?? null} next={BOOK_ORDER[i + 1] ?? null}>
+  <Fragment set:html={html} />
+</Base>

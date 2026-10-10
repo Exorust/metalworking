@@ -1,4 +1,8 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "redirects": [
+    { "source": "/:section(machine|metal|mlx|techniques|kernels|war-stories)/:slug", "destination": "/glossary/:section/:slug/", "permanent": true },
+    { "source": "/:section(machine|metal|mlx|techniques|kernels|war-stories)/:slug/", "destination": "/glossary/:section/:slug/", "permanent": true }
+  ]
 }

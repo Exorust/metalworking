@@ -1,0 +1,24 @@
+---
+import Base from "../../layouts/Base.astro";
+import { BOOK, BOOK_ORDER } from "../../manifest.mjs";
+
+// The book's table of contents: parts, their driving questions, and what each
+// chapter lets the reader do.
+const total = BOOK.reduce((n, p) => n + p.chapters.length, 0);
+const html = `<h1>The book</h1>
+<p>${total} chapters in ${BOOK.length} parts, written to be read in order. One matrix multiply runs
+through the middle parts: from the library baseline to a hand-written kernel that beats it, then
+into production, then into attention. Every chapter opens with where you are, derives its key
+numbers once, and ends with questions you can check yourself against.</p>
+<p>Start with <a class="term" href="/book/${BOOK[0].chapters[0][0]}/">Chapter 1</a>. The
+<a class="term" href="/glossary/">glossary</a> holds the same material as standalone entries.</p>` +
+  BOOK.map((p) => `<h2>Part ${p.n}. ${p.title}</h2><p class="question">${p.question}</p><ol class="toc-list" start="${Number(p.chapters[0][0].slice(0, 2))}">` +
+    p.chapters.map(([file, title, blurb]) =>
+      `<li><a class="term" href="/book/${file}/">${title}</a><span class="def">${blurb}</span></li>`).join("") +
+    "</ol>").join("");
+---
+
+<Base route="/book/" title="The book" desc="The metalworking book: 29 chapters in 8 parts, read in order." form="book" src="book"
+      prev={null} next={BOOK_ORDER[1]}>
+  <Fragment set:html={html} />
+</Base>

@@ -1,0 +1,21 @@
+---
+import Base from "../../layouts/Base.astro";
+import { SECTIONS, GLOSSARY_ORDER, firstPara } from "../../manifest.mjs";
+import { pageMd } from "../../content.mjs";
+
+// The glossary index: every entry with its one-sentence definition.
+const html = `<h1>The glossary</h1>
+<p>${SECTIONS.reduce((n, s) => n + s.pages.length, 0)} entries in six sections. Every entry stands alone: it opens with a
+definition, gives the CUDA equivalent where one exists, and links to what it assumes.
+Read it like a reference, or read <a class="term" href="/book/">the book</a> for the same material as a track.</p>` +
+  SECTIONS.map((s) => `<h2>${s.title}</h2><ul class="index">` +
+    s.pages.map(([slug, title, chip]) => {
+      const def = firstPara(pageMd(s.dir, slug)).split(". ")[0].replace(/\.+$/, "");
+      return `<li><a class="term" href="/glossary/${s.dir}/${slug}/">${title}</a>${chip ? ` <span class="chip">${chip}</span>` : ""}<span class="def">${def}.</span></li>`;
+    }).join("") + "</ul>").join("");
+---
+
+<Base route="/glossary/" title="Glossary" desc="The metalworking glossary: every entry with its definition." form="glossary" src="glossary"
+      prev={null} next={GLOSSARY_ORDER[1]}>
+  <Fragment set:html={html} />
+</Base>

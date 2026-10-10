@@ -2,9 +2,11 @@
 
 **Read it as a website: [metalworking.vercel.app](https://metalworking.vercel.app)**
 
-A hyperlinked glossary of Apple Metal GPU performance: the machine, the Metal
-stack, MLX's architecture, the techniques, and real production kernels read line
-by line.
+Apple Metal GPU performance in two forms: a **book**, 29 chapters read in order
+that follow one matrix multiply from the library baseline to a hand-written kernel
+that beats it and on into attention, and a **glossary**, 57 standalone entries on
+the machine, the Metal stack, MLX, the techniques, and real production kernels
+read line by line. On the website, the switch at the top moves between them.
 
 **Who it's for:** you know GPU fundamentals, say at the level of
 [Modal's GPU Glossary](https://modal.com/gpu-glossary/readme), but you've never
@@ -13,11 +15,11 @@ every page opens with the CUDA equivalent where one exists, then spends its word
 on what's *different* here. Concepts Modal already covers well are linked, not
 re-taught.
 
-**How to read it:** like a glossary or like a book. Every page stands alone and
-links to what it assumes, and every page ends with a `Next` link, so front to back
-also works. Front to back is a deliberate arc: *what is this machine → how do you
-talk to it → what does the framework do on your behalf → why are fast kernels
-shaped this way → read five real ones → learn from the community's scars.*
+**How to read it:** the [book](book/) is the track: every chapter opens with
+where you are, derives its numbers once, and ends with questions to check yourself
+against. The glossary below is the reference: every entry stands alone and links to
+what it assumes, and every entry ends with a `Next` link, so front to back also
+works there.
 
 All code excerpts are quoted verbatim from pinned commits and permalink back to
 their exact lines, so you can always zoom out from a fragment to the full source.

@@ -178,6 +178,11 @@ body {
   background: var(--bg-side);
 }
 .wordmark { font-weight: 700; font-size: 1.05rem; color: var(--fg); text-decoration: none; letter-spacing: 0.02em; }
+.forms { display: flex; border: 1px solid var(--dash); }
+.forms a { font-size: 0.85rem; color: var(--muted); text-decoration: none; padding: 0.32rem 0.8rem; }
+.forms a + a { border-left: 1px solid var(--dash); }
+.forms a:hover { color: var(--fg); }
+.forms a.on { background: var(--sel-bg); color: var(--sel-fg); }
 .themes { margin-left: auto; position: relative; }
 .theme-btn {
   display: flex; align-items: center; gap: 0.5rem;
@@ -277,6 +282,8 @@ body {
   padding: 0.05rem 0.4rem; border-radius: 3px; white-space: nowrap;
 }
 .toc-section a.active .chip { color: var(--sel-fg); border-color: var(--sel-fg); }
+.toc-section a .num { color: var(--muted); font-size: 0.8rem; min-width: 1.4em; }
+.toc-section a.active .num { color: var(--sel-fg); }
 
 /* ---- content ---- */
 .content { flex: 1; min-width: 0; padding: 1.8rem 3.4rem 3.5rem; max-width: 1150px; margin: 0 auto; }
@@ -377,6 +384,17 @@ body {
   margin-top: 2.5rem; border: 1px solid var(--accent); background: var(--accent-soft);
   padding: 1rem 1.3rem; font-size: 0.9rem;
 }
+
+/* ---- book and glossary indexes ---- */
+.kicker { color: var(--muted); font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 0.6rem; }
+.question { color: var(--muted); font-style: italic; margin-top: -0.6rem; }
+.toc-list li, .index li { margin: 0.55rem 0; }
+.def { display: block; color: var(--muted); font-size: 0.9rem; margin-top: 0.15rem; }
+.forms-cta { display: flex; gap: 1rem; margin: 1.5rem 0 2.2rem; flex-wrap: wrap; }
+.cta { flex: 1 1 240px; border: 1px solid var(--fg); padding: 0.9rem 1.1rem; text-decoration: none; color: var(--fg); }
+.cta:hover { background: var(--sel-bg); color: var(--sel-fg); }
+.cta-head { display: block; font-weight: 700; font-size: 1.05rem; }
+.cta-sub { display: block; font-size: 0.85rem; margin-top: 0.3rem; opacity: 0.85; }
 
 /* ---- search overlay ---- */
 .search-overlay {
