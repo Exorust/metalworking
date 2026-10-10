@@ -33,12 +33,12 @@
       <line x1="965" y1="82" x2="965" y2="128"/>
     </g>
   </g>
-  <text x="1130" y="110" font-size="9.5" fill="#6f9a62">ALUs idle during every load</text>
+  <text x="1130" y="110" font-size="9.5" fill="#6f9a62">this threadgroup's ALUs wait during each load</text>
 
   <!-- ===== Lane 2: double-buffered ===== -->
   <text x="40" y="215" font-size="12.5" fill="#a6cc97">double-buffered</text>
   <text x="40" y="232" font-size="9.5" fill="#6f9a62">prefetch overlaps via ILP;</text>
-  <text x="40" y="246" font-size="9.5" fill="#6f9a62">same threads, no idle turns</text>
+  <text x="40" y="246" font-size="9.5" fill="#6f9a62">same threads, loads interleaved with math</text>
   <g>
     <!-- prologue load -->
     <rect x="240" y="188" width="130" height="30" fill="#e8c268" rx="2"/>

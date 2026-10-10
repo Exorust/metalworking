@@ -15,14 +15,16 @@ can no longer be reached; the shape of every current kernel follows from that.
 ## Double buffering: overlap through ILP, not DMA
 
 Double buffering allocates two staging buffers so that the loop can load slab
-`l + 1` while computing on slab `l`. It is the multi-stage `cp.async` pipeline of
-every modern CUDA matrix multiply, with one local difference: the copy engine
-is not reachable, so there is no true overlap of copy and compute. The same threads issue
-both the loads and the math. What makes it work anyway is that the prefetch loads
-and the current slab's multiply-accumulates have no data dependence, so the
-hardware scheduler interleaves them. This is the instruction-level parallelism of
-Chapter 4, and it hides threadgroup-memory latency with independent work from one
-instruction stream. It is software pipelining rather than hardware pipelining.
+`l + 1` while computing on slab `l`. In CUDA the same structure is usually fed by
+`cp.async` or TMA, asynchronous copies that proceed while the threads compute.
+Here the copy engine is not reachable, so the prefetch is ordinary loads and
+stores issued by the same threads that do the math. What makes it work anyway is
+that the prefetch and the current slab's multiply-accumulates have no data
+dependence, so the scheduler can interleave them. That is the instruction-level
+parallelism of Chapter 4, applied to the device-fetch latency of the next slab;
+how much of it the compiler and the hardware actually overlap is not measured
+here, only the result. It is software pipelining rather than hardware
+pipelining.
 
 The double-buffered loop differs from the single-buffered loop of Chapter 12 in
 exactly three ways: two buffer sets, a prologue that loads slab 0, and one barrier per
@@ -55,27 +57,32 @@ as Chapter 12, run on `A_use` and `B_use`.
 ```
 Source: [`sync_copy_db.metal:87-126`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy_db.metal#L87-L126), abridged
 
-The single barrier covers two hazards. "The prefetch has landed" and "everyone is
-done with the buffer we are about to overwrite" are the same condition when the
-buffers alternate, so the two hazards of Chapter 2 are covered by one barrier at
-the top of each iteration. The kernel's own header comment states the mechanism:
+The single barrier covers two hazards on two different buffers. At the top of
+iteration `l`, "the prefetch of slab `l` into `cur` has landed" and "every
+simdgroup has finished reading slab `l - 1` from `nxt`, which the next prefetch
+will overwrite" are both true after one barrier, because the writes that fill
+`cur` and the reads that drained `nxt` both happened before it. So the two
+hazards of Chapter 2 are covered by one barrier per iteration; the first
+iteration relies on the prologue, and the last issues no prefetch. The kernel's own header comment states the mechanism:
 without the copy engine there is no true overlap, only the same threads issuing
 independent loads and math for the scheduler to interleave.
 
 ![Three timelines comparing single-buffered serial load/compute, double-buffered overlap through ILP, and the dead DMA era's true copy-engine overlap](../diagrams/double-buffering.svg)
 
-*What the restructuring buys. The ticks are threadgroup barriers, one per
-iteration in the double-buffered loop; the ghosted third lane is the hardware
+*What the restructuring buys, schematically. The ticks are threadgroup
+barriers, one per iteration in the double-buffered loop (the single-buffered
+lane shows only the post-load ones); the ghosted third lane is the hardware
 overlap the platform lost with `simdgroup_async_copy`.*
 
 The cost is the one Chapter 4 priced. Two buffer sets double the threadgroup's
-scratch footprint, 16 KB instead of 8 KB for this kernel, which halves the
-scratch-limited bound on how many threadgroups a core can hold. Double buffering
+scratch footprint, 16 KB instead of 8 KB for this kernel, which cuts the
+scratch-limited bound on resident threadgroups from 7 to 3 (60 / 8 and 60 / 16,
+rounded down), 12 simdgroups, below the saturation point of Chapter 4. Double buffering
 trades one latency-hiding mechanism, occupancy, for another, independent work
 inside each threadgroup. Whether the trade wins depends on which one the kernel
 was short of.
 
-## Three sizes, three winners
+## Three regimes, three winners
 
 The author measured the single-buffered kernel, the double-buffered kernel and
 MPS at four sizes on an M5 Max, 32-bit, best of 3 runs each averaging 5 trials.
@@ -92,9 +99,10 @@ MPS at four sizes on an M5 Max, 32-bit, best of 3 runs each averaging 5 trials.
 Each size regime has a different winner. The author's explanations for each are
 hypotheses from differential benchmarking rather than isolated measurements. At
 1024 by 1024, the double-buffered kernel is 10.7 / 3.3, about 3.2 times the
-single-buffered one and 10.7 / 2.9, about 3.7 times MPS: at this size launch and
-memory-fetch latency dominate, and the prefetch pipeline hides them. Language-model
-decode runs in this size regime (Chapter 22). At 4096 by
+single-buffered one and 10.7 / 2.9, about 3.7 times MPS: the author attributes this to fetch latency that the prefetch hides, and
+since the GPU timestamps exclude launch cost, memory latency is the candidate.
+Small matrix multiplies are the shape that batched and speculative decoding
+produce (Chapter 22). At 4096 by
 4096 the simpler kernel wins by a little, 13.5 against 13.1, because its smaller
 loop unrolls better; compiler quality matters more than the algorithm here. At
 8192 by 8192 all three converge, 13.0, 12.7 and 13.5, and MPS takes the lead
@@ -139,7 +147,9 @@ void __metal_wait_simdgroup_events(
 ```
 Source: [metal-matmul `async_copy.metal:9-28`](https://github.com/0xekez/metal-matmul/blob/04e80810bbf7ba96ebe26ff84a346d179ee50888/async_copy.metal#L9-L28), abridged
 
-Then you used it like `cp.async`: start the copy, compute, wait on the event. The
+Then you used it: start the copies, wait on the events, barrier, compute. The
+pinned kernel does not overlap the copy with the previous slab's math; its gain
+was that the copy engine did the moving instead of the threads. The
 original of this book's matrix-multiply lineage, Zeke Medley's metal-matmul and
 its essay, was built on it. The use site is the more interesting part.
 
@@ -169,20 +179,22 @@ arrangement, because the copy engine does the moving and spreading the request
 across simdgroups bought nothing. CUDA's evolution toward TMA, where one thread
 issues a bulk tensor copy, reached the same conclusion with official support.
 metal-flash-attention built its tile staging on the same intrinsics, and
-documents an M1-era hardware bug: an async copy whose result is never read hangs
-the GPU until reboot. That is the risk of building on an undocumented interface.
+documents a suspected M1-era hardware bug: for certain configurations, an async
+copy whose result is never read could freeze the GPU until reboot. That is the risk of building on an undocumented interface.
 
-Metal 4, which shipped with macOS 26, removed that access. The compiler rejects every
+Metal 4, which shipped with macOS 26, removed that access; the m5-gemm README
+names the frontend it tested, `metalfe-32023.883`. The compiler rejects every
 `__asm("air.*")` declaration with the error "illegal string literal in 'asm'",
 and workarounds at the intermediate-representation level crash the backend
 compiler. There is no public replacement; Metal 4's cooperative tensors ship a
 generic layout interface, not a copy primitive. The m5-gemm README documents the
 failed attempts to resurrect it. Hence the two successor kernels you have read:
 cooperative loads for the staging, Chapter 11, and double buffering to win back
-most of the overlap through instruction-level parallelism, above.
+some of the overlap through instruction-level parallelism, above.
 
-There are two reasons to keep the dead code in mind. The concept outlives the interface: a
-copy engine with event-signaled completion is how `cp.async` and TMA work, how
+There are two reasons to keep the dead code in mind. The concept outlives the interface: an
+asynchronous copy with a completion you wait on is the idea behind `cp.async`
+groups and TMA's transaction barriers, how
 metal-flash-attention's generated kernels staged tiles, and plausibly how a future
 public Metal API will look, and you will recognize it at a glance. It is also a
 lesson in platform risk: every project that built on the undocumented intrinsic,
@@ -196,8 +208,8 @@ downside looks like.
 The example now has a family: at 1024 by 1024 the double-buffered kernel wins by
 about 3 times, at 4096 by 4096 the single-buffered kernel holds 13.5 TFLOPS, and
 at 8192 by 8192 the library catches up at 13.5. The DMA-staged original no longer
-compiles. The matmul has no further technique to gain from its own loop; the
-remaining gains are in what surrounds it, which is the next chapter.
+compiles. The techniques this book covers inside the loop are used up; the remaining
+gains are in what surrounds it, which is the next chapter.
 
 ## Check yourself
 
@@ -212,19 +224,21 @@ remaining gains are in what surrounds it, which is the next chapter.
 
 ### Answers
 
-1. "The prefetch into the next buffer has landed" and "every simdgroup has
-   finished reading the buffer about to be overwritten". With two alternating
-   buffers, both are true at the same point, the top of the iteration, so one
-   barrier there covers both.
+1. "The prefetch of this iteration's slab into `cur` has landed" and "every
+   simdgroup has finished reading the previous slab from `nxt`, which the next
+   prefetch overwrites". They concern different buffers, but the writes and the
+   reads both happened before the top of the iteration, so one barrier there
+   covers both.
 2. That no single kernel is fastest at every size, so a library should dispatch
    different variants per shape rather than ship one kernel; Chapter 17 shows MLX
    doing exactly that.
-3. Metal 4's compiler rejects every `__asm("air.*")` declaration, which was the
-   only way to reach the intrinsic. Cooperative loads replaced the staging and
-   double buffering, through instruction-level parallelism, replaced most of the
-   overlap.
+3. Metal 4's compiler rejects every `__asm("air.*")` declaration, the route
+   the kernel used to reach the intrinsic, and the IR-level workarounds crashed
+   the backend. Cooperative loads replaced the staging, and double buffering,
+   through instruction-level parallelism, took back some of the overlap; how
+   much is not measured against the dead kernel.
 
-The loop is settled, and what surrounds it is where the next gains are: the
+The loop is done, and what surrounds it is where the next gains are: the
 operations before and after a matrix multiply that, done separately, each cost a
 full pass over memory.
 
