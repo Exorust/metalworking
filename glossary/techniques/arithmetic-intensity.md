@@ -18,7 +18,8 @@ The two canonical cases:
 - **Matmul: intensity grows with size.** C = A×B at size n does 2n³ FLOPs on 3n²
   values, so intensity is ~n/1.5 FLOPs per element touched. Large GEMM is the rare
   compute-bound workload: the [tiled GEMM case study](../kernels/gemm-tiled.md)
-  at 4096² *needs* only ~6 GB/s against a ~500 GB/s ceiling, ~85× below the roof.
+  at 4096² *needs* only ~20 GB/s of compulsory traffic (192 MiB of A, B and C
+  in ~10 ms) against a ~500 GB/s ceiling, ~25× below the roof.
   But that's only true because [tiling](tiling.md) makes the data reuse real;
   naive matmul re-reads its inputs O(n) times and is bandwidth bound at every
   size.

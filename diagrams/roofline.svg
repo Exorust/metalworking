@@ -56,15 +56,15 @@
   <!-- example points -->
   <circle cx="205" cy="384" r="6" fill="#e8c268"/>
   <text x="220" y="380" font-size="10.5" fill="#b9bfa9">elementwise op (intensity ~0.1)</text>
-  <text x="220" y="396" font-size="9.5" fill="#6f9a62">pinned to the slope: only fusion helps</text>
+  <text x="220" y="396" font-size="9.5" fill="#6f9a62">pinned to the slope: fewer bytes is the only lever</text>
 
   <circle cx="545" cy="332" r="6" fill="#e8c268"/>
   <text x="560" y="328" font-size="10.5" fill="#b9bfa9">LLM decode</text>
   <text x="560" y="344" font-size="9.5" fill="#6f9a62">tok/s tracks the bandwidth spec</text>
 
   <circle cx="1040" cy="163" r="6" fill="#77ef5e"/>
-  <text x="1055" y="160" font-size="10.5" fill="#b9bfa9">4096&#178; tiled GEMM (~85&#215; below the memory roof)</text>
-  <text x="1055" y="176" font-size="9.5" fill="#6f9a62">tiling moved it here; naive matmul stays on the slope</text>
+  <text x="1055" y="160" font-size="10.5" fill="#b9bfa9">4096&#178; tiled GEMM (ideal traffic ~25&#215; below the memory roof)</text>
+  <text x="1055" y="176" font-size="9.5" fill="#6f9a62">tiling moved it here; untiled matmul is bound by the slope</text>
 
   <!-- footer -->
   <text x="690" y="502" font-size="10.5" fill="#6f9a62" text-anchor="middle">both roofs are measured, not spec: bandwidth.metal for the slope, the best local GEMM for the ceiling</text>

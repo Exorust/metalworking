@@ -99,7 +99,7 @@
   <rect x="796" y="494" width="528" height="34" fill="#e8c268" rx="3"/>
   <text x="1060" y="515" font-size="10" fill="#1a1608" text-anchor="middle">unified memory: the same memory the CPU uses, so no copy</text>
   <text x="40" y="560" font-size="9.5" fill="#b9bfa9">NVIDIA: kernel grid with global memory</text>
-  <text x="780" y="560" font-size="9.5" fill="#b9bfa9">NVIDIA: GPU with GPU RAM on the card; the host must copy data to it</text>
+  <text x="780" y="560" font-size="9.5" fill="#b9bfa9">NVIDIA: GPU with its own RAM on a discrete card, filled by copies from the host</text>
   <g stroke="#6f9a62" fill="#6f9a62"><line x1="616" y1="484" x2="754" y2="484" stroke-width="1.5"/><path d="M754 479 L764 484 L754 489 Z" stroke="none"/></g>
   <text x="690" y="474" font-size="9.5" fill="#6f9a62" text-anchor="middle">is spread over</text>
   <text x="690" y="502" font-size="9.5" fill="#6f9a62" text-anchor="middle">all the cores</text>

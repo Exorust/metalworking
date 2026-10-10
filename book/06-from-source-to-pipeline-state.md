@@ -1,0 +1,214 @@
+# From source to pipeline state
+
+## Where we are
+
+Part 1 described the chip. Part 2 is about the least amount of Metal you need in
+order to compile a kernel, launch it, and time it, which is what Part 3 and Part 4
+then do. This chapter covers the first half of that path: what Metal is, what the
+kernel language looks like to a CUDA programmer, and how source becomes something
+the GPU can run. The vocabulary is new; the shape is mostly familiar, with one
+difference that every later chapter depends on.
+
+## Metal, the one API
+
+Metal is Apple's single graphics-and-compute API. It owns devices, queues, memory,
+and kernel execution, and it occupies the ground that CUDA splits between the
+driver API, the runtime API, and half of the toolkit. Here is the orientation
+table, with the chapter that covers each row.
+
+| CUDA | Metal | Where |
+|---|---|---|
+| `cudaGetDevice`, a context | `MTLDevice`, one object, usually one per chip | this chapter |
+| a stream | `MTLCommandQueue` | Chapter 7 |
+| a kernel launch, `<<<...>>>` | a dispatch encoded into a `MTLCommandBuffer` | Chapter 7 |
+| `cudaMalloc` | a `MTLBuffer` from the device; in shared storage mode the CPU and GPU see one allocation | this chapter |
+| CUDA C++ | the Metal Shading Language, MSL | this chapter |
+| nvcc, PTX, cubin, JIT | the metal compiler, AIR, a metallib, pipeline states | this chapter |
+| template instantiation or NVRTC per configuration | function constants | Chapter 8 |
+| cuBLAS, cuDNN | MPS, with caveats | Chapter 9 |
+| Nsight Compute | nothing comparable | Chapter 9 |
+
+Three differences of shape rather than vocabulary.
+
+**Everything is explicit and command-buffer shaped.** CUDA lets you pretend that
+`kernel<<<grid, block>>>(args)` is a function call. Metal never does: you create a
+command buffer, encode one or more dispatches into it with an encoder, commit it,
+and optionally wait. This is verbose, and it is also the optimization surface,
+because batching many dispatches into one command buffer amortizes the
+per-buffer cost. Chapter 7 is about that, and about where batching stops paying.
+
+**Compute and graphics are one API.** There is no compute edition of Metal; the
+`MTLDevice` you encode a matrix multiply on is the one games render with. For an
+ML engineer this means that the documentation, the tooling, and half the API
+surface, render passes and textures, are about someone else's problems, and the
+compute story is comparatively under-documented. That gap is why this book exists.
+
+**One device per machine, on Apple Silicon.** The API can enumerate several
+devices and expose peer groups, but an Apple Silicon Mac has one GPU: no NVLink,
+no second card, no peer access. Scaling inside a box means buying more unified
+memory, Chapter 3; scaling across boxes is Chapter 27.
+
+From Python you rarely touch this API directly. MLX wraps it, Part 5, and PyObjC
+reaches it when you need raw control. The matrix-multiply harness this book
+follows, `metal.py` in m5-gemm, is a compact worked example: compile source, get
+the named function, build a pipeline, fill buffers, encode, commit, read GPU
+timestamps. A shared-mode `MTLBuffer` exposes its bytes to the CPU through
+`contents()`, so a NumPy array can be a view of the same allocation, which is the
+unified memory of Chapter 3 seen from the API; the harness copies its inputs into
+such buffers once and reads results from them after the command buffer completes.
+
+## The language: CUDA C++ with an accent
+
+MSL is the C++ dialect that Metal kernels are written in: C++ with GPU address
+spaces, kernel attributes, and a SIMD standard library. If you can read CUDA C++
+you can read it. Here is the signature of the kernel this book follows.
+
+```metal
+kernel void __attribute__((max_total_threads_per_threadgroup(SW * SW * 32)))
+matmul(
+    constant uint  &n,
+    constant uint  &k,
+    constant uint  &m,
+    constant float &alpha,
+    constant float &beta,
+    const device float *A,
+    const device float *B,
+    device float       *C,
+    ushort3 t_tg_pos       [[thread_position_in_threadgroup]],
+    ushort3 tg_pos         [[threadgroup_position_in_grid]],
+    ushort3 tg_size        [[threads_per_threadgroup]])
+```
+Source: [m5-gemm `sync_copy.metal:84-96`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L84-L96)
+
+Read it against CUDA.
+
+| CUDA | MSL |
+|---|---|
+| `__global__ void f(...)` | `kernel void f(...)` |
+| a `__device__` function | a plain function, or `METAL_FUNC` in MLX's style |
+| pointer arguments | address-spaced pointers: `device` for global memory, `constant` for uniform cached data, `threadgroup`, `thread` |
+| `threadIdx`, `blockIdx`, `blockDim` | attribute-tagged parameters: `[[thread_position_in_threadgroup]]`, `[[threadgroup_position_in_grid]]`, `[[threads_per_threadgroup]]`, `[[thread_position_in_grid]]` |
+| `__shared__ float s[N];` | `threadgroup float s[N];`, in the kernel, static size |
+| `__launch_bounds__(n)` | `__attribute__((max_total_threads_per_threadgroup(n)))`, Chapter 1 |
+| `#pragma unroll` | `#pragma clang loop unroll(full)` |
+| `-D` compile defines | the same, plus function constants for specialization after compilation, Chapter 8 |
+
+Two things to notice in the signature. `SW` is not defined in the kernel; it
+arrives as a `-D` define when the source is compiled, so changing it means
+recompiling the source. And `constant uint &n` is an argument in the `constant`
+address space, which is uniform and cached, not a function constant; the two use
+the same keyword and are different things, as Chapter 8 explains. The indexing
+vocabulary replaces CUDA's `blockIdx * blockDim + threadIdx` arithmetic when you
+want it to: `[[thread_position_in_grid]]` gives the composed index directly. This
+kernel instead takes the position inside the threadgroup, the threadgroup's
+position in the grid, and the threadgroup size, and composes what it needs, because
+a tiled matrix multiply maps threads to tiles, not to output elements. The address
+spaces are explicit in the types, so a pointer into threadgroup memory and a
+pointer into device memory cannot be confused.
+
+What MSL has that you will use: real C++ templates in device code, which is how
+MLX's whole steel library is built, Part 5; `half` and `bfloat` as first-class
+types with `vec<T, N>` vectors; the `simdgroup_matrix` types of Chapter 12; and a
+`fast::` math namespace that gives you fast math per call, such as the
+`fast::exp2` of Chapter 5, rather than a whole-program fast-math flag.
+
+What it lacks, coming from CUDA: no printf-debugging culture to speak of (it
+exists, and it is painful); no cooperative groups beyond the three built-in levels
+of Chapter 1; no dynamic parallelism; no sizing of threadgroup memory from inside
+the kernel, since the host sets it with `setThreadgroupMemoryLength` or you declare
+it statically; and no inline assembly equivalent to PTX. There used to be one
+escape hatch, intrinsics declared by their internal AIR names, and Metal 4 closed
+it; Chapter 14 tells that story.
+
+If you want your hands on the keyboard before Part 4, Metal-Puzzles is 14
+progressively harder MSL kernels, from a map through threadgroup memory and prefix
+sums to a matrix multiply, each checked against a reference from Python.
+
+## From source to a pipeline state
+
+Here is the compilation path, stage by stage against CUDA.
+
+| CUDA | Metal | Note |
+|---|---|---|
+| CUDA C++ | MSL | |
+| nvcc | the `metal` frontend, `xcrun metal`, or compilation at run time | |
+| PTX | AIR, Apple's intermediate representation, based on LLVM bitcode | portable across GPU generations |
+| cubin, SASS | the GPU binary inside a pipeline state | built on the device at pipeline creation; a binary archive can cache it |
+| a fatbin, or JIT from PTX | a metallib, loaded as a `MTLLibrary`; get a `MTLFunction` by name; make a `MTLComputePipelineState` from it | the on-device compile is the normal path |
+| the `-arch=sm_90` matrix | nothing | AIR is finalized per device when the pipeline is created |
+
+![Two compilation toolchains: CUDA ships machine code ahead of time, Metal ships portable AIR and always builds the GPU binary on the user's device, where function constants join the final compile](../diagrams/compilation-pipeline.svg)
+
+*The dashed line is the ship boundary. CUDA crosses it with machine code. Metal
+crosses it with portable intermediate code and finishes compiling on the user's
+device, which is what lets function constants take part in the final compile.*
+
+The difference that every later chapter depends on is in the fourth row. The
+normal path to machine code runs on the device. You can and should compile MSL to a
+metallib ahead of time for application startup, but the last step, from AIR to the
+instruction set of the GPU in the machine, happens inside the call that makes the
+pipeline state. Metal does offer binary archives that cache compiled pipelines
+between runs; no project in this book uses them, and the machine-learning
+frameworks compile at pipeline creation. Two consequences follow.
+
+First, pipeline creation is the expensive step, and it is a host-side call that
+happens before any dispatch. Create each pipeline once and keep it, the way you
+would keep a cuBLAS handle, keyed by the function and the values it was
+specialized with. A benchmark creates its pipelines before the timed loop, so the
+GPU timestamps of Chapter 9 never contain compilation.
+
+Second, the function constants declared in the source take part in that final
+compile. That is what Chapter 8 is about: values the final compiler treats as
+literals, so that branches on them disappear from the binary instead of being
+evaluated at run time.
+
+Compilation from a source string at run time is a first-class workflow, not a
+fallback. `device.makeLibrary(source:)` compiles an MSL string through the same
+backend as the offline compiler, and the m5-gemm README measured no performance
+difference between the two with `-O3 -ffast-math`. This is why
+metal-flash-attention generates its kernels as Swift strings, Chapter 21, why MLX
+compiles specialized kernels at run time, Chapter 17, and why a Python harness
+needs no Xcode at all.
+
+Configuration arrives through three channels, in decreasing order of rigidity.
+C++ templates are fixed when MSL becomes AIR, and steel uses them for tile shapes
+and data types. Preprocessor `-D` defines are fixed at the same stage, and the
+matrix multiply this book follows sets its tile sizes with them. Function
+constants are fixed when AIR becomes a binary, so one shipped function yields many
+pipelines. Sizes and pointers are buffer arguments, read at run time, alongside
+the dispatch dimensions.
+
+Inspecting what the compiler emitted from the command line is community tooling.
+There is no `cuobjdump`; Xcode's GPU tools can show shader assembly inside the
+debugger, and the reverse-engineered applegpu disassembler is the scriptable
+equivalent, MSL in and instructions out. It is the tool of last resort when a
+kernel underperforms and you suspect spills or missed unrolling. Chapter 26 uses it.
+
+## Check yourself
+
+1. A CUDA program ships a fatbin with a cubin for each target architecture. What
+   does the Metal equivalent ship, and where is the machine code made?
+2. Where does the cost of compiling a kernel land in a Metal program, and what
+   does a benchmark harness do so that GPU timestamps never contain it?
+3. A CUDA kernel computes its global index as `blockIdx.x * blockDim.x +
+   threadIdx.x`. What are the two ways an MSL kernel can get the same information,
+   and which does the kernel above use?
+
+### Answers
+
+1. A metallib holding AIR, the portable intermediate representation. The machine
+   code is made on the user's device when the pipeline state is created, on the
+   normal path; a binary archive can cache it.
+2. In the host-side call that creates the pipeline state, before any dispatch.
+   The harness creates and keeps its pipelines before the timed loop, so the
+   timestamps measure only GPU execution.
+3. Either declare a parameter with `[[thread_position_in_grid]]`, which gives the
+   composed index, or compose it from `[[threadgroup_position_in_grid]]`,
+   `[[threads_per_threadgroup]]` and `[[thread_position_in_threadgroup]]`. The
+   kernel above takes the three parts and composes a thread index inside the
+   threadgroup, because it maps threads to tiles rather than to output elements.
+
+The pipeline state is a kernel ready to run, and the next chapter launches it, in
+the batching model that is the platform's largest free performance lever.
+
+Next: [Launching, batching, and waiting](07-launching-batching-waiting.md)

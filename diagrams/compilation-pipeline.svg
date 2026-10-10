@@ -26,7 +26,7 @@
       <line x1="580" y1="82" x2="622" y2="82"/><path d="M622 78 L630 82 L622 86 Z" stroke="none"/>
     </g>
   </g>
-  <text x="940" y="87" font-size="10" fill="#4a6a3e">machine code shipped; JIT-from-PTX only as fallback</text>
+  <text x="940" y="87" font-size="10" fill="#4a6a3e">machine code shipped, or PTX for the driver to JIT</text>
   <text x="130" y="126" font-size="9.5" fill="#4a6a3e">per-arch fatbins: sm_80, sm_90, ...</text>
 
   <!-- ===== Metal lane ===== -->
@@ -55,7 +55,7 @@
   <!-- on-device build -->
   <rect x="890" y="180" width="240" height="64" fill="#e8c268" rx="3"/>
   <text x="1010" y="205" font-size="10.5" fill="#1a1608" text-anchor="middle">makeComputePipelineState</text>
-  <text x="1010" y="224" font-size="9.5" fill="#1a1608" text-anchor="middle">AIR → G-series ISA, built here, always</text>
+  <text x="1010" y="224" font-size="9.5" fill="#1a1608" text-anchor="middle">AIR → G-series ISA, built here at pipeline creation</text>
   <g stroke="#77ef5e" fill="#77ef5e">
     <line x1="1130" y1="212" x2="1192" y2="212" stroke-width="1.5"/>
     <path d="M1192 207 L1202 212 L1192 217 Z" stroke="none"/>
