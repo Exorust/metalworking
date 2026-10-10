@@ -12,6 +12,11 @@ that exists there).
 import re, sys, os, glob, urllib.parse
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FETCH = {}
+for _l in open(os.path.join(ROOT, "fetch.sh")):
+    _m = re.match(r"\s*get\s+(\S+)\s+(https://github\.com/\S+)", _l)
+    if _m:
+        FETCH[_m.group(1)] = _m.group(2)
 CHAPTERS = sorted(os.path.basename(p)[:-3] for p in glob.glob(os.path.join(ROOT, "book", "[0-9][0-9]-*.md")))
 
 def strip_code(md):
@@ -50,8 +55,8 @@ def check(path):
         mm = re.match(r"(\d\d)-[a-z0-9-]+\.md", t)
         if mm and int(mm.group(1)) > num:
             fails.append(f"forward link in the body: {t}")
-        if t.startswith("../") and not t.startswith("../diagrams/"):
-            fails.append(f"relative link outside book/: {t}")
+        if t.startswith("../") and not t.startswith("../diagrams/") and not re.search(r"\.(gif|png|svg)$", t):
+            fails.append(f"relative link outside book/: {t}")  # images resolve by basename
 
     # 3. dashes outside code
     for i, line in enumerate(prose.split("\n"), 1):
@@ -75,8 +80,10 @@ def check(path):
             continue
         repo, rel, l1, l2 = mm.groups()
         cands = glob.glob(os.path.join(ROOT, "code", "*", rel)) + glob.glob(os.path.join(ROOT, "code", "*", "*", rel))
-        pref = [c for c in cands if repo.lower() in c.lower().rsplit("/code/", 1)[-1].split("/")[0]]
-        cands = pref or cands  # prefer the checkout whose directory is named after the repo
+        # fetch.sh maps each pinned repository to its checkout directory
+        dirs = [d for d, u in FETCH.items() if u.rstrip("/").lower().endswith("/" + repo.lower())]
+        pref = [c for c in cands if c.rsplit("/code/", 1)[-1].split("/")[0] in dirs]
+        cands = pref or cands
         if not cands:
             continue  # repository not fetched; nothing to compare against
         src = open(cands[0], errors="replace").read().split("\n")

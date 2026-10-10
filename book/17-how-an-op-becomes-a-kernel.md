@@ -1,3 +1,135 @@
 # How an op becomes a kernel
 
-This chapter is not written yet.
+## Where we are
+
+Chapter 16 left the matrix multiply as a graph node that the scheduler hands to
+its primitive at evaluation time. Between that node and a `simdgroup_matrix`
+instruction sits one C++ hop: the primitive's `eval_gpu`, which picks a kernel
+variant, picks tile sizes, binds function constants, and encodes the dispatch.
+In CUDA this is the dispatcher layer between PyTorch and cuBLAS's heuristics,
+except that here it is open, small and readable. Knowing where these decisions
+live is what separates "my model is slow" from "my shapes fall off the fast
+path", and the second of the three questions of Chapter 24, unlock an existing
+fast path, is answered by reading exactly these files.
+
+## The chain, for a matmul
+
+The lazy graph hands `Matmul` to the scheduler. `Matmul::eval_gpu`, in
+`mlx/backend/metal/matmul.cpp`, normalizes strides and transposes, then picks
+the steel template parameters from the device class and the problem shape.
+
+```cpp
+#define GEMM_TPARAM_MACRO(devc)                                           \
+  if (devc == 'g' || devc == 'p') { /* Small device */                    \
+    ...
+  } else if (devc == 'd') { /* Large device */                            \
+    if ((size_t)batch_size_out * M * N >= 1ul << 20) { /* large matmul */ \
+      if (out.dtype() != float32) { /* half and bfloat */                 \
+        if (2 * std::max(M, N) > K) { /* Reasonable K */                  \
+          bm = 64;                                                        \
+          bn = 64;                                                        \
+          bk = 16;                                                        \
+          wm = 1;                                                         \
+          wn = 2;                                                         \
+        } else if (!transpose_a && transpose_b) { /* nt with large k */   \
+          bm = 64;                                                        \
+          bn = 32;                                                        \
+          bk = 32;                                                        \
+          wm = 2;                                                         \
+          wn = 2;                                                         \
+```
+Source: [`mlx/backend/metal/matmul.cpp:89-124`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/matmul.cpp#L89-L124), abridged
+
+Read what that macro is: a hand-tuned lookup from the chip class, the size, the
+data type and the transpose pattern to a tile shape, `bm`, `bn`, `bk`, `wm`, `wn`.
+Those are the `BM`, `BN`, `BK` of Chapter 11 and the simdgroup arrangement of
+Chapter 12, chosen per shape instead of fixed by `-D` defines. It is cuBLAS's
+secret heuristics in a form you can search. The device class letters map to
+Apple's GPU families; the large-device branch is the one an M5 Max takes. The
+first row shown gives 16-bit matrices of a reasonable shape a 64 by 64 tile, 16
+deep, with 1 by 2 simdgroups, which is two simdgroups of 32 by 64 rather than the
+hand-written kernel's four of 32 by 32; the second row changes the tile for the
+transposed-B case with a large shared dimension. The branches continue past the
+excerpt for smaller matmuls and for 32-bit, and a 32-bit large matmul on a large
+device takes the defaults set before the macro, which the file comments mark with
+"float takes default".
+
+Then the kernel name is assembled as a string, `steel_gemm_fused_...bm64_bn64...`
+and so on, the pipeline is fetched from the cache or built at run time, Chapter
+6, the alignment function constants of Chapter 8 are bound, and the dispatch is
+encoded into the shared command encoder of Chapter 16.
+
+![The MLX matmul dispatch tree: shape checks route to gemv or quantized families, otherwise the tile-selection macro picks steel parameters, the kernel name is assembled, and the pipeline is fetched or JIT built](../diagrams/dispatch-tree.svg)
+
+*The route a matmul takes. The amber branches are where shapes silently leave
+the steel fast path; the green spine is the path Chapter 18 reads.*
+
+## The branches before steel
+
+Several branches come before the macro, and falling into the wrong one is a
+classic silent slowdown.
+
+- **Matrix-vector shapes** route to `gemv` kernels rather than to the tiled
+  matrix multiply, because one row cannot fill a tile; Chapter 22.
+- **Very skinny or small cases** have split-K and other non-steel paths.
+- **Quantized weights** go to an entirely different kernel family, Chapter 23,
+  whose fast path is shape-sensitive in its own ways.
+- **`mx.fast.scaled_dot_product_attention`** has its own dispatch gate deciding
+  between the fused kernel and a fallback graph, Chapter 21.
+
+The measured example of the trap is the MTPLX case of Chapter 24: 2.24 times
+end-to-end from about 10 lines, which came from noticing that multi-token decode,
+3 to 6 query rows at a time, fell between the matrix-vector path and the tile
+sizes this macro assumes. The kernel existed; its tuning grid had a hole.
+
+## What this means for the kernel writer
+
+Three habits follow from the fact that the dispatcher is readable.
+
+First, before writing anything, read the branch your shape takes. The question
+"why is this slow" often has the answer "because it took the branch for a
+different shape", and the fix is a dispatch change, not a kernel.
+
+Second, the tile table is the place where the "no single fastest kernel" lesson
+of Chapter 14 lives in production. The table encodes which variant wins per
+shape, and when a new chip generation moves the crossovers, the table moves.
+
+Third, the pipeline cache is keyed by the assembled name and the constant values,
+so a model that meets many distinct shapes pays a pipeline build for each the
+first time, and MLX keeps every pipeline it builds for the life of the process.
+
+## Where the matmul stands
+
+For 4096 by 4096 in 32-bit on an M5 Max, the macro's large-device, large-matmul
+branch for 32-bit output picks the tile shape, the name
+`steel_gemm_fused_...` is assembled with those sizes, the `align_M`, `align_N` and
+`align_K` constants bind to true because 4096 divides by the tiles, and the
+aligned pipeline is dispatched. The kernel it runs is the subject of the next
+chapter.
+
+## Check yourself
+
+1. A model runs a 4096 by 4096 matrix multiply in 16-bit with K = 64. Which
+   branch of the excerpt does it take, and which tile shape does it get?
+2. A speculative decoder sends 4 query rows at a time and runs slower per row
+   than single-row decode. Which part of the dispatch chain does the chapter say
+   to read first, and why?
+3. Why does MLX assemble the kernel name as a string rather than calling one
+   kernel?
+
+### Answers
+
+1. The large-device, large-matmul branch for non-32-bit output, then the test
+   `2 × max(M, N) > K`: 8192 > 64 is true, so the "reasonable K" row, `bm` = 64,
+   `bn` = 64, `bk` = 16, `wm` = 1, `wn` = 2.
+2. The branches before steel and the tile table, because 4 rows is too many for
+   the matrix-vector path and too few for the tile sizes the macro assumes; the
+   MTPLX case found exactly that hole and fixed it in about 10 lines.
+3. Because one source yields many compiled variants, Chapter 8, and the name
+   encodes which template instance and which tile sizes to fetch or build; the
+   name is the cache key.
+
+The dispatch has chosen `steel_gemm_fused`, and the next chapter reads it as the
+hand-written kernel of Part 4 rebuilt from three components.
+
+Next: [Steel: the GEMM as components](18-steel-the-gemm-as-components.md)
