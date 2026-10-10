@@ -13,8 +13,8 @@ its boundary tells you where custom kernel work starts.
 `mx.compile` traces a function's lazy graph once, fuses runs of elementwise
 operations into generated Metal kernels, and replays the optimized graph on later
 calls. In CUDA terms it is a deliberately scoped `torch.compile`. It has no graph
-breaks, no guards that trigger recompiles, and no autotuning of the kind Inductor
-does. The scope is narrower because MLX is already lazy (Chapter 16), so the graph
+breaks, no guards of the `torch.compile` kind (a changed shape or data type is
+the only thing that retraces), and no autotuning of the kind Inductor does. The scope is narrower because MLX is already lazy (Chapter 16), so the graph
 exists anyway. Compile adds shape-specialized caching and elementwise fusion and
 nothing more. Matrix multiply and attention are already fused kernels (Chapters 18
 and 21), so what compile targets is the long tail between them.

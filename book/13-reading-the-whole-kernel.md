@@ -185,9 +185,10 @@ different tiers, and expect the sustained numbers of Chapter 10's hygiene rules.
 
 The matmul is unchanged at 13.5 TFLOPS, and its source is now fully accounted
 for: 144 lines, of which 12 are
-the header, 15 the fragment loop, 45 the cooperative load with its fallback, 13
-the signature, 14 the setup, 16 the loop, and 14 the epilogue. Every line maps to
-a chapter.
+the header, 3 the tile constants, 15 the fragment loop, 45 the cooperative load
+with its fallback, 13 the signature, 14 the setup, 16 the loop, and 14 the
+epilogue; the other 12 are includes, braces and blank lines. Every line of code
+maps to a chapter.
 
 ## Check yourself
 

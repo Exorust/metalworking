@@ -128,8 +128,8 @@ middle number at the middle size.
 ## Check yourself
 
 1. A harness times one dispatch by wrapping `commit` and `waitUntilCompleted` with
-   the CPU clock. What does the chapter say to use instead, and what two things
-   must the harness do before it trusts a number?
+   the CPU clock. What does the chapter say to use instead, and what three
+   things must the harness do before it trusts a number?
 2. A custom kernel reaches 12 TFLOPS at 4096 by 4096 on an M5 Max. Is that a win,
    and what does the chapter say to do if it reaches 11?
 3. Why does the chapter call Xcode's GPU capture unusable as a feedback loop,

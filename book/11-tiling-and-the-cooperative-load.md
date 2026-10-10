@@ -4,7 +4,7 @@
 
 Part 3 ended with a chart: MPS at 11.7 TFLOPS, about 87 percent of a 13.5 TFLOPS
 ceiling, for a 4096 by 4096 matrix multiply in 32-bit on an M5 Max. Part 4 writes
-the 140-line kernel that reaches the ceiling, one technique at a time, and reads
+the 144-line kernel that reaches the ceiling, one technique at a time, and reads
 the real kernel's code as it goes. The kernel is `sync_copy.metal` from
 yaroslavvb/m5-gemm, BSD-3-Clause, and every excerpt is quoted from the pinned
 commit with a link to its lines. This chapter covers the first two techniques:

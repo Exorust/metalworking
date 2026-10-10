@@ -35,8 +35,7 @@ The workflow goes beyond reading. Patch instruction bytes
 into a compiled shader, run it on the hardware test bed, and diff the GPU's
 behavior against the emulator's. That loop answers "what does this undocumented
 instruction actually do" by experiment, even though no documentation for it
-exists anywhere. It is also how the community established the register-file size, the saturation
-point and the stall figures of Chapters 2 and 4.
+exists anywhere. It is also how the community established much of what Part 1 reports.
 
 ## When to reach for it, and what you find
 

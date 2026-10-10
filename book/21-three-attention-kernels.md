@@ -186,8 +186,10 @@ readable.
 ```
 Source: [`scaled_dot_product_attention.cpp:629-644`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/scaled_dot_product_attention.cpp#L629-L644), abridged
 
-If your model falls outside those conditions, with an unusual head dimension, a
-mask type the kernel lacks, or training mode, then at the pinned commit you
+The vector path has its own head-dimension list, elided from the excerpt: 64,
+96, 128 and 256, plus a 192-by-128 pairing. If your model falls outside those
+conditions, with an unusual head dimension, a mask type the kernel lacks, or
+training mode, then at the pinned commit you
 silently got the unfused fallback graph. Current MLX removes the silence: the gate is refactored into
 `has_fused_kernel()`, which returns a human-readable reason, and a `force_fused`
 argument raises with that reason instead of falling back. The DFlash case of
@@ -232,7 +234,8 @@ kernel, and the next chapter is about why.
    the attention loop with the format's own routine, rather than reading a
    dequantized copy that would cost the traffic the quantization saved.
 
-Every kernel in this chapter stops working when the query is one row, and the
-next chapter is about what runs instead and why its speed is a bandwidth number.
+Every kernel read in this chapter serves prefill. When the query is one row,
+something else runs, and the next chapter is about what that is and why its speed
+is a bandwidth number.
 
 Next: [The KV cache, decode, and prefill](22-the-kv-cache-decode-and-prefill.md)

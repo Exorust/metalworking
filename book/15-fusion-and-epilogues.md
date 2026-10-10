@@ -70,7 +70,8 @@ replays them. Luminal takes the same idea further with search: it uses one
 command buffer per forward pass, and it rediscovered flash attention by searching
 over fusions. This gives a division of labor to settle before you write any
 kernel. The compiler fuses elementwise chains adequately, so custom kernels
-belong on the patterns a compiler cannot see.
+belong on the patterns a compiler cannot see: reductions with structure, the
+streaming softmax of Chapter 20, and the quantization-aware loops of Chapter 23.
 
 ## Fusion into quantized loops
 

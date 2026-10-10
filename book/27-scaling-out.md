@@ -36,7 +36,7 @@ The pieces, from the MLX distributed documentation and session 233 of WWDC 2026:
   with one link crossing per token per boundary, and suits decode's serial
   nature. Tensor parallelism splits every matrix multiply, with collectives per
   layer, and demands the RDMA path. Mixture-of-experts models shard naturally by
-  expert placement, which is the question-3 territory of Chapter 24. llama.cpp
+  expert placement, which is the three-questions territory of Chapter 24. llama.cpp
   reached the same place independently; its Metal backend grew tensor-split
   support.
 
@@ -99,7 +99,8 @@ in the book's sources.
    bandwidth, so any work that could have stayed on one machine is slower when
    split; the cluster pays off only for models that one machine cannot load.
 3. Two machines at 512 GB each hold 1 TB, half of 2 TB, so the weights must have
-   been quantized (Chapter 23) to 8 bits or fewer to fit.
+   been quantized (Chapter 23), and to fewer than 8 bits, since 8 bits would fill
+   the whole 1 TB with nothing left for the cache or the runtime.
 
 Part 7 is done. The last part is about the hardware that arrived after most of
 this book's kernels were written: a real matrix unit in every GPU core, and the

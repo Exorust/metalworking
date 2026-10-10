@@ -117,8 +117,9 @@ with 16 by 16 fragments. The next chapter reads the code for the second route.
 
 ### Answers
 
-1. At 256 by 256, MPS is likely routing the work to AMX on the CPU, where launch
-   overhead and memory round trips do not apply; at 4096 by 4096 the GPU's
+1. At 256 by 256, kernel launch overhead and the round trips of Chapter 7 swamp
+   the GPU's advantage, and the fastest processor for that size is often AMX on
+   the CPU, which Apple's libraries can route to; at 4096 by 4096 the GPU's
    throughput dominates.
 2. Prefill is compute bound, so a new matrix unit raises its ceiling; decode is
    bandwidth bound, so it moves only with the memory bandwidth, which changed by

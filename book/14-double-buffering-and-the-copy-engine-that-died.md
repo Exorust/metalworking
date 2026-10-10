@@ -16,8 +16,8 @@ can no longer be reached; the shape of every current kernel follows from that.
 
 Double buffering allocates two staging buffers so that the loop can load slab
 `l + 1` while computing on slab `l`. It is the multi-stage `cp.async` pipeline of
-every modern CUDA matrix multiply, with one local difference: there is no copy
-engine, so there is no true overlap of copy and compute. The same threads issue
+every modern CUDA matrix multiply, with one local difference: the copy engine
+is not reachable, so there is no true overlap of copy and compute. The same threads issue
 both the loads and the math. What makes it work anyway is that the prefetch loads
 and the current slab's multiply-accumulates have no data dependence, so the
 hardware scheduler interleaves them. This is the instruction-level parallelism of

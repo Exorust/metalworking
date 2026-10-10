@@ -126,9 +126,12 @@ writing.*
 
 Count the traffic that step 2 saves, for one head at a context of L tokens and a
 head dimension of d. Naive attention writes the L by L score matrix and reads it
-back: 2 L² values. Flash attention reads K and V once, 2 L d values, plus Q and
-the output. At L = 32,768 and d = 128, that is about 2.1 billion values against
-about 8.4 million, a factor of L / d = 256 less traffic. In 16-bit at the
+back: 2 L² values. Flash attention's compulsory traffic is K and V once, 2 L d
+values, plus Q and the output; each query tile streams K and V again, and whether
+those repeated reads reach DRAM depends on the caches of Chapter 2, the same
+requested-versus-compulsory distinction Chapter 10 drew for the matrix multiply.
+At L = 32,768 and d = 128, the compulsory count is about 2.1 billion values
+against about 8.4 million, a factor of L / d = 256 less traffic. In 16-bit at the
 measured 516 GB/s of Chapter 3, the naive intermediate alone would cost about 8
 milliseconds per head per layer. Multiplied across every head and layer, that
 cost is the reason the technique exists.

@@ -88,7 +88,7 @@ a reduction, not a matrix multiply. So decode runs on a different kind of kernel
 - **MLX** runs `sdpa_vector.h`, dispatched by the gate of Chapter 21 when the
   query length is at most 8: wide vector loads, simdgroup reductions, no matrix
   operations. Its data flow is the one Chapter 2 called out as different: each
-  thread loads keys straight into its own values and accumulates, and
+  thread loads keys straight into its own registers and accumulates, and
   threadgroup memory is used for the reduction across simdgroups, not for
   staging.
 - **llama.cpp** runs `kernel_flash_attn_ext_vec`. Because one row of work cannot
