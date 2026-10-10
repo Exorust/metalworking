@@ -3,14 +3,16 @@
 ## Where we are
 
 Chapter 17 ended with the dispatcher choosing `steel_gemm_fused` and its tile
-sizes for the running example. Steel is MLX's kernel library, and it does for Apple
+sizes for the running example on the plain path, the one every chip before M5
+takes and an M5 takes for 32-bit with TF32 off. Steel is MLX's kernel library, and it does for Apple
 Silicon what CUTLASS does for CUDA: it decomposes matrix multiply and attention
 into composable C++ templates that one wiring kernel assembles per shape. This
 chapter reads the three components and the kernel that wires them. You have
 already seen all three in hand-written form in Part 4, so the task here is to
 recognize them. Steel is the same cooperative load, the same register-blocked multiply
-and the same fused epilogue, recomputed from template parameters for every shape
-MLX serves.
+and the same fused epilogue, recomputed from template parameters for each tile
+shape MLX precompiles, six per type, with the problem dimensions as run-time
+arguments.
 
 ## The library in one picture
 
@@ -39,7 +41,8 @@ where the geometry itself had to change.*
   `mma.h` and `loader.h` with a different fragment layout, Chapter 21.
 - The NAX fork: a parallel steel that targets the M5 neural accelerators through
   Metal 4 tensor operations, Chapter 29. Diffing a `_nax` kernel against its
-  plain sibling shows exactly what the new hardware changes: the multiply layer.
+  plain sibling shows what the new hardware changes: the multiply layer first,
+  and with it the loading, the staging and the epilogue.
 
 ## BlockLoader: the cooperative load, derived
 
@@ -66,11 +69,15 @@ Source: [`steel/gemm/loader.h:14-25`](https://github.com/ml-explore/mlx/blob/47b
 thread's share; `TCOLS` and `TROWS` derive the thread-to-tile mapping from it.
 For the 64 by 16 tile and 128 threads of Part 4 that is 8 elements per thread,
 2 threads per row of the tile, 64 rows covered 64 at a time. The same template
-works for any tile shape and any threadgroup size with no run-time arithmetic.
+works for any compatible tile shape and threadgroup size (the divisions must
+come out whole), with the layout constants fixed at compile time; the
+constructor still computes each thread's source and destination offsets from
+the run-time leading dimension.
 
 The hot path expresses the vector width as an aligned type rather than a
-`float4` cast, so the compiler emits the widest load the `alignment` parameter
-permits.
+`float4` cast, so that the compiler can emit one wide load per thread; the
+payload width is `n_reads` elements, and what the compiler actually emits is a
+question for its output (Chapter 26).
 
 ```cpp
   struct alignas(alignment * sizeof(T)) ReadVector {
@@ -108,10 +115,12 @@ composable.
 ```
 Source: [`steel/gemm/loader.h:130-133`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/loader.h#L130-L133)
 
-The loader owns its pointer arithmetic; the loop only calls `next()`. The
-whole interface is three verbs: load, next and the type's constructor. That
-small interface lets quantized loaders, transposed loaders and the attention fork's
-differently shaped loaders swap in without the kernel body changing.
+The loader owns its pointer arithmetic; the regular loop uses only the
+constructor, a load and `next()`. That small surface is what lets quantized
+loaders, transposed loaders and the attention fork's differently shaped loaders
+swap in with little change to the loop, though not none: the fused kernel sets
+the loaders' `src` directly for the K remainder, and quantized loaders take
+scales and biases in their constructors.
 
 ## BlockMMA: register blocking, named
 
@@ -140,8 +149,11 @@ Source: [`steel/gemm/mma.h:453-483`](https://github.com/ml-explore/mlx/blob/47bb
 `SIMD_TILE`. `Ctile` lives in registers for the kernel's lifetime, with
 `AccumType` defaulting to `float` regardless of the data type. That is the rule of Chapter 4:
 16-bit traffic and 32-bit accumulation. The multiply marches the shared
-dimension in fragment-size steps: load an A fragment and a B fragment, multiply
-and accumulate, advance.
+dimension in fragment-size steps: load a column of `TM` A fragments and a row
+of `TN` B fragments, 4 and 4 here, update the `TM` × `TN` = 16 accumulators,
+advance. The simdgroup's fragments sit on a lattice, `TM_stride` = 8 × `WM`
+rows and 8 × `WN` columns apart, which is the interleaved ownership Chapter 17
+named.
 
 ```cpp
   METAL_FUNC void mma(const threadgroup T* As, const threadgroup T* Bs) thread {
@@ -164,19 +176,21 @@ Source: [`steel/gemm/mma.h:513-537`](https://github.com/ml-explore/mlx/blob/47bb
 
 Two details belong to production code. Transposition is handled by the stride constants: the
 `A_str_m` and `A_str_k` pair swaps for a transposed operand, and the code never
-branches on it. And the `mem_none` simdgroup barriers are the scheduling nudges
-of Chapter 7, keeping each simdgroup's fragment loads batched rather than
-guarding any hazard. The ending is where the epilogue plugs in: `store_result`,
+branches on it. And the `mem_none` simdgroup barriers order no memory; they remain simdgroup
+execution barriers, placed, the authors intend, to keep each simdgroup's
+fragment loads batched (Chapter 7). The ending is where the epilogue plugs in: `store_result`,
 lines 540 to 551, applies the `Epilogue` type to every accumulator element in
 registers and then stores once, and the `apply_epilogue` variants additionally
-read an input matrix for endings of the alpha × A × B + beta × C form. Because
-of this structure, bias, activation and scaling add no extra memory passes.
+read an input matrix for endings of the alpha × A × B + beta × C form. The
+stock fused kernel exposes addition and axpby; an activation would be a new
+transform type in the same slot. Because of this structure, an ending adds no
+extra pass over the output, though its own operands are still read.
 
 One caveat before you generalize from this file: attention needs a different
-`mma.h`. A matrix-multiply accumulator only accumulates; attention's score tile
-must be read and transformed in place between two multiplies, which demands a
-different fragment layout. Steel maintains both, with the same design and a
-different geometry, and Chapter 21 reads the other one.
+`mma.h`. Attention's score tile must be reduced along rows and transformed in
+place between two multiplies, which the matrix-multiply component's tiles do
+not provide, so `attn/` carries its own `mma.h`; the basic 8 by 8 lane
+formulas are the same. Chapter 21 reads the other one.
 
 ## The wiring kernel: what is left
 
@@ -203,10 +217,13 @@ hand-written loop of Chapter 12 rewritten against component interfaces.
 ```
 Source: [`steel_gemm_fused.h:172-204`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/kernels/steel_gemm_fused.h#L172-L204), abridged
 
-The loop runs in the same order as Part 4: barrier, load, barrier, multiply,
-advance. The two barriers sit at the top of the iteration and after the loads,
-which covers the same two hazards. The unaligned branches below it, lines 209 to
-345, enumerate every ragged-edge combination through `load_safe` and
+The loop covers the same two hazards as Part 4 with the overwrite barrier
+moved: barrier, load, barrier, multiply, advance, where the leading barrier
+keeps this iteration's loads from overwriting a tile another simdgroup is still
+reading, and the one after the loads makes the new tiles visible. A K remainder
+is handled before this loop, so the aligned pipeline holds only `load_unsafe`
+when `align_K` is true as well. The unaligned branches below it, lines 209 to
+345, enumerate every ragged M and N combination through `load_safe` and
 `store_result_safe`. That code is verbose and mechanical, and aligned pipelines
 do not contain it. The kernel is the least interesting file in the library,
 which shows that the decomposition worked.
@@ -218,15 +235,16 @@ steel's place among the alternatives. First, it is the baseline to beat, and it
 usually wins: several independent projects report hand-written replacement
 kernels coming back at 0.5 to 0.8 times stock steel (Chapter 25), so the
 profitable moves are unlocking its fast paths rather than replacing it. Second,
-you cannot use it on its own: unlike CUTLASS, steel has no packaged form outside
-MLX, so its ideas travel by reading, which is what this chapter was for.
+unlike CUTLASS, steel has no packaged form outside MLX, so its ideas travel by
+reading, which is what this chapter was for.
 
 ## Where the matmul stands
 
-On the plain steel path, which is every chip before M5 and an M5 with TF32
-disabled, the example runs as `steel_gemm_fused` with the tile shape Chapter 17
-chose: a `BlockLoader` per operand, a `BlockMMA` per simdgroup, and the aligned
-pipeline, since 4096 divides by every tile dimension. Its three parts map one to
+On the plain steel path, which for the 32-bit example is every chip before M5
+or an M5 with TF32 disabled, the example runs as `steel_gemm_fused` with the
+tile shape Chapter 17 chose: a `BlockLoader` object per operand and a `BlockMMA`
+in every thread, whose distributed state forms each simdgroup's tile, and the
+aligned pipeline, since 4096 is a multiple of every tile dimension. Its three parts map one to
 one onto Chapters 11, 12 and 13.
 
 ## Check yourself
@@ -244,11 +262,13 @@ one onto Chapters 11, 12 and 13.
    per tile row; `TROWS` = 128 / 2 = 64 rows covered per pass, so one pass covers
    the whole tile.
 2. Because MLX must serve matrices whose sizes do not divide by the tile, so edge
-   tiles need bounds checks and zero fill. An aligned dispatch binds the
+   tiles need bounds checks and zero fill. An aligned dispatch binds all three
    alignment function constants true, and its pipeline contains only
    `load_unsafe`.
-3. Nothing. With `mem_none` they order no memory; they are hints that keep each
-   simdgroup's fragment loads batched for the scheduler.
+3. No memory: with `mem_none` they order no memory, though they remain
+   execution barriers for the simdgroup. The authors place them to keep each
+   simdgroup's fragment loads batched for the scheduler, which the source
+   shows as intent, not as a measured effect.
 
 The matrix multiply is in production, and the next chapter covers the one
 framework feature that fuses the operations around it automatically.

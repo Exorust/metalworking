@@ -65,7 +65,7 @@ Once this file reads as boring, the rest of the
 `steel_gemm_segmented.h`. All reuse the same loader/MMA components with
 different wiring. That reuse is the whole argument for the decomposition, and the
 `_nax` twins (`gemm_nax.h`) isolate exactly what the Metal-4/M5 tensor
-instructions change: diff one against its plain sibling and nothing moves but the
-MMA layer.
+instructions change: diff one against its plain sibling: the MMA layer moves, and the
+loader (no threadgroup staging) and epilogue move with it.
 
 Next: [Steel attention](steel-attention.md)

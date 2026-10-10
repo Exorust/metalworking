@@ -53,7 +53,7 @@
     <text x="680" y="345" font-size="8.5" fill="#6f9a62" text-anchor="middle">MoE gather-GEMM</text>
     <rect x="820" y="310" width="220" height="44" fill="#0f1e0c" stroke="#24361d" rx="3"/>
     <text x="930" y="329" font-size="10" fill="#a6cc97" text-anchor="middle">gemm_nax twins</text>
-    <text x="930" y="345" font-size="8.5" fill="#6f9a62" text-anchor="middle">Metal-4/M5 tensor ops: only the MMA layer moves</text>
+    <text x="930" y="345" font-size="8.5" fill="#6f9a62" text-anchor="middle">Metal-4/M5 tensor ops: the MMA layer moves, loader and epilogue follow</text>
   </g>
   <text x="540" y="386" font-size="10" fill="#a6cc97" text-anchor="middle">same components, different wiring: the whole argument for the decomposition</text>
 

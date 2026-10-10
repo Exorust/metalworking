@@ -158,8 +158,8 @@ threadgroup-memory access and register spills (Chapter 2).
 
 `simdgroup_barrier` is cheaper still and appears mostly as a scheduling hint.
 Steel's matrix-multiply component drops `mem_none` simdgroup barriers between
-fragment loads to keep one simdgroup's loads batched. Those barriers nudge the
-compiler's scheduler rather than enforce correctness, as Chapter 18 shows.
+fragment loads to keep one simdgroup's loads batched. Those barriers order no memory; their
+placement is a scheduling intent, as Chapter 18 shows.
 
 Between kernels, ordering is structural rather than explicit in the default case:
 dispatches in one command buffer on one queue execute in order, and Metal tracks

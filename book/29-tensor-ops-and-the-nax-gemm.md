@@ -57,10 +57,12 @@ MLX structures its parallel NAX steel that way.
 multiply of Chapter 18 on 16 by 16 fragments; Chapter 28 quoted its fragment
 type. The file opens with the MPP include and wraps the library's tensor
 operations in the same loader, multiply and epilogue decomposition that steel
-uses everywhere else. The architecture survived the hardware change.
-`BlockLoader` still stages and the wiring kernels still wire. Only the multiply
-layer and the fragment geometry moved, as the decomposition of Chapter 18
-promised. You can see this by diffing a `_nax` kernel against its plain sibling.
+uses everywhere else. The decomposition survived the hardware change in outline: the kernel still
+wires a loader, a multiply and an epilogue. The parts changed more than the
+outline: the multiply layer moved to the tensor operations with 16 by 16
+fragments, the loader no longer stages operands through threadgroup memory,
+and the epilogue is reimplemented for the new tile. You can see this by diffing
+a `_nax` kernel against its plain sibling.
 
 **flash-moe's standalone kernel**, `metal_infer/nax_gemm.metal`, about 230
 lines, shows the API without the framework. It declares an
@@ -110,8 +112,8 @@ bytes, and the measurement decided.
    Part 4, and what does the kernel writer give up?
 2. Why does MLX keep the plain steel kernels alongside the NAX fork rather than
    replacing them?
-3. In the steel decomposition, which component changed for NAX and which did
-   not, and why does that matter?
+3. In the steel decomposition, what changed for NAX and what held, and why does
+   that matter?
 
 ### Answers
 
@@ -122,10 +124,11 @@ bytes, and the measurement decided.
 2. Because tensor operations run only on M5-era hardware and macOS 26 or later,
    while everything else runs back to M1, so the dispatch picks the NAX path on
    hardware that has it and falls back otherwise.
-3. The multiply layer and its fragment geometry changed, from 8 by 8 fragments
-   to 16 by 16 hardware-placed ones; the loader, the epilogue and the wiring did
-   not. It matters because it shows the decomposition was split in the right
-   places: when the hardware changed, the architecture held.
+3. The multiply layer moved to hardware-placed 16 by 16 fragments, the loader
+   stopped staging through threadgroup memory, and the epilogue was rewritten
+   for the new tile; what held is the decomposition itself, loader, multiply,
+   epilogue and a wiring kernel. It matters because it shows which part of the
+   design was the hardware's and which was the architecture's.
 
 That is the book. The glossary holds the same material as standalone entries,
 and the sources file lists the repositories, write-ups and people to follow to

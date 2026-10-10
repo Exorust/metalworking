@@ -25,8 +25,8 @@ the file opens with
 wraps MPP's tensor ops in the same loader/MMA/epilogue decomposition
 [steel](../mlx/steel.md) uses everywhere else. The point to notice: the
 *architecture* survived the hardware change. `BlockLoader` still stages,
-the wiring kernels still wire; only the MMA layer and fragment geometry
-moved, which is exactly what the decomposition promised.
+the wiring kernels still wire; the MMA layer and fragment geometry
+moved, and the loader (no threadgroup staging) and epilogue moved with them.
 
 **flash-moe's standalone kernel**
 ([`metal_infer/nax_gemm.metal`](https://github.com/gorroai/flash-moe/blob/4df3af8278c4bef2e7f6b34f61e4e2596b58e93b/metal_infer/nax_gemm.metal),
