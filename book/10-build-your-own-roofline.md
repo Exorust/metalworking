@@ -6,20 +6,20 @@ Chapter 9 gave you a time and a rate: MPS at 11.7 TFLOPS for the running example
 A rate on its own says nothing about how good it is. The roofline is the model
 that turns a measured rate into a verdict: how far the kernel is from the physical
 limit, and which limit. Nsight Compute draws this chart for you on NVIDIA. Here
-there is no tool that draws it, so you assemble it yourself from two measurements,
-and this chapter is the procedure.
+no tool draws it, so you assemble it yourself from two measurements. This chapter
+gives the procedure.
 
 ## The two ceilings
 
 A roofline has two ceilings. The bandwidth ceiling is a slope: at a given
-arithmetic intensity, Chapter 3, a kernel that streams at the machine's full
+arithmetic intensity (Chapter 3), a kernel that streams at the machine's full
 bandwidth achieves intensity times bandwidth, and no more. The compute ceiling is
 flat: the arithmetic units can do so many operations per second regardless of
 intensity. The two cross at the ridge point, and a kernel's measured rate is a
 point under one of them.
 
-**The bandwidth ceiling: measure, do not trust the spec.** A STREAM-style probe,
-large buffer copies and reads swept past the cache sizes, gives achievable memory
+**The bandwidth ceiling: measure, do not trust the spec.** A STREAM-style probe
+(large buffer copies and reads swept past the cache sizes) gives achievable memory
 bandwidth. The m5-gemm harness has one, `bandwidth.metal` with `bandwidth.py`, and
 it measured about 516 GB/s for a copy on an M5 Max, about 84 percent of the 614
 GB/s spec, and about 495 GB/s for a read-only sweep, as Chapter 3 reported. The
@@ -38,8 +38,8 @@ ridge.
 ![Roofline chart: performance versus arithmetic intensity, with the measured bandwidth slope, the practical compute ceiling, the ridge point, and example workloads on each side](../diagrams/roofline.svg)
 
 *The chart the two measurements produce. Everything left of the ridge is capped by
-the bandwidth slope no matter how clever the arithmetic; everything right of it
-answers to the compute ceiling. The example points are this book's recurring
+the bandwidth slope, however the arithmetic is arranged; everything right of it
+is capped by the compute ceiling. The example points are this book's recurring
 workloads.*
 
 ## The two-line interrogation
@@ -68,44 +68,44 @@ the caches rather than by memory; the true share is unknown, because none of
 these counts is a measurement of DRAM traffic.
 
 If both ratios are low, the kernel is far from both references, and the ratios
-alone do not say why. The candidates are dispatch and synchronization overhead,
-Chapter 7, which only shows up if the timing interval includes it; spills and
-occupancy, Chapters 2 and 4; instruction dependencies; or a memory level the
-model does not include. That is the case where you stop reasoning from
-arithmetic and go look at what the compiler emitted, Chapter 26.
+alone do not say why. The candidates are dispatch and synchronization overhead
+(Chapter 7), which only shows up if the timing interval includes it; spills and
+occupancy (Chapters 2 and 4); instruction dependencies; or a memory level the
+model does not include. In that case you stop reasoning from arithmetic and read
+what the compiler emitted (Chapter 26).
 
 ## Platform hygiene, learned the hard way
 
-Three rules from the measured failures of Part 7, each of which turned a kernel
-number into a wrong claim.
+The three rules below come from measured failures in Part 7. Each of those
+failures turned a kernel number into a wrong claim.
 
 **Thermals are part of the model.** Fanless and laptop chips can lose clock speed
-under sustained load when they hit their thermal or power limits. One project measured its long-run throughput decay dropping from
-50 percent to 6.7 percent by locking the fans at maximum, and Chapter 25 has the
-command. Report sustained numbers, not first-second numbers.
+under sustained load when they hit their thermal or power limits. One project
+measured its long-run throughput decay dropping from 50 percent to 6.7 percent
+by locking the fans at maximum, and Chapter 25 has the command. Report sustained numbers, not first-second numbers.
 
 **The winner moves with problem size.** The ceilings of a machine do not change
 with the matrix size, but which kernel is nearest them does: the matrix multiply
 ladder of Chapter 14 has a different winner at three sizes, and its author's
-explanations, launch latency at small sizes, unroll quality in the middle, and
-convergence at large sizes, are hypotheses from differential benchmarking rather
-than isolated measurements. A roofline claim without a size sweep is a guess,
-and this is the reason the running example carries its size with it.
+explanations (launch latency at small sizes, unroll quality in the middle,
+convergence at large sizes) are hypotheses from differential benchmarking rather
+than isolated measurements. Without a size sweep, a roofline claim is a guess.
+That is why the running example always states its size.
 
 **Report end to end as well as per kernel.** A kernel at 90 percent of its
 roofline that is 3 percent of the run time buys almost nothing: Amdahl's law says
 the whole program's speedup is limited by the share of time the improved part
 takes, so lifting that kernel to 100 percent gives 1 / (0.97 + 0.03 × 0.9), about
 a 0.3 percent improvement, and deleting it outright gives 1 / 0.97, about 3
-percent. Amdahl's law kills more optimizations on this platform than physics
-does, and Chapter 25 lists the measured cases.
+percent. On this platform Amdahl's law rules out more optimizations than the
+hardware limits do, and Chapter 25 lists the measured cases.
 
 ## Where the matmul stands
 
 The 4096 by 4096 example has a chart now. The bandwidth roof is 516 GB/s
 measured, the compute roof is 13.5 TFLOPS, and the ridge is about 26 FLOPs per
-byte. MPS sits at 11.7 TFLOPS, 11.7 / 13.5 is about 87 percent of the compute
-ceiling, on the compute side. The target for Part 4 is the ceiling itself.
+byte. MPS sits at 11.7 TFLOPS on the compute side of the ridge, and 11.7 / 13.5
+is about 87 percent of the compute ceiling. The target for Part 4 is the ceiling itself.
 
 ## Check yourself
 
@@ -125,9 +125,9 @@ ceiling, on the compute side. The target for Part 4 is the ceiling itself.
    served, or the roof, which this kernel may genuinely exceed.
 2. 2,000 / 13,500 is about 0.15 and 30 / 516 is about 0.06. The kernel is far
    from both references, and the intensity 2,000 / 30, about 67 FLOPs per byte,
-   puts it on the compute side of the ridge. The ratios do not say why it is far:
-   overhead, spills, occupancy, dependencies, or a memory level outside the
-   model, and the next step is the compiled code.
+   puts it on the compute side of the ridge. The ratios do not say why it is far.
+   The cause could be overhead, spills, occupancy, dependencies, or a memory
+   level outside the model, and the next step is to read the compiled code.
 3. Thermals, because a first-second number on a fanless chip is not a sustained
    number; and the single trial, because Chapter 9 asks for several trials and a
    median or best-of. A single size is also no basis for a claim about other

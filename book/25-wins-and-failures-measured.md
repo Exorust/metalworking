@@ -11,13 +11,13 @@ along with the risk they carry.
 
 ## The canonical win: sparse-V
 
-Plus 22.8 percent decode throughput at a 32K context, perplexity unchanged, from
-three lines, after fourteen clever micro-optimizations had all lost to the
+Three lines of code raised decode throughput by 22.8 percent at a 32K context,
+with perplexity unchanged, after fourteen micro-optimizations had all lost to the
 baseline. The setting is llama.cpp decode at long context on an M5 Max, running
 Qwen3.5-35B-A3B, where the bandwidth-bound cost is streaming and dequantizing the
-key-value cache on every token, Chapter 22. The author tried fourteen
-micro-optimizations first: tile shapes, load widths, the usual matrix-multiply
-repertoire of Part 4. All fourteen lost to the baseline, which is the norm.
+key-value cache on every token, Chapter 22. The fourteen earlier attempts were
+tile shapes, load widths and the rest of the usual matrix-multiply repertoire of
+Part 4. All fourteen lost to the baseline, which is the norm.
 
 The observation that worked is a pure question-1 deletion. Flash attention
 computes its softmax weights before it touches V, Chapter 20. So by the time the
@@ -37,28 +37,28 @@ entire change:
 It goes in the accumulate loop of llama.cpp's attention kernel, Chapter 21, and
 is live in the author's fork at `ggml-metal.metal:8926`, with an ablation
 write-up in the companion repository; both are among the pinned repositories
-under `code/`. Three things make it teach so much per line.
+under `code/`. Three properties of the change explain why it is worth studying.
 
 - **The skip is visible only from inside the fused kernel.** No graph-level
   system could find it. It exploits flash attention's ordering, weights before
-  V, plus the pay-per-use dequantization cost of Chapter 23. Understanding the
-  kernel was the optimization.
+  V, plus the pay-per-use dequantization cost of Chapter 23. The optimization
+  came from understanding the kernel.
 - **It deletes bandwidth, not compute**, the only deletion that matters on this
   machine, Chapter 3.
 - **It is threshold-gated and measured.** Weights below `1e-6` contribute
   nothing at 16-bit output precision, and the claim was verified by unchanged
   perplexity, the methodology that most of the failures below skipped.
 
-Same author, same insight one level up: TurboQuant key-value cache compression,
-a Walsh-Hadamard rotation plus quantization of the cache, 4.6 times compression
-at 0.98 times 16-bit decode speed. The naive version ran at 0.28 times, and
+The same author applied the same insight one level up in TurboQuant key-value
+cache compression, a Walsh-Hadamard rotation plus quantization of the cache. It
+reaches 4.6 times compression at 0.98 times 16-bit decode speed. The naive version ran at 0.28 times, and
 fusing the quantize and dequantize steps into the surrounding kernels was the
 entire difference, Chapter 15.
 
 ## The failures, and the prior they establish
 
 The most instructive documents on the platform are the published negative
-results. The shared lesson: your custom kernel will probably lose to stock, and
+results. They share one lesson: your custom kernel will probably lose to stock, and
 the loss modes are predictable.
 
 **DFlash's reverted kernels.** The speculative-decoding port of Chapter 24
@@ -70,18 +70,18 @@ question-2 and question-3 moves: the head-dimension patch onto the fused
 attention path and one `mx.eval` per step. Several independent projects report
 the same 0.5 to 0.8 times experience. Treat it as the prior.
 
-**OpenEvolve's evolved kernel.** A language-model-driven evolutionary search
-over Metal source for a grouped-query attention kernel, whose own analysis
-file, titled "Why Optimization Failed", reports the best evolved kernel at 3.2
-percent slower than the MLX baseline. The search improved from 11.5 percent
-slower to 3.2 percent slower and never crossed zero. Kept as a methodology
-study: a search can climb a hill efficiently and still be on the wrong hill
+**OpenEvolve's evolved kernel.** This project ran a language-model-driven
+evolutionary search over Metal source for a grouped-query attention kernel. Its
+own analysis file, titled "Why Optimization Failed", reports the best evolved
+kernel at 3.2 percent slower than the MLX baseline. The search improved from 11.5
+percent slower to 3.2 percent slower and never crossed zero. It is useful as a
+methodology study: a search can climb a hill efficiently and still be on the wrong hill
 when the baseline is a hand-tuned library and the search cannot touch the
 dispatch layer above it, Chapter 17.
 
 **"I beat MLX's attention, then discovered it was useless."** A hand-rolled
-flash-attention kernel showing 1.2 to 1.3 times on synthetic benchmarks and
-zero percent end to end: the kernel's share of real run time was too small for
+flash-attention kernel showed 1.2 to 1.3 times on synthetic benchmarks and zero
+percent end to end, because the kernel's share of real run time was too small for
 its speedup to register. The hygiene rules of Chapter 10 exist because of this
 failure mode, and it is the most common one in public benchmark claims.
 
@@ -92,9 +92,9 @@ scores 2 wins, 11 losses and 1 "no lever", and both wins were prefill fusions
 where stock MLX has no matrix-unit-backed path. The ledger's own thesis is that
 cross-operation fusion transfers and hand-written matrix-vector and attention
 kernels do not, because they race steel's matrix multiply, which
-`mx.fast.metal_kernel` cannot reach, Chapter 21. That is the 0.5 to 0.8 prior
-explained: the fast paths live below the API a custom kernel is written against.
-Wins happen where no fast path exists to race.
+`mx.fast.metal_kernel` cannot reach, Chapter 21. This explains the 0.5 to 0.8
+prior: the fast paths live below the API a custom kernel is written against.
+Custom kernels win where there is no fast path to race.
 
 The checklist for reading, or making, an "X percent faster on Apple Silicon"
 claim:
@@ -105,41 +105,43 @@ claim:
 3. What is the baseline: stock steel or llama.cpp at the right shapes, or a
    straw man?
 4. Prefill or decode? A win in one is invisible in the other, Chapter 22.
-5. Were thermals controlled? Sustained is not first-second, below.
+5. Were thermals controlled? Sustained throughput differs from the first
+   second, as the next section shows.
 
 ## Cheap tricks, with their risk
 
-Three measured, zero-code or near-zero-code wins, plus the reminder that they
-carry the platform's signature risk.
+The three wins below are measured and need little or no code. Each also carries
+the risk typical of this platform.
 
 **Raise the GPU wired-memory ceiling.** By default macOS caps how much of unified
 memory the GPU may wire; `sudo sysctl iogpu.wired_limit_mb=N` raises it. A 192
 GB machine goes from about 140 GB to about 184 GB of usable GPU memory, the
-difference between a 70-billion parameter model fitting or not. Undocumented,
-reset on reboot, and occasionally moved between `sysctl` names across macOS
-versions: the copy-engine story of Chapter 14 in miniature, run knowingly.
+difference between a 70-billion parameter model fitting or not. The setting is
+undocumented, resets on reboot, and has occasionally moved between `sysctl` names
+across macOS versions. It is the copy-engine story of Chapter 14 in miniature,
+so use it knowingly.
 
 **Read the bandwidth line on the spec sheet before profiling anything.** Across
 the M-series tiers, decode tokens per second track memory bandwidth almost
-linearly, because decode is bandwidth, Chapter 22. Two uses: buying decisions,
-since the Max chip's 4 times bandwidth over the base chip buys about 4 times
-decode while extra GPU cores beyond that buy prefill, not chat latency; and
-sanity checks, since if your tokens per second are far from bandwidth divided by
+linearly, because decode is bandwidth bound, Chapter 22. This has two uses. The
+first is buying decisions: the Max chip's 4 times bandwidth over the base chip
+buys about 4 times decode, while extra GPU cores beyond that buy prefill, not
+chat latency. The second is sanity checks: if your tokens per second are far from bandwidth divided by
 model bytes, something is broken and Chapter 26 is where to look.
 
 **Control thermals or your benchmark lies.** MTPLX measured long-run throughput
 decay dropping from 50 percent to 6.7 percent by locking the fans at maximum.
 Laptop and fanless chips throttle under sustained load; a benchmark's first ten
-seconds and its steady state are different machines. Fan control, or a desktop
-chip, is part of measurement methodology here.
+seconds and its steady state behave like different machines. On this platform,
+fan control or a desktop chip is part of measurement methodology.
 
-One honorable mention: the Neural Engine exists. It is the third matrix engine on
+The Neural Engine also deserves a mention. It is the third matrix engine on
 the die after the GPU and AMX, Chapter 28, reaches about 6.6 TFLOPS per watt
 against about 1 for the GPU, and speaks only Apple's model frameworks, Core ML
 and, for generative workloads in the macOS 27 cycle, Core AI, which adds a
-documented hook for custom Metal kernels. The community's effort to train on it
-through private interfaces is impressive and cautionary in equal measure. For
-Metal work its relevance is knowing that some workloads, quantized
+documented hook for custom Metal kernels. The community has tried to train on it
+through private interfaces, which is impressive work and also a warning. For
+Metal work, what matters is knowing that some workloads, quantized
 convolution-shaped inference at low power, have a better home than the GPU, and
 that Apple's own frameworks may route there without telling you.
 

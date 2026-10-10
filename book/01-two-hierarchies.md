@@ -39,22 +39,21 @@ And the hardware hierarchy, top to bottom.
 *Left: what one launch creates. Right: what runs it. Each row reads across. The
 sizes drawn inside the core are the subject of the next chapter.*
 
-Read the two tables against each other and the trap is visible. In NVIDIA's
+Reading the two tables side by side shows the trap. In NVIDIA's
 vocabulary, a "CUDA core" is the smallest thing on the right: one arithmetic unit,
 of which an SM has many. In Apple's vocabulary, a "GPU core" is the middle thing:
 the whole SM-sized unit, with its own register file, its own scratch memory, and
 its own set of arithmetic units. When an Apple spec sheet says a chip has 40 GPU
-cores, it means 40 units at the level of an SM: each has its own register file,
-scratch memory and arithmetic units, and each runs its own threadgroups. "Size"
+cores, it means 40 units at the level of an SM, each running its own threadgroups. "Size"
 here means the level in the hierarchy, not die area or throughput. A base M5 has
 10 of them, and an M5 Max has 40. There is no Apple datacenter part: the largest GPU Apple makes is in a
-laptop or a desktop, and the design follows from that. The cores run at low clocks
-and wide, tuned for performance per watt rather than peak throughput.
+laptop or a desktop, and the design follows from that. The cores are wide and run
+at low clocks, tuned for performance per watt rather than peak throughput.
 
 ## How a launch maps onto the chip
 
-The two hierarchies meet at four points, and these four rules are what you reason
-with for the rest of the book.
+The two hierarchies meet at four points. You will reason with these four rules for
+the rest of the book.
 
 **A threadgroup runs on one core.** The hardware assigns each threadgroup to a
 single core. This is the reason its threads can share memory: the scratch memory a
@@ -123,8 +122,7 @@ follows and of MLX's attention kernel. The launch call that counts in threads ca
 make a partial threadgroup at the edge of the grid, which is the one case where a
 simdgroup is not full.
 
-One Metal-specific fact belongs here because it shapes the kernels you will read.
-The compiler allocates registers when it builds the pipeline, before it knows the
+One Metal-specific fact shapes the kernels you will read. The compiler allocates registers when it builds the pipeline, before it knows the
 launch dimensions. Unless the kernel declares a maximum threadgroup size with the
 attribute `max_total_threads_per_threadgroup`, the compiler must plan for the
 largest threadgroup the hardware allows, and it has fewer registers per thread to

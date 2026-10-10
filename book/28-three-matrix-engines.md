@@ -18,39 +18,39 @@ program them, and the third is the new one.
 middle one, and the API rows at the bottom are the only ways to reach each.*
 
 **AMX, on the CPU.** AMX is Apple's undocumented CPU matrix coprocessor. It is
-not part of the GPU at all, but it is the other half of the Apple matrix-multiply
-story and the answer when small-matrix CPU throughput seems impossible. There is
+not part of the GPU, but it is the other half of Apple's matrix-multiply
+performance, and it explains small-matrix CPU throughput that seems impossible. There is
 no CUDA counterpart; the closest analogies are Intel's AMX and ARM's SME, toward
 which Apple's AMX has been evolving. The point for a GPU engineer is negative:
 when you benchmark Apple's Accelerate, BNNS or MPS small-matrix performance and
 the numbers look too good for a CPU, you are not looking at the CPU's NEON units.
 You are looking at a dedicated multiply-accumulate grid hanging off the CPU
 cluster, fed by its own register pools, executing an outer product per
-instruction. Apple has never documented the instruction set; the definitive
-reference is corsix/amx, MIT, with per-instruction documentation, an executable
-emulator as the specification, and per-generation deltas: M2 adds bf16, M3 adds
+instruction. Apple has never documented the instruction set. The definitive
+reference is corsix/amx (MIT licensed), which has per-instruction documentation, an executable
+emulator that serves as the specification, and per-generation deltas: M2 adds bf16, M3 adds
 new load and integer modes, M4-era hardware moves toward standard SME. Using AMX
-directly means issuing undocumented instructions; Accelerate and BNNS are the
+directly means issuing undocumented instructions. Accelerate and BNNS are the
 sanctioned interface, and reading corsix's documentation is the only way to
 understand the performance you observe through them.
 
-AMX matters to GPU work in two ways. Dispatch decisions: for small matrices, the
+AMX matters to GPU work in two ways. The first is dispatch: for small matrices, the
 fastest processor on the chip is often AMX, not the GPU, because kernel launch
 overhead plus the round trips of Chapter 7 swamp the GPU's advantage below a size
 threshold, and Apple's own libraries route accordingly. If your profiling shows
-MPS beating your GPU kernel at 256 by 256, this is frequently why. And it shares
-the memory pool: unified memory means CPU-side AMX work and GPU work compete for
+MPS beating your GPU kernel at 256 by 256, this is frequently why. The second is
+the shared memory pool: unified memory means CPU-side AMX work and GPU work compete for
 the same bandwidth, so a background BNNS workload dents your GPU kernel's
 roofline.
 
-**The Neural Engine.** The third engine, also undocumented, also reachable only
-through Apple's model frameworks or private interfaces, at about 6.6 TFLOPS per
-watt against about 1 for the GPU, Chapter 25. Metal does not talk to it.
+**The Neural Engine.** The third engine is also undocumented, and you can reach it
+only through Apple's model frameworks or private interfaces. It delivers about 6.6
+TFLOPS per watt against about 1 for the GPU (Chapter 25). Metal does not talk to it.
 
 **The GPU's own matrix unit, from M5.** The M5 generation adds a dedicated matrix
 unit to every GPU core: the neural accelerators, NAX in MLX's source, reached
 through Metal 4 tensor operations rather than through `simdgroup_matrix`. This is
-the Tensor Core, finally for real.
+the first real Tensor Core counterpart on the GPU.
 
 ## What M5 changes, and what it does not
 
@@ -60,8 +60,9 @@ confirmed no dedicated matrix datapath as late as M4. On M5 that changed, and
 Apple's own numbers for MLX on M5 say where: about 3.97 times faster time to
 first token and 1.19 to 1.27 times faster decode than M4. The prefill gain lands
 exactly where a matrix unit should land, in the compute-bound territory of
-Chapter 3; decode stays bandwidth bound, so it moves with the memory spec
-instead, Chapter 22. That split is the whole book's argument in two numbers.
+Chapter 3. Decode stays bandwidth bound, so it moves with the memory spec
+instead (Chapter 22). The two numbers follow the compute-bound versus
+bandwidth-bound split that the rest of the book uses.
 
 What a CUDA engineer should map over, and what not to:
 
@@ -89,14 +90,14 @@ Source: [MLX `steel/gemm/nax.h:27-31`](https://github.com/ml-explore/mlx/blob/47
   and the compiler and the hardware choose the datapath. Chapter 29 covers the
   model and reads real code.
 
-Ecosystem status: MLX ships a parallel steel fork for it, `gemm/nax.h`,
-`attn/nax.h`, `quantized_nax` and `fp_quantized_nax`; llama.cpp has a tensor-API
-matrix-multiply path; and the tuning is young. Recent MLX work is
-disproportionately NAX-shaped, with batch limits raised for M5-class GPUs,
-NVFP4 matrix-vector optimization, and per-expert tile picks, which shows how
-quickly this path is still changing. `simdgroup_matrix` remains the portable
-primitive, the one that runs on every M-series chip and the one most shipped
-kernels still use, which is why this book taught both.
+Software support is early. MLX ships a parallel steel fork for it (`gemm/nax.h`,
+`attn/nax.h`, `quantized_nax` and `fp_quantized_nax`), llama.cpp has a tensor-API
+matrix-multiply path, and the tuning is young. Recent MLX work is
+disproportionately NAX-shaped: batch limits raised for M5-class GPUs,
+NVFP4 matrix-vector optimization, and per-expert tile picks. The path is still
+changing quickly. `simdgroup_matrix` remains the portable primitive. It runs on
+every M-series chip and most shipped kernels still use it, which is why this
+book taught both.
 
 ## Where the matmul stands
 

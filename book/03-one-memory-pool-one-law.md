@@ -19,7 +19,7 @@ be views of the same bytes; Chapter 6 shows how a buffer is made.
 
 CUDA has something called unified memory, `cudaMallocManaged`, and on a discrete
 card it is not this. There it is a software illusion over the bus, with pages
-migrating back and forth. Here it is the hardware. Three things follow.
+migrating back and forth. Here it is the hardware, and that has three consequences.
 
 - **Capacity.** A Mac Studio configuration holds hundreds of gigabytes of memory
   that the GPU can address. Models that need to be sharded across several cards
@@ -29,8 +29,8 @@ migrating back and forth. Here it is the hardware. Three things follow.
   `sysctl` raises the cap (Chapter 25). GPU allocations also compete with the
   operating system and everything else running.
 - **No transfer engineering.** There is no `cudaMemcpy`, no pinned host memory,
-  and no choreography of streams to overlap copies with compute. A whole genre of
-  CUDA optimization does not exist here.
+  and no arrangement of streams to overlap copies with compute. That whole class
+  of CUDA optimization does not apply here.
 - **Cheap cooperation between CPU and GPU, with a cost that stays.** Data is free
   to share, but synchronizing is not. When the CPU waits for a result and has
   queued nothing behind it, the GPU sits idle while the CPU wakes, reads, and
@@ -78,10 +78,10 @@ The spec bandwidth is 614 GB/s.
 Use the measured 516 GB/s instead of the spec and the ridge moves to about 26
 FLOPs per byte. Both values come from one measurement and one spec figure, and both apply to
 this precision and path; other precisions have their own ceilings (Chapter 10).
-The size matters more than the exact value: a kernel needs more than twenty
+The magnitude matters more than the exact value. A kernel needs more than twenty
 operations for every byte it moves before the compute ceiling binds. On a datacenter part, terabytes per second of HBM sit under
 arithmetic that is not proportionally faster, so the crossing comes at a lower
-intensity. That is what the law means in numbers: the ridge sits high, so more of
+intensity. In numbers, the law says the ridge on Apple Silicon is high, so more of
 your kernels sit on the bandwidth side of it than your CUDA intuition expects.
 
 Now put the canonical workloads against it. The intensities below are ideal counts,
@@ -106,8 +106,8 @@ that size it is compute bound in practice. At 1024 by 1024 the same kernel is no
 and Chapter 14 shows why.
 
 **Everything elementwise.** An add reads two 4-byte values and writes one to do a
-single operation: 1 FLOP per 12 bytes, an intensity of about 0.1, and no amount of
-cleverness inside the kernel changes the count. The only lever is not doing the
+single operation: 1 FLOP per 12 bytes, an intensity of about 0.1. Nothing you do
+inside the kernel changes that count. The only lever is not doing the
 traffic at all, which is why fusion, Chapter 15, is the most profitable technique
 in this book.
 
@@ -123,12 +123,13 @@ the two workloads.
 
 ## The sixty-second arithmetic
 
-Before optimizing any kernel: count the bytes it must move, count the operations
-it must do, divide, and compare with the ridge for that precision and path. On the
+Before you optimize a kernel, count the bytes it must move and the operations it
+must do, divide the second by the first, and compare the result with the ridge for
+that precision and path. On the
 bandwidth side, where most kernels sit, arithmetic cleverness is wasted; the
 levers are fusion, 16-bit or quantized traffic, and deleting work. On the compute
-side, the techniques of Part 4, register blocking and double buffering, earn their
-keep. Then measure, because the calculation says which ceiling applies and only a
+side, the techniques of Part 4, register blocking and double buffering, pay off.
+Then measure, because the calculation says which ceiling applies and only a
 measurement says whether the kernel is near it. Chapter 10 turns this into a chart.
 
 ## Check yourself

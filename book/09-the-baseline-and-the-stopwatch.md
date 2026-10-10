@@ -13,10 +13,10 @@ number from chapter to chapter.
 ## The baseline: MPS
 
 Metal Performance Shaders, MPS, is Apple's library of pre-built GPU kernels:
-matrix multiply, convolution, image operations. In role it is the closest thing
-Metal has to cuBLAS and cuDNN. In stature it is not. On NVIDIA, beating cuBLAS at
-dense matrix multiply is a research result; the library embodies decades of
-tuning and hardware co-design. MPS is good, and the machine-learning ecosystem on
+matrix multiply, convolution, image operations. Its role is the closest thing
+Metal has to cuBLAS and cuDNN, but it does not have their standing. On NVIDIA,
+beating cuBLAS at dense matrix multiply is a research result, because the library
+has decades of tuning and hardware co-design behind it. MPS is good, and the machine-learning ecosystem on
 Apple Silicon has repeatedly matched or beaten it with open kernels.
 
 - The hand-written m5-gemm kernel that Part 4 reads reaches 13.5 TFLOPS in 32-bit
@@ -31,7 +31,7 @@ Apple Silicon has repeatedly matched or beaten it with open kernels.
 - MLX uses its own kernel library, steel, Part 5, rather than MPS for its core
   operations.
 
-Why it is beatable: MPS kernels are general and opaque. There is no
+MPS is beatable because its kernels are general and opaque. There is no
 function-constant specialization for your shapes, Chapter 8; no fusion with the
 operations around the call, Chapter 15; and no kernels for the quantized weight
 formats that language models use, Chapter 23. The places where frameworks still
@@ -39,7 +39,7 @@ lean on MPS are where its coverage is hard to replicate: convolution variants,
 some reductions, and small-matrix cases where the CPU's own matrix unit and
 MPS-tuned dispatch beat a naive GPU kernel.
 
-For the kernel writer, MPS's main role is the benchmark floor.
+For the kernel writer, MPS is mainly the benchmark floor.
 `MPSMatrixMultiplication` is a small setup, a matrix descriptor per operand plus
 the operation, and it gives GPU-time numbers through the same command-buffer
 timestamps as everything else; the m5-gemm harness has a compact PyObjC example
@@ -48,11 +48,11 @@ Chapter 24: if your custom kernel does not beat MPS at your shapes, ship MPS.
 
 ## The stopwatch: command-buffer timestamps
 
-Metal has no Nsight Compute, and the gap shapes how performance work is done
-here. What you have, in decreasing order of usefulness, starts with one thing that
-is cheap, programmatic and reliable: `GPUStartTime` and `GPUEndTime` on a
-completed command buffer, in wall-clock seconds of GPU time. Every benchmark
-harness in this book uses them. Here is the whole of it in the m5-gemm harness.
+Metal has no Nsight Compute, and that gap shapes how you do performance work
+on it. Of the tools you do have, the most useful is cheap, programmatic and
+reliable: `GPUStartTime` and `GPUEndTime` on a completed command buffer, in
+wall-clock seconds of GPU time. Every benchmark harness in this book uses them.
+This is the complete timing code in the m5-gemm harness.
 
 ```python
             buffer.commit()
@@ -69,7 +69,7 @@ nothing else. Create the pipeline state before the timed loop, Chapter 6, so tha
 compilation never lands in a timing, and discard the first runs, which start with
 cold caches and clocks. And take several trials and report a median or a best-of,
 because single timings vary; the m5-gemm numbers in this book are the best of 3
-runs of 5 trials each. From the time you compute the rate: a matrix
+runs of 5 trials each. From the time, you compute the rate: a matrix
 multiply at size n does 2n³ floating point operations, so 4096 by 4096 is about
 137 GFLOP, and 137 GFLOP in 10.2 milliseconds is about 13.5 TFLOPS.
 
@@ -80,8 +80,8 @@ per-encoder timings, an occupancy estimate, memory-bandwidth counters, shader
 profiling. It has two structural limits. It is a GUI, so there is no continuous
 integration and no scripted regression check. And capture perturbs heavily on big
 machine-learning workloads: inference projects report slowdowns of 50 to 100
-times and traces of several gigabytes. It is usable for staring at one dispatch
-and unusable as a feedback loop.
+times and traces of several gigabytes. You can use it to study one dispatch,
+but not as a feedback loop.
 
 Metal 4's counter API exposes timestamps only, through macOS 26. The hardware
 counters that would give achieved occupancy, stall reasons, or memory traffic
@@ -90,11 +90,11 @@ surface them: the flash-moe project pulled a full instruction-cost breakdown fro
 a GPU trace, 63.9 percent of instruction cost in arithmetic, 25 percent in type
 conversion from bf16 scale and bias values, a 93.4 percent L1 hit rate, and 2.4
 percent GPU utilization, which told them their model was bound by input and
-output, not by compute. The picture is changing: macOS 27 adds always-on
+output, not by compute. This is changing: macOS 27 adds always-on
 performance metrics, a `metalperftrace` command-line tool, and a state-reporting
 API, announced in session 388 of WWDC 2026, which would give this platform its
-first scriptable feedback loop. Until that ships and proves out, the methodology
-below stands.
+first scriptable feedback loop. Until that ships and proves itself, use the
+methodology below.
 
 ## The methodology
 
@@ -106,15 +106,15 @@ independently.
    measured yourself. Chapter 10 builds the chart.
 2. **Differential benchmarking.** When you cannot see stall reasons, change one
    thing and measure again. The m5-gemm README's section "things that did not
-   help" is this method producing knowledge, and Chapter 14 reads it.
+   help" records what this method found, and Chapter 14 reads it.
 3. **Disassembly when the arithmetic says impossible.** The reverse-engineered
-   applegpu tools show what the compiler emitted, which is the tool of last
-   resort for hunting spills; Chapter 26.
-4. **Hygiene, because no tool will catch you.** Fix your clocks story: in one
+   applegpu tools show what the compiler emitted. They are the tool of last
+   resort for hunting spills, Chapter 26.
+4. **Hygiene, because no tool will catch you.** Decide how you handle clocks: in one
    measured case, locking the fans changed the long-run throughput decay from 50
    percent to 6.7 percent, Chapter 25. Report end-to-end numbers next to kernel
-   numbers, because a synthetic win that vanishes end to end is the classic
-   failure of Chapter 25. And state the matrix sizes, because the winner flips
+   numbers, because a synthetic win that vanishes end to end is the common
+   failure that Chapter 25 describes. And state the matrix sizes, because the winner flips
    with size, Chapter 14.
 
 ## Where the matmul stands

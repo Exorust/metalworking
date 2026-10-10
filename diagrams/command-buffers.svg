@@ -82,6 +82,6 @@
   <text x="40" y="346" font-size="10.5" fill="#a6cc97">receipts:</text>
   <text x="140" y="346" font-size="9.5" fill="#6f9a62">Luminal runs all of Llama 3 8B as a single command buffer · DFlash gained a measured win from</text>
   <text x="140" y="362" font-size="9.5" fill="#6f9a62">nothing but halving syncs (one mx.eval per step) · GPUStartTime / GPUEndTime on a completed buffer</text>
-  <text x="140" y="378" font-size="9.5" fill="#6f9a62">is the platform's only programmatic GPU timing: one more reason buffers should be meaningful units</text>
+  <text x="140" y="378" font-size="9.5" fill="#6f9a62">is the platform's simplest programmatic GPU timing: one more reason buffers should be meaningful units</text>
   <text x="40" y="414" font-size="10.5" fill="#e8c268">when a CUDA port is mysteriously slow at small batch sizes, count your command buffers first</text>
 </svg>

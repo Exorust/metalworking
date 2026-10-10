@@ -7,34 +7,35 @@ arithmetic, differential benchmarking, and the hygiene rules, carry most kernels
 to an answer. This chapter is the fourth. When the roofline of Chapter 10 says a
 kernel should be fast and it is not, and changing one thing at a time has not
 found the lever, the last resort is reading what the compiler emitted. Apple
-ships no tool for that. The reverse-engineered applegpu toolchain is how it is
-done, and it is also how the community learned most of what Part 1 reported.
+ships no tool for that. You do it with the reverse-engineered applegpu
+toolchain, which is also how the community learned most of what Part 1 reported.
 
 ## What you have, compared with CUDA
 
 On NVIDIA, `cuobjdump` and `nvdisasm` read SASS, the vendor documents the tool,
 and about half of the instruction set is documented. Here the instruction set of
 the Apple G13 family, the M1 generation, with coverage of later generations
-growing, was reverse engineered by the community, and the on-device final
-compile of Chapter 6 means that the binary you inspect was built on your own
+growing, was reverse engineered by the community. The on-device final compile
+of Chapter 6 also means that the binary you inspect was built on your own
 machine, for your chip, from your source.
 
 The toolchain, at the pinned commit of dougallj/applegpu:
 
-- `compiler_explorer.py`: Metal Shading Language in, instructions out. The
-  scriptable equivalent of a compiler explorer, and the entry point for the
-  workflow this chapter exists to name.
-- `disassemble.py`: 56 lines, pointed at extracted GPU machine code.
+- `compiler_explorer.py`: takes Metal Shading Language and prints
+  instructions. It is the scriptable equivalent of a compiler explorer and the
+  entry point for the workflow this chapter describes.
+- `disassemble.py`: a 56-line script that you point at extracted GPU machine
+  code.
 - `applegpu.py`: 6,081 lines of instruction encodings, operand descriptors and
-  register formats. This file is the knowledge in the repository.
+  register formats. This file is where the repository's knowledge lives.
 - `assemble.py` goes the other direction; `hwtestbed.py` runs encodings on real
   hardware; `docs.html` is the browsable instruction reference.
 
-The workflow worth internalizing goes beyond reading. Patch instruction bytes
+The workflow goes beyond reading. Patch instruction bytes
 into a compiled shader, run it on the hardware test bed, and diff the GPU's
 behavior against the emulator's. That loop answers "what does this undocumented
-instruction actually do" empirically, with no documentation existing anywhere,
-and it is how the community established the register-file size, the saturation
+instruction actually do" by experiment, even though no documentation for it
+exists anywhere. It is also how the community established the register-file size, the saturation
 point and the stall figures of Chapters 2 and 4.
 
 ## When to reach for it, and what you find
@@ -53,9 +54,9 @@ has not found the lever. The usual finds, in order of frequency:
    do not, and the kernel pays loop overhead and loses the scheduling freedom of
    Chapter 4.
 3. **Instruction-selection surprises.** Chapter 6 said to expect one surprise
-   every time you look; this is where you look.
+   every time you look; the disassembly is where you look.
 
-A worked expectation for the kernel of Part 4: the inner loop should be a short
+For the kernel of Part 4, expect the following: the inner loop should be a short
 straight-line sequence of fragment loads and multiply-accumulates with no
 memory operations on the accumulators between them. If the disassembly shows
 stores of accumulator registers inside that sequence, the accumulators spilled,
@@ -69,14 +70,14 @@ accelerators in Chapter 29 especially, lag until someone maps them, so a kernel
 built on the newest hardware may disassemble into unknown encodings.
 
 Second, everything here is unsupported surface. It is the same platform-risk
-trade that the copy-engine story of Chapter 14 documented: a debugging
-instrument, not something to build a product on. Read with it; do not ship with
-it.
+trade that the copy-engine story of Chapter 14 documented. The toolchain is a
+debugging instrument. Use it to read machine code, and do not build or ship a
+product that depends on it.
 
 ## The methodology, complete
 
-With this chapter the measurement method of Part 3 is complete, and it is worth
-stating in one place, because it is what replaces the profiler on this platform.
+With this chapter the measurement method of Part 3 is complete. It is stated
+here in one place because on this platform it replaces the profiler.
 
 1. Time with command-buffer timestamps, Chapter 9, after the pipeline is built
    and the first runs are discarded, over several trials.

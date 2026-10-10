@@ -2,8 +2,8 @@
 
 ## Where we are
 
-Part 1 described the chip. Part 2 is about the least amount of Metal you need in
-order to compile a kernel, launch it, and time it, which is what Part 3 and Part 4
+Part 1 described the chip. Part 2 is about the least amount of Metal you need
+to compile a kernel, launch it, and time it, which is what Part 3 and Part 4
 then do. This chapter covers the first half of that path: what Metal is, what the
 kernel language looks like to a CUDA programmer, and how source becomes something
 the GPU can run. The vocabulary is new; the shape is mostly familiar, with one
@@ -28,7 +28,7 @@ table, with the chapter that covers each row.
 | cuBLAS, cuDNN | MPS, with caveats | Chapter 9 |
 | Nsight Compute | nothing comparable | Chapter 9 |
 
-Three differences of shape rather than vocabulary.
+Three of the differences are in shape, not vocabulary.
 
 **Everything is explicit and command-buffer shaped.** CUDA lets you pretend that
 `kernel<<<grid, block>>>(args)` is a function call. Metal never does: you create a
@@ -40,7 +40,7 @@ per-buffer cost. Chapter 7 is about that, and about where batching stops paying.
 **Compute and graphics are one API.** There is no compute edition of Metal; the
 `MTLDevice` you encode a matrix multiply on is the one games render with. For an
 ML engineer this means that the documentation, the tooling, and half the API
-surface, render passes and textures, are about someone else's problems, and the
+surface (render passes and textures) are about someone else's problems, and the
 compute story is comparatively under-documented. That gap is why this book exists.
 
 **One device per machine, on Apple Silicon.** The API can enumerate several
@@ -93,7 +93,7 @@ Read it against CUDA.
 | `#pragma unroll` | `#pragma clang loop unroll(full)` |
 | `-D` compile defines | the same, plus function constants for specialization after compilation, Chapter 8 |
 
-Two things to notice in the signature. `SW` is not defined in the kernel; it
+Notice two things in the signature. `SW` is not defined in the kernel; it
 arrives as a `-D` define when the source is compiled, so changing it means
 recompiling the source. And `constant uint &n` is an argument in the `constant`
 address space, which is uniform and cached, not a function constant; the two use
@@ -106,13 +106,13 @@ a tiled matrix multiply maps threads to tiles, not to output elements. The addre
 spaces are explicit in the types, so a pointer into threadgroup memory and a
 pointer into device memory cannot be confused.
 
-What MSL has that you will use: real C++ templates in device code, which is how
+MSL has several features you will use: real C++ templates in device code, which is how
 MLX's whole steel library is built, Part 5; `half` and `bfloat` as first-class
 types with `vec<T, N>` vectors; the `simdgroup_matrix` types of Chapter 12; and a
 `fast::` math namespace that gives you fast math per call, such as the
 `fast::exp2` of Chapter 5, rather than a whole-program fast-math flag.
 
-What it lacks, coming from CUDA: no printf-debugging culture to speak of (it
+Coming from CUDA, you will find several things missing: no printf-debugging culture to speak of (it
 exists, and it is painful); no cooperative groups beyond the three built-in levels
 of Chapter 1; no dynamic parallelism; no sizing of threadgroup memory from inside
 the kernel, since the host sets it with `setThreadgroupMemoryLength` or you declare
@@ -120,7 +120,7 @@ it statically; and no inline assembly equivalent to PTX. There used to be one
 escape hatch, intrinsics declared by their internal AIR names, and Metal 4 closed
 it; Chapter 14 tells that story.
 
-If you want your hands on the keyboard before Part 4, Metal-Puzzles is 14
+If you want to write kernels before Part 4, Metal-Puzzles is a set of 14
 progressively harder MSL kernels, from a map through threadgroup memory and prefix
 sums to a matrix multiply, each checked against a reference from Python.
 
@@ -162,12 +162,11 @@ compile. That is what Chapter 8 is about: values the final compiler treats as
 literals, so that branches on them disappear from the binary instead of being
 evaluated at run time.
 
-Compilation from a source string at run time is a first-class workflow, not a
-fallback. `device.makeLibrary(source:)` compiles an MSL string through the same
+Compiling a source string at run time is a first-class workflow. `device.makeLibrary(source:)` compiles an MSL string through the same
 backend as the offline compiler, and the m5-gemm README measured no performance
 difference between the two with `-O3 -ffast-math`. This is why
-metal-flash-attention generates its kernels as Swift strings, Chapter 21, why MLX
-compiles specialized kernels at run time, Chapter 17, and why a Python harness
+metal-flash-attention generates its kernels as Swift strings, Chapter 21, MLX
+compiles specialized kernels at run time, Chapter 17, and a Python harness
 needs no Xcode at all.
 
 Configuration arrives through three channels, in decreasing order of rigidity.
@@ -178,7 +177,8 @@ constants are fixed when AIR becomes a binary, so one shipped function yields ma
 pipelines. Sizes and pointers are buffer arguments, read at run time, alongside
 the dispatch dimensions.
 
-Inspecting what the compiler emitted from the command line is community tooling.
+To inspect what the compiler emitted from the command line, you need community
+tooling.
 There is no `cuobjdump`; Xcode's GPU tools can show shader assembly inside the
 debugger, and the reverse-engineered applegpu disassembler is the scriptable
 equivalent, MSL in and instructions out. It is the tool of last resort when a

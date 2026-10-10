@@ -3,12 +3,12 @@
 ## Where we are
 
 Chapter 11 staged a 64 by 16 tile of A and a 16 by 64 tile of B in threadgroup
-memory, 8 KB per step, and left them there. This chapter multiplies them. Two
-things happen: the multiply itself runs through Metal's matrix primitive, which
-looks like NVIDIA's warp-level matrix API and is not the same hardware; and the
-results stay in registers across all 256 steps of the shared dimension, which is
-register blocking, the technique the proportions of Chapter 2 favor. At the end of
-the chapter the kernel has its number.
+memory, 8 KB per step, and left them there. This chapter multiplies them. The
+multiply runs through Metal's matrix primitive, which looks like NVIDIA's
+warp-level matrix API but does not run on the same kind of hardware. The results
+stay in registers across all 256 steps of the shared dimension. That is register
+blocking, the technique the proportions of Chapter 2 favor. At the end of the
+chapter the kernel has its number.
 
 ## simdgroup_matrix: the API of a Tensor Core, on the regular pipes
 
@@ -17,17 +17,17 @@ held collectively in one simdgroup's registers, with a single call that multipli
 and accumulates. As an API it is warp-level matrix multiply-accumulate, the `wmma`
 fragments or `mma.sync` of CUDA. As hardware the analogy is looser. Apple GPUs
 before M5 have no separate Tensor Core unit; `simdgroup_matrix` operations execute
-on the regular 32-bit pipes, arranged well. The reverse-engineered Rigel paper
+as well-arranged work on the regular 32-bit pipes. The reverse-engineered Rigel paper
 confirms that even Metal 4.1's newer `matmul2d` tensor API has no dedicated matrix
 datapath on M4-class hardware. So the performance story differs from NVIDIA's. You
 use `simdgroup_matrix` for its register layout and issue efficiency, not for a
 tenfold throughput unlock, and a well-written kernel built on it still reaches the
-compute ceiling of Chapter 10. On M5 the story forks: a real per-core matrix unit
-arrives, reached through Metal 4 tensor operations, and Part 8 covers it.
+compute ceiling of Chapter 10. M5 is different: it adds a real per-core matrix
+unit, reached through Metal 4 tensor operations, which Part 8 covers.
 `simdgroup_matrix` remains the portable primitive that runs on every M-series chip
 and that most shipped kernels use.
 
-Here is the whole API in one loop, from the kernel this book follows.
+The whole API fits in one loop of the kernel this book follows.
 
 ```metal
 simdgroup_float8x8 A_simd, B_simd;
@@ -42,35 +42,35 @@ Source: [m5-gemm `sync_copy.metal:29-35`](https://github.com/yaroslavvb/m5-gemm/
 
 Load a fragment of A and a fragment of B from threadgroup memory, multiply and
 accumulate into `acc`, advance 8 along the shared dimension, repeat. Three rules
-of use, all matching your `wmma` instincts.
+of use follow, and all of them match what you expect from `wmma`.
 
 - **Fragments are opaque.** You never index into a `simdgroup_float8x8`; its 64
   elements live distributed across the 32 threads in an undocumented layout.
   `simdgroup_load` and `simdgroup_store` move whole tiles between a fragment and
   threadgroup or device memory.
 - **Fragments are registers, and they add up.** A 4 by 4 grid of accumulators is
-  16 fragments of 64 floats, 1,024 floats per simdgroup, Chapter 2. The
-  accumulator budget is the tile-size decision.
+  16 fragments of 64 floats, 1,024 floats per simdgroup (Chapter 2). The
+  accumulator budget decides the tile size.
 - **Types.** `simdgroup_float8x8`, `simdgroup_half8x8`, `simdgroup_bfloat8x8`. 16-bit
   fragments halve the register cost, and the kernels of Parts 5 and 6 take 16-bit
-  inputs and accumulate in 32-bit, Chapter 4. This kernel is a 32-bit benchmark
+  inputs and accumulate in 32-bit (Chapter 4). This kernel is a 32-bit benchmark
   and uses `float` throughout.
 
-Everything above `simdgroup_matrix` is composition. Steel's `BlockMMA`, Chapter
-18, tiles these fragments into a simdgroup-level register block; the attention
-kernels of Part 6 chain two such blocks through an online softmax. When a problem
-has only one row, as in decode, no 8 by 8 tile can be filled and kernels abandon
-`simdgroup_matrix` entirely, which is the split of Chapter 22.
+Everything built above `simdgroup_matrix` composes these fragments. Steel's
+`BlockMMA` (Chapter 18) tiles them into a simdgroup-level register block; the
+attention kernels of Part 6 chain two such blocks through an online softmax. When
+a problem has only one row, as in decode, no 8 by 8 tile can be filled and
+kernels abandon `simdgroup_matrix` entirely. Chapter 22 covers that split.
 
 ## Register blocking: the output never leaves the register file
 
 Register blocking keeps each simdgroup's patch of the output resident in
 registers for the kernel's entire lifetime: accumulate across every step of the
-shared dimension, write to memory exactly once. It is the accumulator-fragment
-idea of any warp-tiled CUDA matrix multiply. The difference is proportion: with
-about 208 KB of registers against 32 KB of threadgroup memory, Apple kernels push
-more of the working set into registers than CUDA-typical, and the technique's
-failure mode, spilling, is correspondingly worse.
+shared dimension, write to memory exactly once. The idea is the same as the
+accumulator fragments of any warp-tiled CUDA matrix multiply. What differs is the
+proportion. With about 208 KB of registers against 32 KB of threadgroup memory,
+Apple kernels push more of the working set into registers than typical CUDA
+kernels do, and the technique's failure mode, spilling, is correspondingly worse.
 
 In its simplest real form, each simdgroup owns a 4 by 4 grid of accumulators.
 
@@ -97,18 +97,18 @@ bandwidth instead of arithmetic. That is the "too small" cliff.
 
 The "too big" cliff is the one Chapter 2 introduced. The author tried `SIMD_TILE`
 = 8, an 8 by 8 grid, 64 fragments, a 64 by 64 patch per simdgroup, and the kernel
-ran 10 times slower, not 10 percent, because the accumulators spilled. Once an
-accumulator is spilled, the multiply-accumulate that updates it is wrapped in a
-load and a store, and the loop is no longer arithmetic. The cliff is sharp
-because the payload crosses the per-thread budget the compiler set, Chapter 2,
-and the 4 by 4 grid is the largest that stays under it on this kernel. The
-register-pressure levers from Chapter 2 follow: 16-bit fragments to halve the
+ran 10 times slower (not 10 percent slower) because the accumulators spilled.
+Once an accumulator is spilled, the multiply-accumulate that updates it is wrapped
+in a load and a store, and the loop is no longer arithmetic. The cliff is sharp
+because the payload crosses the per-thread budget the compiler set (Chapter 2).
+The 4 by 4 grid is the largest that stays under that budget on this kernel. Two
+register-pressure levers from Chapter 2 apply: 16-bit fragments, which halve the
 budget spent, and the attribute below.
 
 ## The most consequential line
 
-The kernel's single biggest practical win, in its author's words, is an attribute
-on the kernel declaration.
+According to the kernel's author, its single biggest practical win is an
+attribute on the kernel declaration.
 
 ```metal
 kernel void __attribute__((max_total_threads_per_threadgroup(SW * SW * 32)))
@@ -120,11 +120,11 @@ With `SW` = 2 the bound is 128 threads. Chapters 1, 7 and 8 said what it does:
 the compiler allocates registers when it builds the pipeline, and without the
 bound it must plan for the hardware maximum and give each thread fewer. With it,
 the allocator commits to a budget for 128 threads, and the 16 accumulators per
-simdgroup stop spilling. The author's measurement is the one Chapter 2 quoted and
-the one every later chapter refers back to; it is one line.
+simdgroup stop spilling. Chapter 2 quoted the author's measurement of this
+change, and every later chapter refers back to it. The change is one line.
 
-Now the loop that ties the three chapters together, the step over the shared
-dimension.
+The step over the shared dimension is the loop that ties the three chapters
+together.
 
 ```metal
   uint k_tiles = k / BK;
@@ -146,10 +146,12 @@ dimension.
 ```
 Source: [`sync_copy.metal:113-128`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L113-L128)
 
-Stage cooperatively, Chapter 11; barrier; multiply from registers, this chapter;
-barrier; advance. `simd_origin` is where this simdgroup's 32 by 32 patch sits in
-the threadgroup's 64 by 64 tile, from its position in the threadgroup. `simdgroup_multiply_tile` is the fragment loop quoted at the top
-of this chapter, run `TILE_K` = 2 times per step to cover the 16-deep slab. The
+Each iteration stages the tiles cooperatively (Chapter 11), waits at a barrier,
+multiplies from registers (this chapter), waits at a second barrier, and advances.
+`simd_origin` is where this simdgroup's 32 by 32 patch sits in the threadgroup's
+64 by 64 tile, computed from its position in the threadgroup.
+`simdgroup_multiply_tile` is the fragment loop quoted at the top of this chapter,
+run `TILE_K` = 2 times per step to cover the 16-deep slab. The
 two barriers are the two hazards of Chapter 2: the first waits for the slab to
 arrive, the second waits for every simdgroup to finish reading it before the next
 iteration overwrites it.
@@ -162,7 +164,7 @@ library by (13.5 - 11.7) / 11.7, about 15 percent, and it sits at the practical
 compute ceiling of Chapter 10, which is defined by this result. Three techniques
 got it there: tiling, the cooperative load, and register blocking on
 `simdgroup_matrix`, with the attribute that keeps the accumulators in registers.
-The epilogue and the full reading of the file are the next chapter.
+The next chapter covers the epilogue and reads the full file.
 
 ## Check yourself
 

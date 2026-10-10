@@ -17,8 +17,8 @@ Language function `fast::exp2` is the direct route to the equivalent path. What
 differs is how much the local kernels lean on it.
 
 Softmax is the operation that needs an exponent per element. The attention
-kernels in MLX and in metal-flash-attention compute it in base 2, using an identity
-that is one line:
+kernels in MLX and in metal-flash-attention compute it in base 2, using a one-line
+identity:
 
     exp(x) = exp2(x * log2(e))
 
@@ -47,10 +47,10 @@ the compiler.
 
 In CUDA, `atomicAdd` on a 32-bit float is a hardware instruction, cheap when the
 addresses are not contended, and CUDA kernels use it freely: accumulation across
-thread blocks, gradient reductions, histogram bins. Unlearn that here. The Metal
-API accepts float atomic adds, but on Apple hardware they are emulated with
-compare-and-swap loops, and the emulation is slow enough to dictate kernel
-architecture rather than merely cost a few percent.
+thread blocks, gradient reductions, histogram bins. Do not carry that habit over.
+The Metal API accepts float atomic adds, but on Apple hardware they are emulated
+with compare-and-swap loops. The emulation costs more than a few percent; it is
+slow enough to decide how a kernel is structured.
 
 Chapter 1 said that two threadgroups in one grid can combine results through
 atomic operations on device memory. For floats, that route is legal and slow, and
@@ -66,12 +66,12 @@ the production kernels in this book are shaped around avoiding it.
   decode attention kernel of Chapter 22 is the example: llama.cpp splits the
   key-value cache across simdgroups and across threadgroups, merges the
   simdgroups' partials inside the first kernel through threadgroup memory, and
-  merges the threadgroups' partials in a second kernel. A partial softmax is not
-  simply added to another; each carries its own maximum and denominator and is
+  merges the threadgroups' partials in a second kernel. Two partial softmaxes
+  cannot be summed directly. Each carries its own maximum and denominator and is
   rescaled to a common maximum before the sum, which is the correction that
   Chapter 20 derives.
 
-Integer atomics are native and usable. The trap is specifically 32-bit float
+Integer atomics are native and usable. The problem is limited to 32-bit float
 atomics. When a port from CUDA contains `atomicAdd` on floats in a hot path, that
 is the first thing to redesign, and there are two directions to take it.
 
@@ -97,7 +97,7 @@ designs that keep partial results local for as long as possible, in registers,
 inside one simdgroup. A kernel designed that way tends to move fewer bytes, which
 is what the law rewards whenever bandwidth is the binding ceiling. The two-pass
 pattern that float atomics force on reductions is a pattern a bandwidth-bound
-reduction would often have chosen anyway.
+reduction would often use anyway.
 
 That is Part 1. You now have the vocabulary of the two hierarchies, the budgets
 inside a core, the law that says most kernels are bandwidth bound and the ridge

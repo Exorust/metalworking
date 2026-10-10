@@ -5,7 +5,7 @@
 Chapters 11 and 12 explained the pieces of `sync_copy.metal`: the tile constants,
 the cooperative load, the fragment multiply, the accumulator grid, the attribute,
 and the loop. This chapter reads the file from the first line to the last, 144
-lines, in order, so that nothing in it is a mystery. The only part not yet
+lines, in order, so that every line is explained. The only part not yet
 explained is the ending, where the kernel folds the full BLAS form of the
 operation into its single store. Every excerpt is quoted verbatim from the pinned
 commit of yaroslavvb/m5-gemm, BSD-3-Clause.
@@ -32,7 +32,7 @@ The header states the kernel's lineage in two sentences: it is Zeke Medley's
 tiled structure with the dead copy intrinsic of Chapter 14 replaced by the
 cooperative load of Chapter 11, using only public Metal APIs. The quotation
 marks around "tensor cores" are the author's, and Chapter 12 explained why they
-belong there. Then the three `-D` constants, and lines 18 to 20 turn them into
+belong there. Then come the three `-D` constants, and lines 18 to 20 turn them into
 `BM`, `BN` and `BK`, the tile shape of Chapter 11: 64 by 64 output per
 threadgroup, 16 deep per step.
 
@@ -91,16 +91,16 @@ column count must be a multiple of 4 and each thread's share must be a multiple
 of 4. Both hold for the default tiles, so the scalar fallback above is compiled
 out of this configuration and exists for other tile shapes. It is the same loop
 one float at a time. The comment at lines 38 to 45 states the contract: `cols`
-and `rows * cols / nthreads` must divide cleanly, which is the kernel's way of
-saying it has no ragged path.
+and `rows * cols / nthreads` must divide cleanly, which means the kernel has no
+ragged path.
 
 ## Lines 84 to 111: the signature and the setup
 
 The signature was read in Chapter 6: five scalar arguments in the `constant`
 address space, `n`, `k`, `m`, `alpha` and `beta`; three buffers, `A`, `B` and
-`C`; and three position attributes. Note that the kernel takes `alpha` and `beta`
-at all. It computes the full BLAS form, C = alpha × A × B + beta × C, not the
-textbook C = A × B, which is why Chapter 10 counted C as read as well as written.
+`C`; and three position attributes. The kernel takes `alpha` and `beta` because it
+computes the full BLAS form, C = alpha × A × B + beta × C, rather than the
+textbook C = A × B. That is why Chapter 10 counted C as read as well as written.
 
 ```metal
   threadgroup float A_tg[BM * BK];
@@ -120,14 +120,14 @@ textbook C = A × B, which is why Chapter 10 counted C as read as well as writte
 ```
 Source: [`sync_copy.metal:98-111`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L98-L111)
 
-Two staging arrays of 1,024 floats each, the 8 KB of Chapter 2. The threadgroup's
+The kernel declares two staging arrays of 1,024 floats each, the 8 KB of Chapter 2. The threadgroup's
 position in the grid picks which 64 by 64 tile of C it owns; the grid is laid out
 with the row index in `z` and the column index in `y`, which the harness matches
-when it dispatches. The accumulator grid is declared and zeroed, 16 fragments per
-simdgroup. And the thread's linear index inside the threadgroup is composed from
-the three-dimensional position, which is the arithmetic Chapter 6 said this
-kernel does by hand, because the cooperative load needs a flat index from 0 to
-127.
+when it dispatches. The kernel then declares and zeroes the accumulator grid, 16
+fragments per simdgroup. Last, it composes the thread's linear index inside the
+threadgroup from the three-dimensional position. Chapter 6 said this kernel does
+that arithmetic by hand, because the cooperative load needs a flat index from 0
+to 127.
 
 ## Lines 113 to 128: the loop
 
@@ -157,16 +157,15 @@ simdgroup's position in the threadgroup, `t_tg_pos.y` and `t_tg_pos.z`, scaled b
 ```
 Source: [`sync_copy.metal:130-143`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L130-L143)
 
-This is the ending, and it is the first appearance of the technique that Chapter
-15 is about. For each of the 16 accumulators, the kernel loads the existing 8 by
+The ending is the first appearance of the technique that Chapter 15 covers. For each of the 16 accumulators, the kernel loads the existing 8 by
 8 block of C from device memory into a fragment, multiplies it by `beta`,
 multiplies the accumulator by `alpha` and adds, and stores the result. The whole
 BLAS form is applied while the result is still in registers, on its way to its
-one store; there is no second pass over C to scale it, and no separate kernel to
-add it. That is fusion in miniature, and it is the spot that steel generalizes
-into a plug-in epilogue, Chapter 18. The guard at line 133 checks only that the
-simdgroup's origin is inside the matrix, which with sizes divisible by 64 is
-always true; it is the whole of the kernel's edge handling.
+one store. The kernel makes no second pass over C to scale it and launches no
+separate kernel to add it. This is fusion on a small scale, and steel generalizes
+the same spot into a plug-in epilogue (Chapter 18). The guard at line 133 checks
+only that the simdgroup's origin is inside the matrix, which is always true when
+the sizes are divisible by 64. That check is all the edge handling the kernel has.
 
 Count the traffic of the epilogue against the loop. The loop staged 256 steps of
 8 KB, 2 MiB of inputs per threadgroup, through threadgroup memory. The epilogue
@@ -175,8 +174,8 @@ written exactly once, which is what register blocking promised in Chapter 12.
 
 ## Running it yourself
 
-No Xcode is needed, because the harness compiles the source at run time, Chapter
-6. On an Apple Silicon Mac with Python, `python matmul.py --dim 4096 --trials 5`
+You do not need Xcode, because the harness compiles the source at run time
+(Chapter 6). On an Apple Silicon Mac with Python, `python matmul.py --dim 4096 --trials 5`
 in the m5-gemm repository benchmarks both kernels against MPS, and `bandwidth.py`
 measures your machine's bandwidth roof for Chapter 10. The numbers cited in this
 book are the author's, from a 40-core M5 Max; expect different crossovers on
@@ -184,7 +183,8 @@ different tiers, and expect the sustained numbers of Chapter 10's hygiene rules.
 
 ## Where the matmul stands
 
-Unchanged at 13.5 TFLOPS, and now fully accounted for: 144 lines, of which 12 are
+The matmul is unchanged at 13.5 TFLOPS, and its source is now fully accounted
+for: 144 lines, of which 12 are
 the header, 15 the fragment loop, 45 the cooperative load with its fallback, 13
 the signature, 14 the setup, 16 the loop, and 14 the epilogue. Every line maps to
 a chapter.

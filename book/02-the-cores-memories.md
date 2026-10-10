@@ -5,9 +5,9 @@
 Chapter 1 named the levels. A threadgroup runs on one GPU core, and the core holds
 two memories that a kernel addresses directly, a register file and a scratch memory
 that Metal calls threadgroup memory, plus caches that the hardware manages on the
-kernel's behalf. This chapter measures them and draws the conclusion that shapes
-the matrix multiply this book follows: on this chip the output lives in registers,
-and the scratch memory is a place input tiles pass through, not a place they stay.
+kernel's behalf. This chapter measures them and explains how they shape the
+matrix multiply this book follows: on this chip the output lives in registers, and
+input tiles pass through the scratch memory without staying there.
 
 ## Three memories, measured
 
@@ -55,16 +55,16 @@ patch of the output, and each simdgroup owns a 32 by 32 quarter of it.
 
 So the scratch memory carries 8 KB of inputs that are replaced every iteration, and
 the registers carry 16 KB of results that are written to device memory exactly once.
-Those are the proportions of a kernel written for this chip.
+A kernel written for this chip has roughly these proportions.
 
 ## The house pattern
 
 The matrix multiply moves data the same way on every iteration, and MLX's
-attention kernel in Part 6 moves its key and value tiles the same way. Once you see
-the pattern you will recognize it on sight.
+attention kernel in Part 6 moves its key and value tiles the same way.
 
 1. The threadgroup cooperatively copies a slab from device memory into threadgroup
-   memory: coalesced, vectorized, every thread carrying an equal share.
+   memory. The copy is coalesced and vectorized, and every thread carries an
+   equal share.
 2. A threadgroup barrier makes every thread wait until the whole slab has arrived.
 3. Each simdgroup pulls fragments of the slab into registers with
    `simdgroup_load` and multiplies there. The slab must survive every fragment read
@@ -80,17 +80,17 @@ overwriting the buffer after the second barrier.*
 
 Not everything in threadgroup memory is a passing slab. A small tile that every
 iteration reads, such as the query tile in the attention kernel of Chapter 21,
-stays resident for the whole loop. The rule is about the big inputs: they are
-staged, consumed, and replaced.
+stays resident for the whole loop. The rule applies to the big inputs, which are
+staged, consumed and replaced on every iteration.
 
 Two behaviors of the scratch memory keep kernels in this shape. Scattered access to
 it is comparatively expensive, and the fast pattern is straight-line, contiguous,
-vectorized access; the sources give no bank mapping, so treat it as a rule of
-thumb and measure. And the barrier instruction itself is nearly free on this
-hardware, so the two barriers per iteration cost almost nothing beyond the time
-spent waiting for the slowest simdgroup; Chapter 7 gives the measured instruction
-cost. The result is simple coalesced staging, a barrier at every hazard, and no scatter
-tricks.
+vectorized access. The sources give no bank mapping, so treat this as a rule of
+thumb and measure. The barrier instruction itself is nearly free on this hardware,
+so the two barriers per iteration cost almost nothing beyond the time spent waiting
+for the slowest simdgroup; Chapter 7 gives the measured instruction cost. Kernels
+therefore stage with simple coalesced copies, put a barrier at every hazard, and
+avoid scattered access.
 
 When a working set will not fit in 32 KB, there is no setting that gives a
 threadgroup more. The two responses are to shrink the slab, consuming the shared
@@ -100,24 +100,23 @@ cannot be read by another simdgroup.
 
 ## Spilling, the first cliff
 
-The register file does so much work that its failure mode is the first thing to
-learn to recognize. The compiler decides each thread's register budget when it
+Because the register file holds so much of the kernel's state, its failure mode
+is the first one to learn to recognize. The compiler decides each thread's register budget when it
 builds the pipeline, and the budget depends on how many threads it must plan for:
 without the `max_total_threads_per_threadgroup` attribute from Chapter 1, it plans
 for the largest threadgroup the hardware allows and gives each thread less. When a
 kernel's live values exceed the budget, the compiler spills some of them to memory,
 and every use of a spilled value pays a load or a store around the arithmetic.
 
-The measurement every later chapter refers back to comes from the kernel this book
-follows. Its author tried a larger patch per simdgroup, 64 by 64 instead of 32 by
+Later chapters refer back to one measurement from the kernel this book follows.
+Its author tried a larger patch per simdgroup, 64 by 64 instead of 32 by
 32, which raises the accumulator count from 16 fragments of 8 by 8 to 64. The
-kernel ran 10 times slower. Not 10 percent slower: 10 times, because accumulators
-spilled. The payload arithmetic alone does not predict the cliff, because the
-budget, not the 208 KB file, is the limit; the number is a measurement, and
+kernel ran 10 times slower, not 10 percent slower, because accumulators spilled.
+The payload arithmetic alone does not predict the cliff, because the limit is the
+per-thread budget rather than the 208 KB file. The number is a measurement, and
 Chapter 12 shows the attribute that moves it.
 
-The rule that follows: when an Apple kernel is mysteriously slow, suspect spills
-first, the way you would suspect uncoalesced loads first on NVIDIA. Confirming
+When an Apple kernel is unexpectedly slow, suspect spills first, the way you would suspect uncoalesced loads first on NVIDIA. Confirming
 them takes the compiler's output, and Chapter 26 shows how to read it. Two levers
 reduce register pressure, and both appear in the kernels this book reads. The
 first is the attribute above, which lets the allocator commit to a per-thread

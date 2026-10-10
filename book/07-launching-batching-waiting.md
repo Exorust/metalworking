@@ -5,26 +5,26 @@
 Chapter 6 ended with a pipeline state: a compiled kernel, ready to run. This
 chapter runs it. Three things happen between a pipeline state and a result: you
 describe the grid, you put the dispatch into a command buffer and hand it to the
-GPU, and at some point you wait. The first has two traps for the CUDA-trained. The
-second is the largest free performance lever on the platform. The third is where
-the time goes when a port from CUDA is mysteriously slow.
+GPU, and at some point you wait. Describing the grid has two traps for CUDA
+programmers. Batching is the platform's largest lever that needs no kernel code, and waiting is where the time goes when a port from CUDA is
+mysteriously slow.
 
 ## The grid, and two traps
 
 A Metal dispatch launches a grid of threadgroups of threads: CUDA's grid, block,
-and thread hierarchy under the names of Chapter 1. The two API-level traps both
-come from the fact that Metal is explicit where CUDA is implicit.
+and thread hierarchy under the names of Chapter 1. Both API-level traps come from
+Metal being explicit where CUDA is implicit.
 
 **Trap one: two dispatch calls with different units.**
 `dispatchThreadgroups(gridSize, threadsPerThreadgroup:)` counts the grid in
 threadgroups, exactly like CUDA's `<<<numBlocks, blockDim>>>`. But
 `dispatchThreads(gridSize, threadsPerThreadgroup:)` counts the grid in threads,
-and it handles a ragged edge by making partial threadgroups. That means a kernel
-that indexes its data directly by thread position needs no guard of the form
-`if (i < n)`, and it also means no guarantee that every simdgroup is full, which
+and it handles a ragged edge by making partial threadgroups. A kernel that indexes
+its data directly by thread position therefore needs no guard of the form
+`if (i < n)`. It also loses any guarantee that every simdgroup is full, which
 breaks any kernel that needs a fixed number of participating threads, such as a
-cooperative load across the whole threadgroup. Framework code uses both calls, and MLX's custom-kernel API
-exposes its grid in threads. When a ported kernel reads garbage at the edges, or a
+cooperative load across the whole threadgroup. Framework code uses both calls,
+and MLX's custom-kernel API exposes its grid in threads. When a ported kernel reads garbage at the edges, or a
 cooperative load goes wrong, check which convention the dispatching layer uses
 before you check anything else.
 
@@ -40,14 +40,14 @@ that: the compiler allocates registers when it builds the pipeline state, before
 it knows your launch dimensions, so it assumes the hardware maximum unless the
 kernel declares a smaller one with `max_total_threads_per_threadgroup`. The launch
 must then stay within the declared maximum. In CUDA, `__launch_bounds__` is the
-same kind of bound, and most programmers treat it as a tuning detail. Here its
-twin is routinely worth integer factors, and the matrix multiply this book follows
-carries it; Chapter 12 measures it.
+same kind of bound, and most programmers treat it as a tuning detail. In Metal the
+equivalent declaration is routinely worth integer factors. The matrix multiply
+this book follows declares it, and Chapter 12 measures the effect.
 
-The sizing instincts that transfer: size threadgroups in multiples of 32, and 128
-threads, four simdgroups, is the size of the matrix multiply this book follows and
-of MLX's attention kernel; occupancy saturates at lower residency than on an SM,
-Chapter 4, so you rarely chase giant threadgroups; and grid-stride loops are rarer,
+Some sizing instincts transfer. Size threadgroups in multiples of 32; 128 threads,
+four simdgroups, is the size of the matrix multiply this book follows and of
+MLX's attention kernel. Occupancy saturates at lower residency than on an SM
+(Chapter 4), so you rarely chase giant threadgroups. Grid-stride loops are rarer,
 because dispatches are cheap to size exactly and partial threadgroups cover the
 ragged case.
 
@@ -66,7 +66,7 @@ asynchronously. `waitUntilCompleted` blocks until it is done; a completion handl
 is a notification instead, and until one of the two has fired, the buffers the
 batch uses are not safe to overwrite or read. The queue orders work the way a CUDA
 stream does, but the batching unit, the command buffer, has no direct CUDA
-analogue, and it is the part that matters. In CUDA each kernel launch is an enqueue
+analogue, and it is the part that decides performance. In CUDA each kernel launch is an enqueue
 and the driver decides how to submit; you think in launches, and CUDA Graphs exist
 for the cases where that is too fine. In Metal you build the batch yourself, and
 how you batch is one of the biggest performance levers on the platform that costs
@@ -78,7 +78,7 @@ no kernel code.
 the CPU to wake, read, and encode again; the right side pays the per-buffer cost
 once.*
 
-Three rules carry the value.
+Three rules follow.
 
 **Batch aggressively.** Three costs are in play: the CPU time to encode each
 dispatch, the per-command-buffer cost of commit, scheduling and completion, and
@@ -99,36 +99,35 @@ stack, independent of the dispatch's size, and at the scale of a framework graph
 that adds up. The census measured one bf16 decode step of a model with
 DeepSeek-V4-Flash's structure at reduced widths: 19,809 dispatches in 384 command
 buffers, with host encoding at 56 to 59 milliseconds against 32 to 35 milliseconds
-of GPU execution.
-The encoding was exposed, not hidden behind the GPU. The fix was structural, a
-collapsed normalization chain and one shared `mx.compile` tape: 26 percent fewer
-dispatches, worth about 15 milliseconds of host encoding per token. So the first
-rule has a ceiling. Batching hides per-buffer overhead, but a graph that emits
-tens of thousands of tiny dispatches pays the encoder cost anyway. Count
-dispatches, not only buffers.
+of GPU execution. Host encoding took longer than GPU execution, so
+its cost was exposed rather than hidden. The fix was structural: a collapsed normalization chain and one
+shared `mx.compile` tape cut dispatches by 26 percent, which saved about 15
+milliseconds of host encoding per token. The first rule has a ceiling.
+Batching hides per-buffer overhead, but a graph that emits tens of thousands of
+tiny dispatches pays the encoder cost anyway, so count dispatches as well as
+buffers.
 
 **Wait as rarely as possible.** `waitUntilCompleted` drains the pipeline. The GPU
 goes idle while the CPU wakes, reads, and encodes the next work, unless more work
 was already queued behind the wait. On unified memory there is no copy to make
 before the CPU can read a shared buffer, so the wait is the main cost of reading a
-result. The DFlash case in Chapter 25
-got a measurable win from nothing but halving the GPU-to-CPU waits per decode
-step: one `mx.eval()` instead of two.
+result. The DFlash case in Chapter 25 got a measurable win just by halving the
+GPU-to-CPU waits per decode step, using one `mx.eval()` instead of two.
 
-What you do not manage in the single-queue, shared-buffer workflow of this book:
-events for cross-stream ordering, since one queue is ordered and the kernels here
-use one; host-to-device transfers, since shared buffers need none, though Metal
-has blit encoders for copies between GPU resources; and stream priorities. What
-you do get: `GPUStartTime` and `GPUEndTime` on a completed command buffer, the
-simplest programmatic GPU timing on the platform, which Chapter 9 builds on, with
-finer counter sampling available on some configurations. Measurement happens at
+In the single-queue, shared-buffer workflow of this book, you do not manage events
+for cross-stream ordering (one queue is ordered, and the kernels here use one),
+host-to-device transfers (shared buffers need none, though Metal has blit encoders
+for copies between GPU resources), or stream priorities. You do get `GPUStartTime` and `GPUEndTime` on a
+completed command buffer. They are the simplest programmatic GPU timing on the
+platform, Chapter 9 builds on them, and finer counter sampling is available on
+some configurations. Measurement happens at
 command-buffer granularity, which is one more reason to make command buffers
 meaningful units of work.
 
 ## Synchronization inside a kernel
 
-Inside a kernel, Metal has the same two synchronization levels as CUDA, and one
-inverted cost. The table gives the closest equivalents; the Metal memory flag has
+Inside a kernel, Metal has the same two synchronization levels as CUDA, but one
+cost is inverted. The table gives the closest equivalents; the Metal memory flag has
 to name the memory the barrier must order, which the CUDA calls imply.
 
 | CUDA | Metal |
@@ -144,23 +143,23 @@ memory, device memory, or none for a pure execution barrier. A barrier with
 step through a device buffer needs `mem_device`. The kernels in this book pick the
 flag precisely, which documents intent even where the hardware would not care.
 
-The inverted cost: a threadgroup barrier costs about 2 cycles of instruction
-overhead in the metal-benchmarks measurement, on M1- and M2-class chips. On NVIDIA,
-`__syncthreads()` is expensive enough that avoiding it is a recognized genre of
-optimization, which is why warp-synchronous programming exists. Here the
+The inverted cost is the barrier. A threadgroup barrier costs about 2
+cycles of instruction overhead in the metal-benchmarks measurement, on M1- and
+M2-class chips. On NVIDIA, `__syncthreads()` is expensive enough that avoiding it
+is a recognized kind of optimization, which is why warp-synchronous programming
+exists. Here the
 instruction cost is negligible. The matrix-multiply loop of Chapter 13 barriers
 twice per iteration and still reaches the compute ceiling, and the attention kernel
 of Chapter 21 barriers between every staged load. What a barrier still costs is
 the wait for the slowest simdgroup to arrive, which no measurement of the
-instruction removes, so a redundant barrier is not free either; it is cheap. The
-design consequence: choose the algorithm with the cleaner staging pattern even if
-it synchronizes twice as often, and measure. The time goes elsewhere, into
-scattered threadgroup-memory access and register spills, Chapter 2.
+instruction removes, so a redundant barrier is cheap but not free. Choose the algorithm with the cleaner staging pattern even if it synchronizes
+twice as often, and measure. The time goes elsewhere: into scattered
+threadgroup-memory access and register spills (Chapter 2).
 
-`simdgroup_barrier` is cheaper still and appears mostly as a scheduling hint:
-steel's matrix-multiply component drops `mem_none` simdgroup barriers between
-fragment loads to keep one simdgroup's loads batched, a nudge to the compiler's
-scheduler rather than a correctness need, which Chapter 18 shows.
+`simdgroup_barrier` is cheaper still and appears mostly as a scheduling hint.
+Steel's matrix-multiply component drops `mem_none` simdgroup barriers between
+fragment loads to keep one simdgroup's loads batched. Those barriers nudge the
+compiler's scheduler rather than enforce correctness, as Chapter 18 shows.
 
 Between kernels, ordering is structural rather than explicit in the default case:
 dispatches in one command buffer on one queue execute in order, and Metal tracks
@@ -169,9 +168,9 @@ framework can opt out for speed, and MLX does: its buffers are untracked, its
 encoders dispatch concurrently, and it inserts memory barriers between dependent
 dispatches itself, plus fences and events across its streams; Chapter 16 covers
 that. The CUDA debugging habit of sprinkling `cudaDeviceSynchronize` maps to
-`waitUntilCompleted` on each command buffer, a narrower wait, and carries the same
-trap of making everything suddenly slow, amplified here by the batching model
-above.
+`waitUntilCompleted` on each command buffer. That is a narrower wait with the
+same trap of making everything suddenly slow, made worse here by the batching
+model above.
 
 ## Check yourself
 

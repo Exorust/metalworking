@@ -10,7 +10,7 @@ the data structure whose size becomes generation's latency on this platform.
 
 ## Two workloads, one API
 
-Language-model inference is two different workloads wearing one API. Prefill
+Language-model inference is two different workloads behind one API. Prefill
 processes the prompt: every token's query against every token's key, which is
 a big matrix multiply, and compute bound by the arithmetic of Chapter 3. Decode
 generates one token at a time: one query row against the whole history, which is
@@ -18,9 +18,9 @@ a dot product per key, and bandwidth bound. Every serious kernel family on this
 platform ships separate kernels for the two.
 
 The split exists in CUDA too; serving systems such as vLLM specialize decode.
-The platform sharpens it. Decode streams the entire key-value cache and all the
-model's weights for every token it generates, pure bandwidth, and on Apple
-Silicon bandwidth is the scarce resource. That is why generation speed in tokens
+The split matters more on this platform. Decode streams the entire key-value
+cache and all the model's weights for every token it generates, which is pure
+bandwidth work, and on Apple Silicon bandwidth is the scarce resource. That is why generation speed in tokens
 per second tracks the memory-bandwidth spec almost linearly across chip tiers,
 and why the buying advice of Chapter 25 is to read the bandwidth line and ignore
 the core count.
@@ -35,12 +35,11 @@ number.*
 
 The key-value cache stores every past token's key and value vectors so that
 attention never recomputes them. It is the same structure everywhere; vLLM's
-paged version made it famous. What is different here is that on bandwidth-bound
-hardware its size converts directly into decode latency, because decode streams
-all of it on every token, which makes it the platform's most consequential data
-structure.
+paged version made it famous. On bandwidth-bound hardware its size converts
+directly into decode latency, because decode streams all of it on every token.
+That makes it the most consequential data structure on this platform.
 
-The arithmetic: per token, per layer, the cache holds one key vector and one
+Per token, per layer, the cache holds one key vector and one
 value vector per key-value head. For a typical dense model of 7 to 8 billion
 parameters, about 32 layers with key-value heads times head dimension of about
 1,024, in 16-bit, that is 2 × 1,024 × 2 bytes × 32 layers, about 128 KB per
@@ -52,8 +51,8 @@ the cache alone, before the weights.
 Three consequences follow.
 
 - **Long context turns decode into a cache-streaming benchmark.** The sparse-V
-  win of Chapter 25, 22.8 percent faster decode at 32K context, is precisely a
-  deletion of cache traffic.
+  win of Chapter 25, 22.8 percent faster decode at 32K context, comes from
+  deleting cache traffic.
 - **Grouped-query attention is a cache compression scheme** as much as an
   attention variant: fewer key-value heads mean a smaller cache and faster
   decode, which is why steel attention implements it as a stride trick, Chapter
@@ -66,25 +65,25 @@ bits or below breaks greedy decode: softmax is sensitive to small perturbations
 of the scores, and K sits upstream of the softmax. V tolerates 3-bit quantization
 well, because V is consumed by a weighted average, which absorbs noise. The
 project's mixed configuration, 8-bit K and 4-bit V, cut a 6.21 GB 16-bit cache to
-5.08 GB with greedy output verified identical to the baseline. The general rule:
+5.08 GB with greedy output verified identical to the baseline. As a general rule,
 treat K's precision as accuracy-critical and V's as a bandwidth knob. Reports of
-a uniform `kv_bits=4` corrupting long prefilled contexts are this asymmetry being
-ignored. And a quantized cache does not speed up prefill at all, because
+a uniform `kv_bits=4` corrupting long prefilled contexts come from ignoring this
+asymmetry. A quantized cache also does not speed up prefill at all, because
 prefill's cost is the matrix multiplies, not cache streaming.
 
 Layout matters at the kernel level. The simple layout is one contiguous ring per
 layer. Serving stacks use paged layouts, fixed-size blocks plus an indirection
-table, so that many sequences share memory without fragmentation, and that world
-exists on Metal: the official vLLM plugin ships a paged variable-length attention
+table, so that many sequences share memory without fragmentation, and paged layouts
+exist on Metal too: the official vLLM plugin ships a paged variable-length attention
 kernel, and MTPLX carries a family of paged-attention Metal kernels. For
-single-user decode, the contiguous cache plus the split kernels below is the
-whole story.
+single-user decode, the contiguous cache plus the split kernels below is all
+you need.
 
 ## Why decode cannot use the matrix kernels
 
 With one query row there is no 8 by 8 tile to feed `simdgroup_matrix`, Chapter
 12, and the matrix path would compute mostly on padding. A one-row attention is
-a reduction, not a matrix multiply. So the vector kernels change species.
+a reduction, not a matrix multiply. So decode runs on a different kind of kernel.
 
 - **MLX** runs `sdpa_vector.h`, dispatched by the gate of Chapter 21 when the
   query length is at most 8: wide vector loads, simdgroup reductions, no matrix
@@ -100,24 +99,24 @@ a reduction, not a matrix multiply. So the vector kernels change species.
   merge: the two-pass shape that the emulated float atomics of Chapter 5 force.
 - **The quantized matrix-multiply family splits the same way**, Chapter 23: a
   matrix-vector kernel for decode, dequantizing in registers, against a tiled
-  kernel for prefill. The MTPLX case of Chapter 24 lives in the crack between
+  kernel for prefill. The MTPLX case of Chapter 24 falls in the gap between
   them, where speculative decoding's 3 to 6 query rows fit neither tuning.
 
 ## Practical readings of the split
 
 **Different optimizations apply.** Prefill wants everything in the
-matrix-multiply school of Part 4. Decode wants fewer bytes, quantized weights and
-cache compression, and fewer synchronizations, one evaluation per token, Chapter
-16.
+matrix-multiply school of Part 4. Decode wants fewer bytes (quantized weights and
+cache compression) and fewer synchronizations (one evaluation per token, Chapter
+16).
 
 **Benchmark them separately.** A "2 times faster attention" that speeds up
 prefill only is invisible in a chat loop, and the classic failed-kernel
 post-mortem of Chapter 25 is a synthetic prefill win with zero end-to-end effect.
 
 **Batch size moves the boundary.** Speculative decoding, parallel sampling and
-serving push decode toward small-M matrix multiply, a few query rows at a time:
-the least-tuned regime in every kernel family, and historically where the cheap
-wins hide.
+serving push decode toward small-M matrix multiply, a few query rows at a time.
+That is the least-tuned regime in every kernel family, and historically it is
+where the cheap wins have been.
 
 ## Where the matmul stands
 

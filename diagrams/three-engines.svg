@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1380 400" role="img" aria-label="One die, three matrix engines: the CPU cluster with its AMX coprocessor, the GPU cores, and the Neural Engine, all sharing the unified memory fabric, each reachable through a different API" font-family="Azeret Mono, ui-monospace, Menlo, monospace">
-  <!-- Hand-authored. Green = the GPU (this glossary's territory), slc = AMX,
+  <!-- Hand-authored. Green = the GPU (this book's territory), slc = AMX,
        gray = the ANE (private-API land). Amber = the shared memory they compete over. -->
   <rect width="1380" height="400" rx="6" fill="#0d180a"/>
   <text x="40" y="50" font-size="13" fill="#a6cc97">ONE DIE, THREE MATRIX ENGINES</text>
@@ -26,7 +26,7 @@
     <rect x="654" y="136" width="52" height="52" rx="2"/><rect x="716" y="136" width="52" height="52" rx="2"/>
   </g>
   <text x="840" y="156" font-size="9" fill="#a6cc97" text-anchor="middle">simdgroup_matrix</text>
-  <text x="840" y="172" font-size="9" fill="#6f9a62" text-anchor="middle">this glossary's</text>
+  <text x="840" y="172" font-size="9" fill="#6f9a62" text-anchor="middle">this book's</text>
   <text x="840" y="186" font-size="9" fill="#6f9a62" text-anchor="middle">territory</text>
 
   <!-- ANE -->

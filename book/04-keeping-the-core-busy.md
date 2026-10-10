@@ -17,26 +17,25 @@ the local default, for a reason that has nothing to do with peak throughput.
 Occupancy here means the number of simdgroups resident on a core at once: the pool
 of independent work the scheduler hides latency with. CUDA usually expresses
 occupancy as a fraction of the maximum residency; this book uses the absolute
-count, because the measurements are reported that way. The limiters are the ones
-you know. Register use per thread and threadgroup memory per threadgroup divide
+count, because the measurements are reported that way. The limiters are the same
+as in CUDA. Register use per thread and threadgroup memory per threadgroup divide
 the core's resources among the threadgroups that want to be resident, and when the
 resources run out, the next threadgroup waits.
 
-The number to recalibrate on: the arithmetic units reach full utilization at about
+The number to recalibrate is the saturation point. The arithmetic units reach full utilization at about
 24 resident simdgroups per core, which is 24 × 32 = 768 threads, in the
 metal-benchmarks measurement on M1- and M2-class chips. That is far below the
 thousands of threads of residency an SM supports and that CUDA tuning advice
 tells you to chase. In threadgroups of 128 threads, the working size from
 Chapter 1, 24 / (128 / 32) = 6 resident threadgroups reach that point. Moderate
-occupancy fills this machine.
+occupancy is enough to fill this machine.
 
-The same measurement adds a fact that changes how you think about register
-pressure. Twenty-four simdgroups is also the lowest occupancy that over-allocating
+The same measurement also bears on register pressure. Twenty-four simdgroups is also the lowest occupancy that over-allocating
 registers can produce on those chips: a kernel can use so many registers per
 thread that only 24 simdgroups fit, but not fewer. So register pressure alone does
 not push a core below the saturation point. What does is a lack of work: a grid
 too small to fill the cores, or a kernel whose threadgroups are nearly done, which
-is where the stall numbers below start to bite.
+is where the stall numbers below matter.
 
 Apply the resource arithmetic to the matrix multiply this book follows, with
 Chapter 2's figures. Each threadgroup stages 8 KB of inputs, so the core's roughly
@@ -51,8 +50,9 @@ code. The practical order is the one Chapter 2 gave: when a register-heavy kerne
 is slow, suspect spills before occupancy, because the allocator cannot reduce
 occupancy below the saturation point but spills cost a memory operation per use.
 
-The `max_total_threads_per_threadgroup` attribute from Chapter 1 sits in the middle
-of this. Declaring a smaller maximum lets the compiler give each thread more
+The `max_total_threads_per_threadgroup` attribute from Chapter 1 trades one limit
+against the other.
+Declaring a smaller maximum lets the compiler give each thread more
 registers, which reduces spills at the price of fewer resident threadgroups. On
 this kernel the trade is worth it, because 6 threadgroups already saturate the
 core; Chapter 12 shows the measurement.
@@ -61,7 +61,7 @@ There is no `cudaOccupancyMaxActiveBlocksPerMultiprocessor` on this platform, an
 no scriptable profiler that reports achieved occupancy; Xcode's GPU capture shows
 an occupancy estimate for one dispatch at a time. You reason from resource
 arithmetic, threadgroup memory bytes and a register estimate, and then confirm by
-measuring. Part 3 is about the measuring.
+measuring. Part 3 covers the measuring.
 
 ## The stall side: why precision matters here
 
@@ -78,26 +78,26 @@ runs lowered the absolute latencies, so read the ratios, not the cycle counts.
 
 At 4 resident simdgroups, 11.3 / 3.9 is about 2.9: a 32-bit dependent chain runs
 about three times slower per instruction than a 16-bit one. At high occupancy the
-ratio is 1.99 / 1.56, about 1.3. The 16-bit advantage is largest exactly when the
+ratio is 1.99 / 1.56, about 1.3. The 16-bit advantage is largest when the
 core has the least parallelism to hide stalls with. The same table shows the
 other way out: at 4 simdgroups, giving each thread four independent chains instead
 of one brings the 32-bit figure from 11.3 to about 2.75 cycles. Independent work
-inside a simdgroup hides latency as well as other simdgroups do, which is the
-point this chapter returns to at the end.
+inside a simdgroup hides latency as well as other simdgroups do. The last section
+of this chapter returns to this point.
 
 So the reason to prefer 16-bit values on this chip differs from the headline reason
 on NVIDIA. There, fp16 and bf16 unlock Tensor Core throughput, a peak-FLOPs
 argument, on top of the storage saving every platform shares. Here the arithmetic
 throughput tables show F16 and F32 tied, and the argument has three parts.
 
-1. **Shorter stalls** when the computation is in 16-bit registers, the table above.
+1. **Shorter stalls** when the computation is in 16-bit registers, as the table above shows.
 2. **Half the register payload** for every value held in 16 bits, which can mean
    more resident simdgroups when registers are the binding limit, and more headroom
    before the spilling cliff of Chapter 2.
 3. **Half the memory traffic**, which under the law of Chapter 3 is often the
    whole result.
 
-That is why "use F16 everywhere you can tolerate it" is the local wisdom even where
+That is why "use F16 everywhere you can tolerate it" is the usual advice on this chip even where
 the throughput tables say the two precisions are equal.
 
 ## The numerics rule that comes with it
@@ -108,7 +108,7 @@ attention and inference kernels of Parts 5 and 6 follow is storage and traffic i
 type to `float` regardless of the data type, and the attention kernels keep their
 running sums in 32-bit while streaming 16-bit keys and values. This limits the
 growth of rounding error over long sums; it does not repair precision lost before
-the sum. Note what it costs: the accumulators are 32-bit registers, so the stall
+the sum. This has a cost: the accumulators are 32-bit registers, so the stall
 and payload advantages apply to the 16-bit operands, not to the accumulation
 chain. The 32-bit matrix multiply of Part 4 is 32-bit throughout by design, because
 it is a 32-bit benchmark against the library.
@@ -131,20 +131,19 @@ Three related facts about precision on this platform:
 
 ## Occupancy is a currency
 
-The last thing to carry out of this chapter is that occupancy is something you
-spend, not something you maximize. The table above showed the second channel for
+Treat occupancy as something you spend rather than something you maximize. The table above showed the second channel for
 hiding latency: independent instructions inside one simdgroup's own stream, which
 the hardware reorders freely. A kernel that issues two loads that do not depend on
 each other, or a load and an unrelated multiply, hides latency without any help
 from other simdgroups.
 
-The recurring trade in Part 4 uses exactly this. Double buffering allocates two
+The recurring trade in Part 4 uses this second channel. Double buffering allocates two
 staging buffers instead of one, which doubles the threadgroup's scratch footprint
 and halves the scratch-limited bound on residency, 60 / 16 = 3 threadgroups
-instead of 7 in the estimate above, in order to issue the next slab's loads while
-the current slab's multiplies are still in flight. Whether that trade wins flips
-with problem size, and Chapter 14 has the measured table. The habit to form now is
-to ask, for any change, what occupancy it costs and what independent work it buys.
+instead of 7 in the estimate above, so that it can issue the next slab's loads while
+the current slab's multiplies are still in flight. Which side of the trade wins depends
+on problem size, and Chapter 14 has the measured table. For any change, ask what
+occupancy it costs and what independent work it buys.
 
 ## Check yourself
 

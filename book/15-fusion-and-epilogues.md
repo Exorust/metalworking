@@ -5,32 +5,32 @@
 Chapter 14 settled the loop. The matrix multiply reaches the practical ceiling at
 4096 by 4096, and no further technique inside it changes that. What remains is
 everything around it. In a model, a matrix multiply is followed by a bias, an
-activation, a normalization, and preceded by whatever produced its input, and
-each of those, done as its own kernel, costs a full pass over memory. On the
-platform of Chapter 3, where most kernels sit on the bandwidth side of the ridge,
-that makes fusion the single most profitable technique in this book, and the
-matrix multiply's epilogue in Chapter 13 was the first example of it.
+activation and a normalization, and it is preceded by whatever produced its
+input. Each of those, run as its own kernel, costs a full pass over memory. On
+the platform of Chapter 3, most kernels sit on the bandwidth side of the ridge,
+so fusion is the most profitable technique in this book. The matrix multiply's
+epilogue in Chapter 13 was the first example of it.
 
 ## Why fusion is a first principle here
 
 Fusion means computing a chain of operations in one kernel so that the
-intermediate results never touch memory. CUDA has the same concept; what changes
-here is its rank. An unfused elementwise chain pays the full round trip of device
-memory traffic for every operation, plus the dispatch overhead of Chapter 7 for
-every kernel, and elementwise operations have an arithmetic intensity near zero,
-about 0.1 FLOPs per byte for an add, Chapter 3. All cost, no reuse. On a machine
-with laptop-class bandwidth, that is the most expensive thing a program can do,
-and the only lever is not doing the traffic at all.
+intermediate results never touch memory. CUDA has the same concept. What differs
+here is how much it matters. An unfused elementwise chain pays the full round
+trip of device memory traffic for every operation, plus the dispatch overhead of
+Chapter 7 for every kernel. Elementwise operations have an arithmetic intensity
+near zero, about 0.1 FLOPs per byte for an add (Chapter 3), so that traffic buys
+no reuse. On a machine with laptop-class bandwidth, this is the most expensive
+thing a program can do, and the only remedy is to avoid the traffic entirely.
 
 Every layer of the local stack uses fusion, in four forms.
 
 ## Epilogue fusion: the mechanical form
 
-A matrix multiply's ending, alpha × A × B + beta × C, a bias, an activation, is
-applied to results while they are still in registers, on the way to their single
+A matrix multiply's ending (alpha × A × B + beta × C, a bias, an activation) is
+applied to the results while they are still in registers, before their single
 memory write. Chapter 13 showed it hand-written: load the C block, scale, add,
-store, per fragment. Steel makes the ending a plug-in template parameter, so that
-the same kernel can end in any way that is expressible per element.
+store, per fragment. Steel makes the ending a plug-in template parameter, so the
+same kernel can end with any operation that is expressible per element.
 
 ```cpp
 template <typename OutT, typename InT>
@@ -44,41 +44,41 @@ struct TransformAxpby {
 ```
 Source: [`steel/gemm/transforms.h:38-54`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/transforms.h#L38-L54), abridged
 
-The transform is applied in the matrix-multiply component's `store_result`,
-Chapter 18, to every accumulator element in registers before the one store.
+The transform is applied in the matrix-multiply component's `store_result`
+(Chapter 18) to every accumulator element in registers before the one store.
 `x` is the accumulated product and `c` is the existing output element, so this
 one type reproduces the hand-written epilogue of Chapter 13, and a different
 type in the same slot gives a different ending. Anything expressible as an
-epilogue, bias, activation, scaling, costs zero extra passes over memory, by
-construction, because the only memory operations are the ones the kernel was
-already going to do.
+epilogue (a bias, an activation, a scaling) costs zero extra passes over memory,
+because the only memory operations are the ones the kernel was already going to
+do.
 
 ## Fused operations as products
 
-MLX's `mx.fast` namespace exists because the unfused graphs were bandwidth
-disasters. Its attention, its normalizations and its rotary embedding are each a
-handful of graph operations fused into one kernel, Chapter 21 for the attention
-case. Flash attention is the extreme form of fusion: the "fused intermediate" is
-an entire L by L score matrix that never exists in memory, and Chapter 20
-derives the algorithm that makes that legal.
+MLX's `mx.fast` namespace exists because the unfused graphs were badly
+bandwidth bound. Its attention, its normalizations and its rotary embedding are
+each a handful of graph operations fused into one kernel (Chapter 21 covers the
+attention case). Flash attention is the extreme form of fusion. Its "fused
+intermediate" is an entire L by L score matrix that never exists in memory, and
+Chapter 20 derives the algorithm that makes that possible.
 
 ## Automatic fusion
 
-`mx.compile` fuses elementwise chains mechanically, Chapter 19: it traces the
+`mx.compile` (Chapter 19) fuses elementwise chains mechanically. It traces the
 graph once, turns runs of elementwise operations into generated kernels, and
-replays them. Luminal pushes the same idea to a search-based extreme, one command
-buffer per forward pass and flash attention rediscovered by searching over
-fusions. The division of labor that falls out is useful to know before you write
-any kernel: anything expressible as an elementwise chain, the compiler fuses
-adequately, so custom effort belongs on the patterns a compiler cannot see.
+replays them. Luminal takes the same idea further with search: it uses one
+command buffer per forward pass, and it rediscovered flash attention by searching
+over fusions. This gives a division of labor to settle before you write any
+kernel. The compiler fuses elementwise chains adequately, so custom kernels
+belong on the patterns a compiler cannot see.
 
 ## Fusion into quantized loops
 
-The case that turns the principle into a number. The TurboQuant key-value cache
+One case puts a number on the principle. The TurboQuant key-value cache
 compression of Chapter 25 ran at 0.28 times the baseline speed until its
 quantize and dequantize steps were fused into the surrounding kernels, and at
-0.98 times after. The difference between a technique that works on paper and one
-that ships was only the fusion: the compression was the same, the arithmetic was
+0.98 times after. Fusion was the only difference between the version that worked
+on paper and the version that shipped. The compression and the arithmetic were
 the same, and the unfused version paid for its intermediates in traffic.
 
 ## The discipline
@@ -88,7 +88,7 @@ round trip". That is the first of the three questions of Chapter 24, and most of
 the measured wins in Part 7 are fusions or deletions under other names. The test
 is the sixty-second arithmetic of Chapter 3: count the bytes the unfused version
 moves, count the bytes the fused version moves, and the difference, divided by
-the measured bandwidth, is the time on the table.
+the measured bandwidth, is the time you can save.
 
 ## Where the matmul stands
 

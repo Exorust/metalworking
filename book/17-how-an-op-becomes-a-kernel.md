@@ -7,10 +7,10 @@ its primitive at evaluation time. Between that node and a `simdgroup_matrix`
 instruction sits one C++ hop: the primitive's `eval_gpu`, which picks a kernel
 variant, picks tile sizes, binds function constants, and encodes the dispatch.
 In CUDA this is the dispatcher layer between PyTorch and cuBLAS's heuristics,
-except that here it is open, small and readable. Knowing where these decisions
-live is what separates "my model is slow" from "my shapes fall off the fast
-path", and the second of the three questions of Chapter 24, unlock an existing
-fast path, is answered by reading exactly these files.
+except that here the code is open, small and readable. Once you know where these
+decisions live, you can turn "my model is slow" into "my shapes fall off the fast
+path". The second of the three questions of Chapter 24, unlock an existing fast
+path, is answered by reading exactly these files.
 
 ## The chain, for a matmul
 
@@ -43,11 +43,11 @@ Source: [`mlx/backend/metal/matmul.cpp:89-124`](https://github.com/ml-explore/ml
 Read what that macro is: a hand-tuned lookup from the chip class, the size, the
 data type and the transpose pattern to a tile shape, `bm`, `bn`, `bk`, `wm`, `wn`.
 Those are the `BM`, `BN`, `BK` of Chapter 11 and the simdgroup arrangement of
-Chapter 12, chosen per shape instead of fixed by `-D` defines. It is cuBLAS's
-secret heuristics in a form you can search. The device class letters map to
+Chapter 12, chosen per shape instead of fixed by `-D` defines. It does the job of
+cuBLAS's secret heuristics, but you can search it. The device class letters map to
 Apple's GPU families; the large-device branch is the one an M5 Max takes. The
 first row shown gives 16-bit matrices of a reasonable shape a 64 by 64 tile, 16
-deep, with 1 by 2 simdgroups, which is two simdgroups of 32 by 64 rather than the
+deep, with 1 by 2 simdgroups, which is two simdgroups of 64 rows by 32 columns rather than the
 hand-written kernel's four of 32 by 32; the second row changes the tile for the
 transposed-B case with a large shared dimension. The branches continue past the
 excerpt for smaller matmuls and for 32-bit, and a 32-bit large matmul on a large
@@ -55,8 +55,8 @@ device takes the defaults set before the macro, which the file comments mark wit
 "float takes default".
 
 Then the kernel name is assembled as a string, `steel_gemm_fused_...bm64_bn64...`
-and so on, the pipeline is fetched from the cache or built at run time, Chapter
-6, the alignment function constants of Chapter 8 are bound, and the dispatch is
+and so on. The pipeline is fetched from the cache or built at run time (Chapter
+6), the alignment function constants of Chapter 8 are bound, and the dispatch is
 encoded into the shared command encoder of Chapter 16.
 
 ![The MLX matmul dispatch tree: shape checks route to gemv or quantized families, otherwise the tile-selection macro picks steel parameters, the kernel name is assembled, and the pipeline is fetched or JIT built](../diagrams/dispatch-tree.svg)
@@ -66,32 +66,32 @@ the steel fast path; the green spine is the path Chapter 18 reads.*
 
 ## The branches before steel
 
-Several branches come before the macro, and falling into the wrong one is a
-classic silent slowdown.
+Several branches come before the macro, and a shape that falls into the wrong
+one runs slower without any warning.
 
 - **Matrix-vector shapes** route to `gemv` kernels rather than to the tiled
-  matrix multiply, because one row cannot fill a tile; Chapter 22.
+  matrix multiply, because one row cannot fill a tile (Chapter 22).
 - **Very skinny or small cases** have split-K and other non-steel paths.
-- **Quantized weights** go to an entirely different kernel family, Chapter 23,
+- **Quantized weights** go to a different kernel family (Chapter 23),
   whose fast path is shape-sensitive in its own ways.
 - **`mx.fast.scaled_dot_product_attention`** has its own dispatch gate deciding
-  between the fused kernel and a fallback graph, Chapter 21.
+  between the fused kernel and a fallback graph (Chapter 21).
 
 The measured example of the trap is the MTPLX case of Chapter 24: 2.24 times
 end-to-end from about 10 lines, which came from noticing that multi-token decode,
 3 to 6 query rows at a time, fell between the matrix-vector path and the tile
-sizes this macro assumes. The kernel existed; its tuning grid had a hole.
+sizes this macro assumes. The kernel existed, but its tuning grid had a hole.
 
 ## What this means for the kernel writer
 
-Three habits follow from the fact that the dispatcher is readable.
+Because the dispatcher is readable, three habits follow.
 
 First, before writing anything, read the branch your shape takes. The question
 "why is this slow" often has the answer "because it took the branch for a
-different shape", and the fix is a dispatch change, not a kernel.
+different shape", and the fix is a change to the dispatch rather than a new kernel.
 
-Second, the tile table is the place where the "no single fastest kernel" lesson
-of Chapter 14 lives in production. The table encodes which variant wins per
+Second, the tile table is where production code applies the "no single fastest
+kernel" lesson of Chapter 14. The table encodes which variant wins per
 shape, and when a new chip generation moves the crossovers, the table moves.
 
 Third, the pipeline cache is keyed by the assembled name and the constant values,

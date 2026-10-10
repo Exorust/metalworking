@@ -3,12 +3,12 @@
 ## Where we are
 
 Chapter 17 ended with the dispatcher choosing `steel_gemm_fused` and its tile
-sizes for the running example. Steel is MLX's kernel library, and it is the
-CUTLASS of Apple Silicon: matrix multiply and attention decomposed into
-composable C++ templates that one wiring kernel assembles per shape. This chapter
-reads the three components and the kernel that wires them, and the point of the
-reading is recognition. You have already seen all three in hand-written form in
-Part 4. Steel is the same cooperative load, the same register-blocked multiply
+sizes for the running example. Steel is MLX's kernel library, and it does for Apple
+Silicon what CUTLASS does for CUDA: it decomposes matrix multiply and attention
+into composable C++ templates that one wiring kernel assembles per shape. This
+chapter reads the three components and the kernel that wires them. You have
+already seen all three in hand-written form in Part 4, so the task here is to
+recognize them. Steel is the same cooperative load, the same register-blocked multiply
 and the same fused epilogue, recomputed from template parameters for every shape
 MLX serves.
 
@@ -20,9 +20,9 @@ Steel lives in `mlx/backend/metal/kernels/steel/`. If you have read CUTLASS's
 
 ![Steel's architecture: BlockLoader, BlockMMA, and epilogue transforms wired by the fused GEMM kernel, sibling wiring kernels reusing the same components, and the attention fork with its own loader and MMA](../diagrams/steel-architecture.svg)
 
-*Three components, many wirings. Every sibling kernel at the bottom reuses the
-same green boxes; the attention fork on the right is the one place the geometry
-itself had to change.*
+*Steel has three components and many wirings. Every sibling kernel at the bottom
+reuses the same green boxes; the attention fork on the right is the one place
+where the geometry itself had to change.*
 
 - `BlockLoader`, in `gemm/loader.h`: the cooperative load of Chapter 11 as a
   template, with an unchecked vectorized variant and a bounds-checked,
@@ -43,8 +43,8 @@ itself had to change.*
 
 ## BlockLoader: the cooperative load, derived
 
-The template head is the design. Read the defaulted parameters doing the
-arithmetic Chapter 11 did by hand.
+Most of the design is in the template head. Its defaulted parameters do the
+arithmetic that Chapter 11 did by hand.
 
 ```cpp
 template <
@@ -93,12 +93,13 @@ Source: [`steel/gemm/loader.h:73-80`](https://github.com/ml-explore/mlx/blob/47b
 What production adds that the hand-written kernel never needed is
 `load_safe(short2 src_tile_dim)`, lines 83 to 128 of the same file, which bounds
 checks and zero-fills for tiles that hang off the edge of the matrix. The
-m5-gemm kernel required sizes divisible by 64; MLX cannot. The difference is in
-when each variant runs: the function constants of Chapter 8 let the wiring kernel
+m5-gemm kernel required sizes divisible by 64; MLX cannot make that assumption.
+What matters is when each variant runs: the function constants of Chapter 8 let the wiring kernel
 compile pipelines where aligned dispatches contain only `load_unsafe`, so edge
 handling costs nothing when no tile is off the edge.
 
-The smallest detail is the one that makes the components composable.
+The smallest method in the loader is the one that makes the components
+composable.
 
 ```cpp
   METAL_FUNC void next() thread {
@@ -107,14 +108,14 @@ The smallest detail is the one that makes the components composable.
 ```
 Source: [`steel/gemm/loader.h:130-133`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/loader.h#L130-L133)
 
-The loader owns its pointer arithmetic; the loop only calls `next()`. Three
-verbs, load, next and the type's constructor, are the whole interface, which is
-what lets quantized loaders, transposed loaders and the attention fork's
+The loader owns its pointer arithmetic; the loop only calls `next()`. The
+whole interface is three verbs: load, next and the type's constructor. That
+small interface lets quantized loaders, transposed loaders and the attention fork's
 differently shaped loaders swap in without the kernel body changing.
 
 ## BlockMMA: register blocking, named
 
-The layout constants decode the hand-written kernel's structure into named
+The layout constants turn the hand-written kernel's structure into named
 parameters.
 
 ```cpp
@@ -137,8 +138,8 @@ Source: [`steel/gemm/mma.h:453-483`](https://github.com/ml-explore/mlx/blob/47bb
 `WM` by `WN` is the simdgroup arrangement, the hand-written kernel's `SW` by
 `SW`; `TM` by `TN` is each simdgroup's accumulator grid, its `SIMD_TILE` by
 `SIMD_TILE`. `Ctile` lives in registers for the kernel's lifetime, with
-`AccumType` defaulting to `float` regardless of the data type: 16-bit traffic,
-32-bit accumulation, the rule of Chapter 4. The multiply marches the shared
+`AccumType` defaulting to `float` regardless of the data type. That is the rule of Chapter 4:
+16-bit traffic and 32-bit accumulation. The multiply marches the shared
 dimension in fragment-size steps: load an A fragment and a B fragment, multiply
 and accumulate, advance.
 
@@ -161,15 +162,15 @@ and accumulate, advance.
 ```
 Source: [`steel/gemm/mma.h:513-537`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/mma.h#L513-L537), abridged
 
-Two production touches. Transposition is handled by the stride constants: the
+Two details belong to production code. Transposition is handled by the stride constants: the
 `A_str_m` and `A_str_k` pair swaps for a transposed operand, and the code never
 branches on it. And the `mem_none` simdgroup barriers are the scheduling nudges
 of Chapter 7, keeping each simdgroup's fragment loads batched rather than
 guarding any hazard. The ending is where the epilogue plugs in: `store_result`,
 lines 540 to 551, applies the `Epilogue` type to every accumulator element in
 registers and then stores once, and the `apply_epilogue` variants additionally
-read an input matrix for endings of the alpha × A × B + beta × C form. Bias,
-activation and scaling add no extra memory passes, by construction.
+read an input matrix for endings of the alpha × A × B + beta × C form. Because
+of this structure, bias, activation and scaling add no extra memory passes.
 
 One caveat before you generalize from this file: attention needs a different
 `mma.h`. A matrix-multiply accumulator only accumulates; attention's score tile
@@ -202,23 +203,23 @@ hand-written loop of Chapter 12 rewritten against component interfaces.
 ```
 Source: [`steel_gemm_fused.h:172-204`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/kernels/steel_gemm_fused.h#L172-L204), abridged
 
-Barrier, load, barrier, multiply, advance: the same rhythm as Part 4, with the
-two barriers placed at the top of the iteration and after the loads, which
-covers the same two hazards. The unaligned branches below it, lines 209 to 345,
-enumerate every ragged-edge combination through `load_safe` and
-`store_result_safe`: verbose, mechanical, and absent from aligned pipelines. The
-kernel is the least interesting file in the library, which is the sign that the
-decomposition worked.
+The loop runs in the same order as Part 4: barrier, load, barrier, multiply,
+advance. The two barriers sit at the top of the iteration and after the loads,
+which covers the same two hazards. The unaligned branches below it, lines 209 to
+345, enumerate every ragged-edge combination through `load_safe` and
+`store_result_safe`. That code is verbose and mechanical, and aligned pipelines
+do not contain it. The kernel is the least interesting file in the library,
+which shows that the decomposition worked.
 
-Once this file reads as routine, the rest of steel's shape space is a tour of
-names, all reusing the same loader and multiply with different wiring. That
-reuse is the argument for the decomposition. Two facts frame steel's place in
-the ecosystem. It is the thing to beat, and it usually wins: several independent
-projects report hand-written replacement kernels coming back at 0.5 to 0.8 times
-stock steel, Chapter 25, so the profitable moves are unlocking its fast paths,
-not replacing it. And it is not consumable on its own: unlike CUTLASS there is no
-packaged way to use steel outside MLX, so its ideas travel by reading, which is
-what this chapter was for.
+Once this file reads as routine, the rest of steel's shape space is mostly a
+list of names: each kernel reuses the same loader and multiply with different
+wiring. That reuse is the argument for the decomposition. Two more facts set
+steel's place among the alternatives. First, it is the baseline to beat, and it
+usually wins: several independent projects report hand-written replacement
+kernels coming back at 0.5 to 0.8 times stock steel (Chapter 25), so the
+profitable moves are unlocking its fast paths rather than replacing it. Second,
+you cannot use it on its own: unlike CUTLASS, steel has no packaged form outside
+MLX, so its ideas travel by reading, which is what this chapter was for.
 
 ## Where the matmul stands
 

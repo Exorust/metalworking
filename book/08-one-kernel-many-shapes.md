@@ -3,7 +3,7 @@
 ## Where we are
 
 Chapter 6 compiled one kernel into one pipeline state, and Chapter 7 launched it.
-A production kernel is many kernels. One general matrix multiply can handle both
+In production, what looks like one kernel is several. One general matrix multiply can handle both
 the case where the matrix divides evenly by the tile and the ragged edge, but it
 pays for the checks on every tile; a specialized variant per case does not. The
 same holds for an attention kernel with and without a mask, and for a quantized
@@ -34,8 +34,8 @@ specialized function.
 
 ## What they look like
 
-Here are the function constants of MLX's fused matrix-multiply kernel, which Part
-5 reads in full.
+MLX's fused matrix-multiply kernel, which Part 5 reads in full, declares these
+function constants.
 
 ```cpp
 constant bool has_batch [[function_constant(10)]];
@@ -61,7 +61,7 @@ the unchecked path, selected at run time for the full tiles in the interior. So
 the aligned pipeline carries none of the edge code, and the ragged pipeline
 carries both. Chapter 18 shows the two paths side by side.
 
-The attention kernels use the same trick for causality and masking. `do_causal`
+The attention kernels use the same mechanism for causality and masking. `do_causal`
 and `has_mask` are independent function constants in MLX's attention kernel, so a
 pipeline built for causal attention without an explicit mask carries the causal
 bound and none of the mask loads. llama.cpp's `FC_flash_attn_ext_*` family is the
@@ -70,14 +70,14 @@ for whether a mask is present and for the block sizes of its mask-precompute
 kernel, among others, and the host builds a pipeline per combination it meets.
 
 A branch on a configuration flag is uniform, the same for every lane, so it costs
-instruction overhead rather than lane divergence on either platform. What the
-constants remove is that overhead and the dead side's code. A branch on data still
-diverges in the usual way, Chapter 1.
+instruction overhead rather than lane divergence on either platform. The constants
+remove that overhead and the dead side's code. A branch on data still diverges in
+the usual way (Chapter 1).
 
 ## The three channels, and which to use
 
 Configuration reaches a Metal kernel through three channels, fixed at three
-different times. The rule for choosing between them is what the value affects.
+different times. Which one a value belongs in depends on what the value affects.
 
 | Channel | Fixed when | Use it for |
 |---|---|---|
@@ -85,14 +85,13 @@ different times. The rule for choosing between them is what the value affects.
 | Function constants | when the pipeline state is built, from AIR to binary | flags that select a code path, and occasionally values; llama.cpp passes stride integers this way |
 | Buffer arguments | at run time, per dispatch | true runtime values: sizes, pointers |
 
-You choose by asking what the value participates in. A tile shape sizes a
-`threadgroup` array and appears in template types, so the source cannot be
-compiled without it; it has to be a template parameter or a define. Steel
-specializes its tile shapes with templates, and the matrix multiply this book
-follows sets its tile sizes with `-D` defines, Chapter 11. A flag that only
-selects between code paths does not change the source's types, so it can wait for
-the backend; the backend allocates registers for the specialized code it
-produces, Chapter 1, and a constant that removes a path can change that
+A tile shape sizes a `threadgroup` array and appears in template types, so the
+source cannot be compiled without it; it has to be a template parameter or a
+define. Steel specializes its tile shapes with templates, and the matrix multiply
+this book follows sets its tile sizes with `-D` defines (Chapter 11). A flag that
+only selects between code paths does not change the source's types, so it can wait
+for the backend. The backend allocates registers for the specialized code it
+produces (Chapter 1), and a constant that removes a path can change that
 allocation. A value that changes per dispatch goes in a buffer and costs nothing
 at compile time.
 
@@ -105,7 +104,7 @@ meet is a cost to watch. Chapter 17 shows how MLX keys and caches its pipelines.
 ## The attribute that belongs with them
 
 The kernel attribute `max_total_threads_per_threadgroup`, which Chapters 1, 2 and
-7 have each pointed at, is not a function constant, but it is the same idea. It
+7 have each pointed at, is a separate mechanism that works on the same idea. It
 tells the compiler an upper bound the run time promises to respect, so that the
 register allocator can plan for that many threads instead of the hardware maximum.
 Function constants tell the compiler which code path the run time will take, so

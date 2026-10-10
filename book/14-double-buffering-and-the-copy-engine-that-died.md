@@ -8,7 +8,7 @@ asks of any tiled loop: the load of the next slab and the multiply of the curren
 one are independent, so why not overlap them? The answer on this platform comes in
 two parts. There is a double-buffered version of the kernel, and it wins at some
 sizes and loses at others, which is the cleanest measured demonstration in this
-book that there is no single fastest kernel. And the hardware copy engine that a
+book that there is no single fastest kernel. The hardware copy engine that a
 CUDA kernel would use for the overlap exists on the chip, was once reachable, and
 can no longer be reached; the shape of every current kernel follows from that.
 
@@ -22,10 +22,10 @@ both the loads and the math. What makes it work anyway is that the prefetch load
 and the current slab's multiply-accumulates have no data dependence, so the
 hardware scheduler interleaves them. This is the instruction-level parallelism of
 Chapter 4, and it hides threadgroup-memory latency with independent work from one
-instruction stream. Software pipelining, not hardware pipelining.
+instruction stream. It is software pipelining rather than hardware pipelining.
 
-The structural delta over the single-buffered loop of Chapter 12 is exactly three
-changes: two buffer sets, a prologue that loads slab 0, and one barrier per
+The double-buffered loop differs from the single-buffered loop of Chapter 12 in
+exactly three ways: two buffer sets, a prologue that loads slab 0, and one barrier per
 iteration instead of two. The multiply, elided below, is the same fragment loop
 as Chapter 12, run on `A_use` and `B_use`.
 
@@ -55,12 +55,12 @@ as Chapter 12, run on `A_use` and `B_use`.
 ```
 Source: [`sync_copy_db.metal:87-126`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy_db.metal#L87-L126), abridged
 
-The single barrier does double duty. "The prefetch has landed" and "everyone is
+The single barrier covers two hazards. "The prefetch has landed" and "everyone is
 done with the buffer we are about to overwrite" are the same condition when the
 buffers alternate, so the two hazards of Chapter 2 are covered by one barrier at
-the top of each iteration. The kernel's own header comment is honest about the
-mechanism: without the copy engine this is not true overlap, it is the same
-threads issuing independent loads and math for the scheduler to interleave.
+the top of each iteration. The kernel's own header comment states the mechanism:
+without the copy engine there is no true overlap, only the same threads issuing
+independent loads and math for the scheduler to interleave.
 
 ![Three timelines comparing single-buffered serial load/compute, double-buffered overlap through ILP, and the dead DMA era's true copy-engine overlap](../diagrams/double-buffering.svg)
 
@@ -89,29 +89,29 @@ MPS at four sizes on an M5 Max, 32-bit, best of 3 runs of 5 trials.
 
 ![Three Metal GEMM kernels benchmarked across matrix sizes, showing the fastest one changes with the problem size](../gemm-ladder.gif)
 
-Three regimes, three winners, and the author's explanations for each, which are
+Each size regime has a different winner. The author's explanations for each are
 hypotheses from differential benchmarking rather than isolated measurements. At
 1024 by 1024, the double-buffered kernel is 10.7 / 3.3, about 3.2 times the
 single-buffered one and 10.7 / 2.9, about 3.7 times MPS: at this size launch and
-memory-fetch latency dominate, and the prefetch pipeline hides them. Note that
-this is the size regime language-model decode lives in, Chapter 22. At 4096 by
+memory-fetch latency dominate, and the prefetch pipeline hides them. Language-model
+decode runs in this size regime (Chapter 22). At 4096 by
 4096 the simpler kernel wins by a little, 13.5 against 13.1, because its smaller
 loop unrolls better; compiler quality matters more than the algorithm here. At
 8192 by 8192 all three converge, 13.0, 12.7 and 13.5, and MPS takes the lead
 back; the author attributes the convergence to the memory system, and whatever
 the mechanism, the kernels are no longer separated by their inner loop.
 
-The result that generalizes is the non-monotonic one. There is no single fastest
-kernel. A technique like double buffering wins in regimes, not universally, and
-that is exactly why production libraries dispatch different variants per shape,
-Chapter 17, instead of shipping one kernel.
+The general result is that the ranking is non-monotonic: no single kernel is
+fastest at every size. Double buffering wins in some regimes and loses in others,
+which is why production libraries dispatch different variants per shape
+(Chapter 17) instead of shipping one kernel.
 
-The README's section "things that did not help" is required reading as method,
-Chapter 9: offline compilation with `-O3 -ffast-math`, measured identical to
+The README's section "things that did not help" is worth reading for its method
+(Chapter 9): offline compilation with `-O3 -ffast-math`, measured identical to
 runtime compilation; bigger simdgroup tiles, the 10 times slower spill of Chapter
 12; and `SW` = 3 threadgroups. The author measured these negative results and
-published them, which is the norm the failures of Chapter 25 wish the whole
-ecosystem followed.
+published them, which is the norm that the failures in Chapter 25 argue the whole
+ecosystem should follow.
 
 ## The copy engine that died
 
@@ -141,7 +141,7 @@ Source: [metal-matmul `async_copy.metal:9-28`](https://github.com/0xekez/metal-m
 
 Then you used it like `cp.async`: start the copy, compute, wait on the event. The
 original of this book's matrix-multiply lineage, Zeke Medley's metal-matmul and
-its essay, was built on it, and the use site is the interesting half.
+its essay, was built on it. The use site is the more interesting part.
 
 ```metal
     if (s_pos==0) {
@@ -172,7 +172,7 @@ metal-flash-attention built its tile staging on the same intrinsics, and
 documents an M1-era hardware bug: an async copy whose result is never read hangs
 the GPU until reboot. That is the risk of building on an undocumented interface.
 
-Metal 4, which shipped with macOS 26, closed the door. The compiler rejects every
+Metal 4, which shipped with macOS 26, removed that access. The compiler rejects every
 `__asm("air.*")` declaration with the error "illegal string literal in 'asm'",
 and workarounds at the intermediate-representation level crash the backend
 compiler. There is no public replacement; Metal 4's cooperative tensors ship a
@@ -181,14 +181,14 @@ failed attempts to resurrect it. Hence the two successor kernels you have read:
 cooperative loads for the staging, Chapter 11, and double buffering to win back
 most of the overlap through instruction-level parallelism, above.
 
-Two reasons to keep the dead code in mind. The concept outlives the interface: a
+There are two reasons to keep the dead code in mind. The concept outlives the interface: a
 copy engine with event-signaled completion is how `cp.async` and TMA work, how
 metal-flash-attention's generated kernels staged tiles, and plausibly how a future
-public Metal API will look, and you will recognize it in one glance. And it is a
+public Metal API will look, and you will recognize it at a glance. It is also a
 lesson in platform risk: every project that built on the undocumented intrinsic,
-the essay, metal-flash-attention, early steel, carried breakage that Metal 4
-cashed in. The cheap wins of Chapter 25 run the same trade knowingly, with
-undocumented `sysctl` settings and private frameworks, and this kernel is what the
+the essay, metal-flash-attention, early steel, carried a breakage risk that
+Metal 4 made real. The cheap wins of Chapter 25 run the same trade knowingly, with
+undocumented `sysctl` settings and private frameworks, and this kernel shows what the
 downside looks like.
 
 ## Where the matmul stands

@@ -4,11 +4,11 @@
 
 Part 5 put the matrix multiply into production. The other kernel that dominates a
 language model is attention, and on this platform it is where the law of Chapter
-3 bites hardest. Naive attention computes a matrix of scores between every query
+3 matters most. Naive attention computes a matrix of scores between every query
 and every key, writes it to memory, normalizes it, and reads it back. At a
 context of 32,768 tokens that intermediate is 32,768 squared, about a billion
-values, per head per layer, and on a machine with laptop-class bandwidth that is
-not slow, it is disqualifying. Flash attention never writes that matrix, and the
+values, per head per layer. On a machine with laptop-class bandwidth, that
+traffic rules naive attention out entirely. Flash attention never writes that matrix, and the
 algorithm that makes that legal is five lines long. This chapter derives the five
 lines, then shows the kernel shape they produce. The running example changes
 here from a matrix multiply to attention.
@@ -18,12 +18,12 @@ here from a matrix multiply to attention.
 Safe softmax of a row of scores x is `exp(x_i - m) / sum_j exp(x_j - m)`, where
 `m` is the row maximum, subtracted so that the exponents cannot overflow. Both
 `m` and the sum are facts about the whole row, and a kernel that streams the row
-one tile at a time does not have them when it starts. That is the whole
-obstacle: you cannot normalize what you have not finished reading.
+one tile at a time does not have them when it starts. The kernel cannot
+normalize a row it has not finished reading, and that is the whole obstacle.
 
 ## The resolution: one identity
 
-The fix is one identity. For any old maximum `m_old` and new maximum `m_new`:
+For any old maximum `m_old` and new maximum `m_new`:
 
     exp(x - m_old) = exp(x - m_new) * exp(m_new - m_old)
 
@@ -40,8 +40,8 @@ running maximum `m`, a running sum `l` and a running output `O`:
     O     = O * c + P * V_tile     # same correction, same reason
     m     = m_new
 
-After the last tile, divide `O` by `l`. Five lines, and being able to re-derive
-the correction factor is the check that you understand it: the sum and the
+After the last tile, divide `O` by `l`. That is the algorithm, in five lines. If
+you can re-derive the correction factor, you understand it: the sum and the
 output were both accumulated as sums of `exp(x - m_old)` terms, so both need the
 same factor when the reference maximum moves. Nothing about the row's length
 enters the state; the kernel keeps one maximum, one sum and one output row per
@@ -55,8 +55,8 @@ shuffles, Chapter 1, not trips through memory.
 
 ## The same five lines in two production dialects
 
-You will meet this derivation in code in the next chapter, and it is worth seeing
-both dialects now so that you recognize them. MLX's attention kernel:
+You will meet this derivation in code in the next chapter, and seeing both
+dialects now lets you recognize them there. MLX's attention kernel:
 
 ```cpp
     // Factor exp(rowmax(Si) - rowmax(Si-1))
@@ -69,7 +69,7 @@ both dialects now so that you recognize them. MLX's attention kernel:
 Source: [MLX `steel_attention.h:397-420`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/attn/kernels/steel_attention.h#L397-L420), abridged
 
 `factor` is `c`; the sum update and the output rescale are lines four and five.
-And metal-flash-attention's generated kernel:
+metal-flash-attention's generated kernel writes the same step this way:
 
 ```swift
     float correction = 1;
@@ -81,9 +81,9 @@ And metal-flash-attention's generated kernel:
 Source: [metal-flash-attention `AttentionKernel+Softmax.swift:293-298`](https://github.com/philipturner/metal-flash-attention/blob/8671cddc38f19a6eadb804dee6a3ca2954b8bf32/Sources/FlashAttention/Attention/AttentionKernel/AttentionKernel+Softmax.swift#L293-L298)
 
 Note the `if` guard that MLX does not have: metal-flash-attention skips the
-correction when the maximum did not move, MLX multiplies by 1. That is a real
-disagreement about the cost of a branch against the cost of a multiply between
-two good kernels, and Chapter 21 returns to it.
+correction when the maximum did not move, while MLX multiplies by 1. The two
+kernels disagree about whether a branch costs more than a multiply, and Chapter
+21 returns to it.
 
 The decode kernels of Chapter 22 reuse the same identity a second time, to merge
 partial softmaxes computed by different simdgroups over different parts of the
@@ -96,8 +96,8 @@ Chapter 5.
 With online softmax in hand, flash attention computes `softmax(Q * K^T / sqrt(d))
 * V` without ever materializing the score matrix: stream K and V in tiles, hold
 each tile's scores in registers, fold its contribution into the running output.
-The algorithm is the same as on NVIDIA. What changes here is why it matters: on
-any GPU the intermediate is expensive, and on a bandwidth-bound machine with
+The algorithm is the same as on NVIDIA. What differs here is how much it
+matters: on any GPU the intermediate is expensive, and on a bandwidth-bound machine with
 laptop memory it is the difference between a workable context length and none.
 
 The anatomy is common to every implementation, and Chapter 21 reads MLX's line
@@ -111,18 +111,18 @@ by line.
    forked its attention multiply from the matrix-multiply one, Chapter 18.
 3. Online softmax makes the streaming legal; the base-2 exponent path makes it
    cheap.
-4. Causal masking is a skip, not a mask, where possible: whole tiles above the
-   diagonal are never visited, which is the first of the three questions of
-   Chapter 24, delete work.
+4. Where possible, causal masking skips tiles instead of masking them: whole
+   tiles above the diagonal are never visited. This is the first of the three
+   questions of Chapter 24, delete work.
 5. Specialization strips the masking and alignment code the shape does not need:
    function constants in MLX, head-dimension enumeration in llama.cpp, code
    generation in metal-flash-attention, Chapter 21.
 
 ![Flash attention kernel anatomy: a resident Q tile, K and V tiles streaming past, the score tile living only in registers, a running output accumulator, and the ghosted L-by-L matrix that never materializes](../diagrams/flash-attention-anatomy.svg)
 
-*The whole trick in one picture: everything green lives in one simdgroup's
-registers, everything amber streams through once, and the dashed matrix on the
-right is the thing the algorithm exists to avoid writing.*
+*Everything green lives in one simdgroup's registers, everything amber streams
+through once, and the dashed matrix on the right is the one the algorithm avoids
+writing.*
 
 Count the traffic that step 2 saves, for one head at a context of L tokens and a
 head dimension of d. Naive attention writes the L by L score matrix and reads it
@@ -130,8 +130,8 @@ back: 2 L² values. Flash attention reads K and V once, 2 L d values, plus Q and
 the output. At L = 32,768 and d = 128, that is about 2.1 billion values against
 about 8.4 million, a factor of L / d = 256 less traffic. In 16-bit at the
 measured 516 GB/s of Chapter 3, the naive intermediate alone would cost about 8
-milliseconds per head per layer; multiply by heads and layers and you have the
-reason the whole technique exists.
+milliseconds per head per layer. Multiplied across every head and layer, that
+cost is the reason the technique exists.
 
 ## Two boundaries on this platform
 

@@ -59,7 +59,7 @@ What you don't manage, coming from CUDA: events for cross-stream ordering (a
 single queue is ordered; multi-queue is rare in compute work), copy engines
 (no transfers exist), and stream priorities. Timestamps you *do* get:
 `GPUStartTime`/`GPUEndTime` on a completed command buffer are the platform's
-[only programmatic GPU timing](profiling.md). Measure at command-buffer
+[simplest programmatic GPU timing](profiling.md). Measure at command-buffer
 granularity, one more reason to make command buffers meaningful units of work.
 
 Next: [Synchronization](synchronization.md)

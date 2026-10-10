@@ -7,8 +7,8 @@ spoke to Metal directly. Almost nobody runs a model that way. On Apple Silicon y
 usually optimize through MLX, Apple's open-source array framework, and its
 architecture decides what is fast before any kernel runs. Part 5 follows the same
 matrix multiply into MLX: what the framework does with `mx.matmul(a, b)` before,
-during and after the kernel. This chapter covers the before, which is nothing at
-all, and why that is the point.
+during and after the kernel. This chapter covers the before. At that stage MLX
+does no work at all, and the chapter explains why that design matters.
 
 ## What MLX is, for a CUDA-stack reader
 
@@ -18,7 +18,7 @@ that Chapter 18 reads. In CUDA terms it is the whole stack of PyTorch, cuBLAS an
 cuDNN, and bits of Triton, collapsed into one codebase, which is why this book
 gives it a part rather than a chapter.
 
-Four things to recalibrate.
+Four CUDA expectations need recalibrating.
 
 **Arrays have no device.** An `mx.array` lives in unified memory. There is no
 `.to("gpu")` and no host-to-device copy anywhere in user code. Operations have a
@@ -27,12 +27,12 @@ same buffers: quantize on the CPU while the GPU decodes, in one address space.
 
 **Everything is lazy.** Operations build a graph; computation happens at
 `mx.eval`. The purpose is less the compiler work that `torch.compile` does than
-the dispatch batching of Chapter 7, and on this platform that is load-bearing for
-performance.
+the dispatch batching of Chapter 7, and on this platform performance depends on
+it.
 
 **Function transforms, not an autograd tape.** `mx.grad`, `mx.vmap` and
-`mx.compile` compose like JAX's transforms. Training exists and works; inference
-is where the ecosystem's energy is.
+`mx.compile` compose like JAX's transforms. Training works, but most of the
+ecosystem's effort goes into inference.
 
 **The kernels are readable.** Unlike cuBLAS, the fast path is open-source Metal
 Shading Language you can read: steel for matrix multiply and attention, the
@@ -68,8 +68,8 @@ asynchrony; MLX does not even decide anything until evaluation, so it can see a
 whole subgraph and schedule it as a unit. It is less like CUDA Graphs than it
 looks, because there is no capture-and-replay lifecycle, but the payoff is
 similar: per-operation CPU overhead and per-launch GPU overhead are amortized,
-which matters twice on a platform where the cost of a wait, Chapter 3, is the
-story.
+which matters doubly on a platform where the cost of a wait, Chapter 3, dominates
+performance.
 
 Evaluation is forced by `mx.eval(arrays...)`, or implicitly by anything that
 needs values: printing, `.item()`, converting to NumPy, or a control-flow branch
@@ -92,7 +92,7 @@ void eval(array& arr) {
 ```
 Source: [`mlx/backend/metal/eval.cpp:29-62`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/eval.cpp#L29-L62), abridged
 
-Read the shape of it. The encoder is shared across primitives on a stream, the
+The encoder is shared across primitives on a stream, the
 primitive encodes its dispatch into it, and the commit happens only when the
 encoder says it needs one, which MLX decides from its own thresholds of work and
 memory. This is the batching rule of Chapter 7 applied automatically, and it is
@@ -119,7 +119,7 @@ Streams are where operations run. `mx.gpu` and `mx.cpu` are the default streams
 on their devices, `mx.new_stream(device)` makes more, and every operation takes a
 `stream=` argument. Because arrays have no device, sending an operation to the
 CPU stream costs no transfer, so heterogeneous pipelines, CPU pre-processing and
-post-processing around GPU compute, are ordinary rather than heroic. Dependencies
+post-processing around GPU compute, are routine. Dependencies
 across streams are fenced by the scheduler.
 
 Laziness also enables `mx.compile`, Chapter 19: since the graph exists anyway, it

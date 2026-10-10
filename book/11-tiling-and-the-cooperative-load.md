@@ -17,9 +17,9 @@ Chapter 3 said that a matrix multiply is compute bound only if the data reuse is
 real, and that a kernel with no tiling issues n loads for every input value.
 Tiling is the technique that makes the reuse real, and your CUDA instincts
 transfer: copy a block of the problem one level closer to the arithmetic units,
-do all the math that block supports, then let it go. What moves on this platform
-is the shape of the pyramid, because the memory hierarchy of Chapter 2 has
-different proportions.
+do all the math that block supports, then let it go. What changes on this
+platform is the shape of the pyramid, because the memory hierarchy of Chapter 2
+has different proportions.
 
 ![The reuse pyramid: a grid of output tiles, one threadgroup tile, one simdgroup patch, and one 8x8 fragment, each level held in memory one step closer to the ALUs](../diagrams/tiling-pyramid.svg)
 
@@ -47,7 +47,7 @@ time, `BK` = 2 × 8. The 8 in every product is the edge of the 8 by 8 fragment t
 Chapter 12 introduces. Those are the three levels of the pyramid for this kernel:
 threadgroup tile, simdgroup patch, fragment.
 
-Three calibrations differ from CUDA habits.
+Three of the calibrations differ from CUDA habits.
 
 **The middle level is thin.** Threadgroup memory caps tiles at 32 KB, so typical
 shapes are 64 by 64 outputs with a shared-dimension slab 16 to 32 deep, smaller
@@ -71,12 +71,12 @@ path at all. Steel's loader has both.
 
 A tile has to get from device memory into threadgroup memory, and on this
 platform there is exactly one way to move it: the threads of the threadgroup copy
-it, together. A cooperative load is the whole threadgroup jointly copying a tile,
-with no thread loading "its own" data; every thread carries an equal, coalesced
-share of everyone's. It is the classic staging loop of a tiled CUDA matrix
-multiply, unchanged in spirit, with two platform notes that sharpen it. There is
-no `cp.async`-style copy engine, Chapter 14, so cooperative loads are the only way
-tiles move. And barriers are nearly free, Chapter 7, so the rhythm of load, sync,
+it, together. In a cooperative load the whole threadgroup copies a tile jointly,
+and no thread loads "its own" data; every thread carries an equal, coalesced
+share of everyone's. It is the same staging loop as in a tiled CUDA matrix
+multiply, and two platform facts make it matter more here. There is no
+`cp.async`-style copy engine, Chapter 14, so cooperative loads are the only way
+tiles move. Barriers are nearly free, Chapter 7, so the sequence of load, sync,
 compute, sync costs almost nothing beyond the loads themselves.
 
 Here is the reference implementation.
@@ -106,11 +106,11 @@ inline void load_tile(
 ```
 Source: [m5-gemm `sync_copy.metal:46-71`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L46-L71), abridged
 
-Read the loop. The tile is treated as `total4` units of four floats, `float4`,
-which is the vectorization. Thread `tid` takes unit `tid`, then unit `tid +
+Read the loop. The tile is treated as `total4` units of four floats, `float4`;
+that is the vectorization. Thread `tid` takes unit `tid`, then unit `tid +
 nthreads`, and so on, so at every step the threads of the threadgroup touch
-consecutive units, which is the coalescing, on the read from device memory and on
-the write into threadgroup memory alike. The division by `cols4` turns a unit
+consecutive units. That is the coalescing, and it holds on the read from device
+memory and on the write into threadgroup memory alike. The division by `cols4` turns a unit
 index into a row and a column, so the same loop serves a 64 by 16 tile of A and a
 16 by 64 tile of B. The `break` handles a tile whose unit count is not a multiple
 of the thread count; with the sizes here it never fires.
@@ -122,11 +122,11 @@ The `#pragma clang loop unroll(full)` and the `ushort` indices are the
 micro-optimizations of Chapters 4 and 6: the trip count is a compile-time
 constant, so the loop disappears, and the index arithmetic runs in 16-bit.
 
-Rules of thumb, all familiar from CUDA: consecutive threads to consecutive
-addresses in both directions, since coalescing matters on the device-memory read
-and bank-friendliness on the threadgroup-memory write, Chapter 2; vectorize to
-`float4` or `half8` when the layout permits; and derive the thread-to-tile mapping
-at compile time so the loop fully unrolls.
+The rules of thumb are all familiar from CUDA. Map consecutive threads to
+consecutive addresses in both directions, since coalescing matters on the
+device-memory read and bank-friendliness on the threadgroup-memory write, Chapter
+2. Vectorize to `float4` or `half8` when the layout permits. Derive the
+thread-to-tile mapping at compile time so the loop fully unrolls.
 
 The production version of this loop is steel's `BlockLoader`, Chapter 18. It
 derives the same arithmetic, elements per thread and the thread-to-tile mapping,
@@ -135,19 +135,19 @@ from template parameters at compile time; it expresses the vector width as an
 bounds-checked `load_safe` twin for ragged edges, selected per pipeline by function
 constants so that aligned dispatches never pay for the checks.
 
-One historical note explains why older code looks different. Before Metal 4, a
+Older code looks different for a historical reason. Before Metal 4, a
 single simdgroup could issue one copy for the whole threadgroup through an
 undocumented intrinsic, and the hardware copy engine did the moving. That was
-faster than any cooperative load, and it no longer compiles. Chapter 14 tells the
-story.
+faster than any cooperative load, and it no longer compiles. Chapter 14 covers
+it.
 
 ## Where the matmul stands
 
 The problem is cut into 64 by 64 output tiles, 64 × 64 = 4,096 threadgroups for
 the 4096 by 4096 example, each of 128 threads. Each threadgroup walks the shared
 dimension in 256 steps of 16, staging a 64 by 16 tile of A and a 16 by 64 tile of
-B per step with the cooperative load above, 8 KB per step. No number yet: the
-multiply that consumes the staged tiles is the next chapter.
+B per step with the cooperative load above, 8 KB per step. There is no number
+yet, because the multiply that consumes the staged tiles is in the next chapter.
 
 ## Check yourself
 
