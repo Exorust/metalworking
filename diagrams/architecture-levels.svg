@@ -22,7 +22,7 @@
   <text x="40" y="140" font-size="9.5" fill="#b9bfa9">NVIDIA: CUDA thread</text>
   <text x="780" y="80" font-size="11.5" fill="#a6cc97">ARITHMETIC UNIT</text>
   <rect x="786" y="91" width="12" height="30" fill="#a6cc97"/>
-  <text x="812" y="110" font-size="10" fill="#d9ead0">executes the instructions of a thread</text>
+  <text x="812" y="110" font-size="10" fill="#d9ead0">executes one lane of a simdgroup instruction</text>
   <text x="780" y="140" font-size="9.5" fill="#b9bfa9">NVIDIA: CUDA core</text>
   <g stroke="#6f9a62" fill="#6f9a62"><line x1="616" y1="106" x2="754" y2="106" stroke-width="1.5"/><path d="M754 101 L764 106 L754 111 Z" stroke="none"/></g>
   <text x="690" y="96" font-size="9.5" fill="#6f9a62" text-anchor="middle">runs on</text>

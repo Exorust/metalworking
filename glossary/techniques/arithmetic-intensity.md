@@ -8,9 +8,11 @@ almost everything.**
 CUDA equivalent: the same concept, taught in every CUDA performance course. What
 changes here is the balance point. A datacenter GPU pairs its FLOPs with TB/s of
 HBM; Apple pairs laptop-class bandwidth (153-614 GB/s) with proportionally more
-capable ALUs at low clocks. The machine's ridge point (the intensity below which
-you're bandwidth bound) sits *high*, so **more of your kernels are bandwidth
-bound than your CUDA intuition expects.** That's the platform's one law, and every
+capable ALUs at low clocks. The fp32 ridge point (the intensity below which you're bandwidth bound) is
+about 22-26 FLOPs/byte, close to an H100's fp32 ridge and far below its tensor-core
+ridge; what changes is the absolute bandwidth, ~516 GB/s against several TB/s, so
+**the bandwidth-bound kernels take a larger share of a model's time than your
+CUDA intuition expects.** That's the platform's one law, and every
 other technique page is a response to it.
 
 The two canonical cases:

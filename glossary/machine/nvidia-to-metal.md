@@ -13,7 +13,7 @@ Two hierarchies exist at the same time. One is software: the threads that one
 kernel launch creates. The other is hardware: the parts of the chip that run them.
 Most confusion comes from mixing the two, so keep them in separate columns.
 
-![Two hierarchies side by side. Software, top to bottom: a thread, a threadgroup of four simdgroups with 32 KB of threadgroup memory, and a grid of threadgroups over device memory. Hardware, top to bottom: an arithmetic unit, a GPU core with a 208 KB register file, 60 KB of threadgroup memory and an 8 KB L1 cache, and a GPU of 10 to 40 cores over unified memory shared with the CPU. Each software level runs on the hardware level beside it.](../../diagrams/architecture-levels.svg)
+![Two hierarchies side by side. Software, top to bottom: a thread, a threadgroup of four simdgroups with 32 KB of threadgroup memory, and a grid of threadgroups over device memory. Hardware, top to bottom: an arithmetic unit, a GPU core with a 208 KB register file, 60 KB of threadgroup memory and an 8 KB L1 cache, and a GPU of 10 to 40 cores over unified memory shared with the CPU. Each software level is scheduled onto the hardware level beside it.](../../diagrams/architecture-levels.svg)
 
 *Left: what one launch creates. Right: the hardware that runs it. Each row reads
 across. The NVIDIA name for each box is under it.*

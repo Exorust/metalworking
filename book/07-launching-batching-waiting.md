@@ -39,10 +39,11 @@ choose the dimensions at launch, but Chapters 1 and 2 said what happens before
 that: the compiler allocates registers when it builds the pipeline state, before
 it knows your launch dimensions, so it assumes the hardware maximum unless the
 kernel declares a smaller one with `max_total_threads_per_threadgroup`. The launch
-must then stay within the declared maximum. In CUDA, `__launch_bounds__` is the
-same kind of bound, and most programmers treat it as a tuning detail. In Metal the
-equivalent declaration is routinely worth integer factors. The matrix multiply
-this book follows declares it, and Chapter 12 measures the effect.
+must then stay within the declared maximum. CUDA's `__launch_bounds__` caps
+registers to raise occupancy. Metal's attribute runs the other way: declaring
+the real size raises each thread's register grant, since the compiler otherwise
+plans for the hardware maximum. The matrix multiply this book follows
+declares it, and Chapter 12 reads it.
 
 Some sizing instincts transfer. Size threadgroups in multiples of 32; 128 threads,
 four simdgroups, is the size of the matrix multiply this book follows and of

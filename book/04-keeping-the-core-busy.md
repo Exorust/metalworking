@@ -33,9 +33,12 @@ occupancy is enough to fill this machine.
 The same measurement also bears on register pressure. Twenty-four simdgroups is also the lowest occupancy that over-allocating
 registers can produce on those chips: a kernel can use so many registers per
 thread that only 24 simdgroups fit, but not fewer. So register pressure alone does
-not push a core below the saturation point. What does is a lack of work: a grid
-too small to fill the cores, or a kernel whose threadgroups are nearly done, which
-is where the stall numbers below matter.
+not push a core below the saturation point. Scratch can: a threadgroup at the
+32 KB cap is the only one that fits in a core's 60 KB, which is 4 resident
+simdgroups, and the double-buffered estimate at the end of this chapter lands at
+12. So can a lack of work: a grid too small to fill the cores, or a kernel whose
+threadgroups are nearly done. Those are the cases where the stall numbers below
+matter.
 
 Apply the resource arithmetic to the matrix multiply this book follows, with
 Chapter 2's figures. Each threadgroup stages 8 KB of inputs, so the core's roughly
@@ -53,9 +56,9 @@ occupancy below the saturation point but spills cost a memory operation per use.
 The `max_total_threads_per_threadgroup` attribute from Chapter 1 trades one limit
 against the other.
 Declaring a smaller maximum lets the compiler give each thread more
-registers, which reduces spills at the price of fewer resident threadgroups. On
-this kernel the trade is worth it, because 6 threadgroups already saturate the
-core; Chapter 12 shows the measurement.
+registers, which reduces spills at the price of fewer resident threadgroups, down
+to the floor of 24 simdgroups. On this kernel the trade is worth it, because 6
+threadgroups already saturate the core; Chapter 12 reads the attribute in place.
 
 There is no `cudaOccupancyMaxActiveBlocksPerMultiprocessor` on this platform, and
 no scriptable profiler that reports achieved occupancy; Xcode's GPU capture shows
@@ -68,21 +71,26 @@ measuring. Part 3 covers the measuring.
 Occupancy buys latency hiding, and the latency these measurements isolate is the
 simplest kind: the gap between a dependent pair of arithmetic instructions. The
 numbers come from the ALU Bottlenecks section of metal-benchmarks, measured on
-M1- and M2-class chips with a shader setup its author calls sub-optimal; later
-runs lowered the absolute latencies, so read the ratios, not the cycle counts.
+M1- and M2-class chips with a shader setup its author calls sub-optimal. A later
+run with a better setup measured 6 cycles for a dependent 32-bit fused
+multiply-add and 3 for 16-bit. Take the shape from the table, worse at low
+occupancy and better in 16-bit, and the size of the gap, about 2 times, from the
+later figures. The 1.84-cycle figure quoted elsewhere in the sources is the
+plain multiply row of the same table; this is the fused multiply-add row.
 
 | Condition | 32-bit dependent chain | 16-bit dependent chain |
 |---|---|---|
 | 88 simdgroups per core, back-to-back dependent fused multiply-add | about 1.99 cycles per instruction | about 1.56 cycles |
 | 4 simdgroups per core, back-to-back dependent fused multiply-add | about 11.3 cycles per instruction | about 3.9 cycles |
 
-At 4 resident simdgroups, 11.3 / 3.9 is about 2.9: a 32-bit dependent chain runs
-about three times slower per instruction than a 16-bit one. At high occupancy the
+At 4 resident simdgroups, 11.3 / 3.9 is about 2.9 in this table, about 2 in the
+corrected run: a 32-bit dependent chain runs two to three times slower per
+instruction than a 16-bit one. At high occupancy the
 ratio is 1.99 / 1.56, about 1.3. The 16-bit advantage is largest when the
 core has the least parallelism to hide stalls with. The same table shows the
 other way out: at 4 simdgroups, giving each thread four independent chains instead
 of one brings the 32-bit figure from 11.3 to about 2.75 cycles. Independent work
-inside a simdgroup hides latency as well as other simdgroups do. The last section
+inside a simdgroup hides most of the latency that other simdgroups would. The last section
 of this chapter returns to this point.
 
 So the reason to prefer 16-bit values on this chip differs from the headline reason
@@ -139,8 +147,9 @@ from other simdgroups.
 
 The recurring trade in Part 4 uses this second channel. Double buffering allocates two
 staging buffers instead of one, which doubles the threadgroup's scratch footprint
-and halves the scratch-limited bound on residency, 60 / 16 = 3 threadgroups
-instead of 7 in the estimate above, so that it can issue the next slab's loads while
+and cuts the scratch-limited bound on residency from 7 threadgroups to 3 (60 / 8
+and 60 / 16, rounded down), which is 12 simdgroups, below the 24 that saturate
+the arithmetic units; that occupancy is what the trade spends, so that it can issue the next slab's loads while
 the current slab's multiplies are still in flight. Which side of the trade wins depends
 on problem size, and Chapter 14 has the measured table. For any change, ask what
 occupancy it costs and what independent work it buys.
@@ -160,9 +169,11 @@ occupancy it costs and what independent work it buys.
 ### Answers
 
 1. 256 / 32 = 8 simdgroups per threadgroup, and 24 / 8 = 3 resident threadgroups,
-   which is 3 × 256 = 768 threads. That is the saturation point measured for a
-   simple arithmetic chain, not a guarantee for every kernel.
-2. 11.3 / 3.9, about three times slower. Raise occupancy, which brings the
+   which is 3 × 8 = 24 simdgroups and 3 × 256 = 768 threads. That is where
+   arithmetic-unit utilization flattened on a synthetic kernel, not a guarantee
+   for every kernel.
+2. 11.3 / 3.9, about three times slower in the table and about twice in the
+   corrected run. Raise occupancy, which brings the
    measured pair to 1.99 against 1.56, or give each thread independent work, which
    at four chains brings the 32-bit figure to about 2.75 cycles.
 3. None of them: the accumulators are 32-bit registers, so the stall and payload

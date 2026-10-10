@@ -34,7 +34,7 @@ And the hardware hierarchy, top to bottom.
 | One independent unit of compute | GPU core | Streaming Multiprocessor (SM) |
 | One arithmetic unit inside it | arithmetic unit | CUDA core |
 
-![Two hierarchies side by side. Software, top to bottom: a thread, a threadgroup of four simdgroups with 32 KB of threadgroup memory, and a grid of threadgroups over device memory. Hardware, top to bottom: an arithmetic unit, a GPU core with a 208 KB register file, 60 KB of threadgroup memory and an 8 KB L1 cache, and a GPU of 10 to 40 cores over unified memory shared with the CPU. Each software level runs on the hardware level beside it.](../diagrams/architecture-levels.svg)
+![Two hierarchies side by side. Software, top to bottom: a thread, a threadgroup of four simdgroups with 32 KB of threadgroup memory, and a grid of threadgroups over device memory. Hardware, top to bottom: an arithmetic unit, a GPU core with a 208 KB register file, 60 KB of threadgroup memory and an 8 KB L1 cache, and a GPU of 10 to 40 cores over unified memory shared with the CPU. Each software level is scheduled onto the hardware level beside it.](../diagrams/architecture-levels.svg)
 
 *Left: what one launch creates. Right: what runs it. Each row reads across. The
 sizes drawn inside the core are the subject of the next chapter.*
@@ -59,10 +59,11 @@ the rest of the book.
 single core. This is the reason its threads can share memory: the scratch memory a
 threadgroup uses is physically inside the core it runs on. It is also the reason
 threadgroups share nothing with each other. Two threadgroups in the same grid can
-both read and write device memory, and atomic operations on device memory let them
-combine results inside one dispatch, but there is no grid-wide barrier and no
-promise that both are resident at the same time, so a threadgroup must never wait
-for another one. Work that needs everything finished goes in the next dispatch.
+both read and write device memory, and integer atomic operations on device memory
+can combine counts inside one dispatch (float atomics are emulated, Chapter 5),
+but no threadgroup can read a finished total within that dispatch: there is no
+grid-wide barrier and no promise that both are resident at the same time, so a
+threadgroup must never wait for another one. Work that needs everything finished goes in the next dispatch.
 
 **A core holds several threadgroups at the same time.** They divide the core's
 registers and scratch memory between them. How many fit is a resource calculation,
@@ -95,15 +96,15 @@ and where threads exchange register values without going through memory.
 | `__shfl_sync` and friends | `simd_shuffle`, `simd_shuffle_xor`, and so on |
 | warp-level reduction | `simd_sum`, `simd_max`, and so on |
 | `__syncwarp()` | `simdgroup_barrier`, with a memory flag that says what to make visible |
-| warp-level MMA (`mma.sync`) | `simdgroup_matrix` |
+| warp-level MMA (`mma.sync`) | `simdgroup_matrix`, the same API shape; before M5 it runs on the regular pipes, not a matrix unit (Chapter 12) |
 
 The exception: there is no Independent Thread Scheduling and there are no
 `__syncwarp` masks to think about. The model is the classic one: if the 32 threads
-take different sides of a branch, both sides execute and the threads on the other
-side wait. Where a branch depends on a value that is known when the pipeline is
-built, Metal kernels remove it from the compiled code instead of paying for it at
-run time; Chapter 8 shows how. A branch that depends on the data still diverges in
-the usual way.
+take different sides of a branch, both sides execute, with the lanes on the other
+side masked off. Where a branch depends on a function constant, a value bound when
+the pipeline is built, Metal kernels remove it from the compiled code instead of
+paying for it at run time; Chapter 8 shows how. A branch that depends on the data
+still diverges in the usual way when the lanes disagree.
 
 Shuffles are fast enough to use freely. The community's measurements put shuffle
 bandwidth at 256 bytes per cycle per core, and the attention kernels in Part 6
@@ -118,19 +119,24 @@ needs: many threads copy one tile into the shared buffer, all wait until the cop
 complete, each simdgroup reads its part, and all wait again before the next tile
 overwrites the buffer. Size threadgroups in multiples of 32 so that every simdgroup
 is full; 128 threads, four simdgroups, is the size of the matrix multiply this book
-follows and of MLX's attention kernel. The launch call that counts in threads can
-make a partial threadgroup at the edge of the grid, which is the one case where a
-simdgroup is not full.
+follows and of MLX's steel attention kernel. The launch call that counts in
+threads can make a partial threadgroup at the edge of the grid, the common case
+where a simdgroup is not full; a threadgroup size that is not a multiple of 32 is
+the other. Simdgroup operations, shuffles, reductions and `simdgroup_matrix`,
+assume every lane takes part, so a short simdgroup breaks them rather than merely
+wasting lanes.
 
 One Metal-specific fact shapes the kernels you will read. The compiler allocates registers when it builds the pipeline, before it knows the
 launch dimensions. Unless the kernel declares a maximum threadgroup size with the
 attribute `max_total_threads_per_threadgroup`, the compiler must plan for the
 largest threadgroup the hardware allows, and it has fewer registers per thread to
-give. CUDA has the same kind of upper bound in `__launch_bounds__`, and CUDA
-programmers often treat it as a tuning detail. Here the attribute is routinely
-worth integer factors, because kernels on this platform keep their working set in
-registers. The hand-written matrix multiply and MLX's steel kernels both carry it,
-and Chapter 12 shows the measured cost of leaving it out.
+give. CUDA's `__launch_bounds__` looks similar but works the other way around:
+nvcc spends registers freely by default, and the bound caps them to raise
+occupancy. Here the default is the stingy one, and the attribute raises each
+thread's grant, which matters because kernels on this platform keep their
+working set in registers. The hand-written matrix multiply and MLX's steel
+kernels both carry it, its author calls it the kernel's single biggest practical
+win, and Chapter 12 reads it in place.
 
 ## A rule for telling the two apart
 
@@ -159,9 +165,10 @@ hardware one, and it is always the unit at the level of an SM.
    upper bound on what is resident; the rest wait.
 2. The Apple count. An Apple GPU core is the unit at the level of an SM; an NVIDIA
    CUDA core is one arithmetic unit inside an SM.
-3. They can use device memory, including atomic operations on it, inside the
-   dispatch, or leave partial results for the next dispatch to combine. They must
-   never wait for each other, because there is no grid-wide barrier and no promise
+3. They can write partial results to device memory for the next dispatch to
+   combine, or update integer counters with atomics inside the dispatch, as long
+   as nothing reads the total until the dispatch is over. They must never wait
+   for each other, because there is no grid-wide barrier and no promise
    that both are resident at the same time.
 
 The next chapter opens the core and measures what is inside: a register file nearly
