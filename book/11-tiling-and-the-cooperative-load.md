@@ -3,7 +3,7 @@
 ## Where we are
 
 Part 3 ended with a chart: MPS at 11.7 TFLOPS, about 87 percent of a 13.5 TFLOPS
-ceiling, for a 4096 by 4096 matrix multiply in 32-bit on an M5 Max. Part 4 writes
+practical, measured ceiling, for a 4096 by 4096 matrix multiply in 32-bit on an M5 Max. Part 4 writes
 the 144-line kernel that reaches the ceiling, one technique at a time, and reads
 the real kernel's code as it goes. The kernel is `sync_copy.metal` from
 yaroslavvb/m5-gemm, BSD-3-Clause, and every excerpt is quoted from the pinned
@@ -28,8 +28,9 @@ names the memory that holds it; the highlighted cell is what the next panel
 magnifies.*
 
 Each level multiplies reuse. A value loaded once into threadgroup memory feeds
-every simdgroup in the threadgroup; a fragment loaded once into registers feeds a
-whole row or column of accumulators. In the kernel this book follows, the levels
+every simdgroup whose patch needs it, two of the four here; a fragment held in
+registers can feed a whole row or column of accumulators, which steel does
+explicitly and this kernel leaves to the compiler (Chapter 12). In the kernel this book follows, the levels
 are fixed by three compile-time constants.
 
 ```metal
@@ -61,23 +62,28 @@ through template parameters, as in steel, Chapter 18, the sizes are baked in so
 that the loops fully unroll and the register allocator can plan. The host picks
 the variant for each shape, Chapter 17.
 
-**The edge is handled at pipeline time, not per thread.** Instead of every thread
-guarding every access, function constants compile separate aligned and ragged
-pipelines, Chapter 8, and the aligned one contains no bounds checks. This kernel
-takes the simplest position: it requires sizes divisible by 64 and has no ragged
-path at all. Steel's loader has both.
+**The edge check is compiled only into the pipelines that need it.** Instead of
+every thread guarding every access everywhere, function constants compile
+separate aligned and ragged pipelines, Chapter 8: the aligned one contains no
+bounds checks, and the ragged one still checks per thread on its edge tiles.
+This kernel takes the simplest position: it requires output dimensions
+divisible by 64 and a shared dimension divisible by 16, and has no ragged path
+at all. Steel's loader has both.
 
 ## The cooperative load
 
 A tile has to get from device memory into threadgroup memory, and on this
-platform there is exactly one way to move it: the threads of the threadgroup copy
-it, together. In a cooperative load the whole threadgroup copies a tile jointly,
-and no thread loads "its own" data; every thread carries an equal, coalesced
-share of everyone's. It is the same staging loop as in a tiled CUDA matrix
+platform the only route is the threads themselves copying it. In a cooperative
+load the threadgroup copies a tile jointly and no thread loads "its own" data;
+in the reference kernel every thread carries an equal, coalesced share of
+everyone's. It is the same staging loop as in a tiled CUDA matrix
 multiply, and two platform facts make it matter more here. There is no
 `cp.async`-style copy engine, Chapter 14, so cooperative loads are the only way
 tiles move. Barriers are nearly free, Chapter 7, so the sequence of load, sync,
-compute, sync costs almost nothing beyond the loads themselves.
+compute, sync costs little beyond the loads themselves and the wait for the
+slowest simdgroup at each barrier. The loader below has no barrier in it; the
+caller stages A and B, barriers, consumes both, and barriers again before the
+next slab overwrites the buffer, which is the loop Chapter 12 reads.
 
 Here is the reference implementation.
 
@@ -108,24 +114,29 @@ Source: [m5-gemm `sync_copy.metal:46-71`](https://github.com/yaroslavvb/m5-gemm/
 
 Read the loop. The tile is treated as `total4` units of four floats, `float4`;
 that is the vectorization. Thread `tid` takes unit `tid`, then unit `tid +
-nthreads`, and so on, so at every step the threads of the threadgroup touch
-consecutive units. That is the coalescing, and it holds on the read from device
-memory and on the write into threadgroup memory alike. The division by `cols4` turns a unit
+nthreads`, and so on, so at every step consecutive threads touch consecutive
+units. On the write into threadgroup memory the whole tile is contiguous. On the
+read from device memory the run is contiguous within each tile row and jumps by
+the matrix's row stride at the row boundary: for the 64 by 16 tile of A, four
+`float4` units per row, so every fourth thread starts a new row 1,024 units
+away. That is the coalescing, by row segment. The division by `cols4` turns a unit
 index into a row and a column, so the same loop serves a 64 by 16 tile of A and a
 16 by 64 tile of B. The `break` handles a tile whose unit count is not a multiple
 of the thread count; with the sizes here it never fires.
 
 Count the work. A 64 by 16 tile is 1,024 floats, which is 256 `float4` units.
 With 128 threads, that is two units per thread: two loads and two stores each,
-and the whole staging step is a few hundred instructions across the threadgroup.
+512 vector memory operations across the threadgroup per tile.
 The `#pragma clang loop unroll(full)` and the `ushort` indices are the
 micro-optimizations of Chapters 4 and 6: the trip count is a compile-time
-constant, so the loop disappears, and the index arithmetic runs in 16-bit.
+constant, so the loop can fully unroll, and the tile-local index arithmetic runs
+in 16-bit while the device address, `uint(r) * stride4 + c`, stays 32-bit.
 
 The rules of thumb are all familiar from CUDA. Map consecutive threads to
 consecutive addresses in both directions, since coalescing matters on the
 device-memory read and bank-friendliness on the threadgroup-memory write, Chapter
-2. Vectorize to `float4` or `half8` when the layout permits. Derive the
+2. Vectorize to `float4`, or an aligned aggregate of eight halves as steel does,
+when the layout permits. Derive the
 thread-to-tile mapping at compile time so the loop fully unrolls.
 
 The production version of this loop is steel's `BlockLoader`, Chapter 18. It
@@ -145,7 +156,7 @@ it.
 
 The problem is cut into 64 by 64 output tiles, 64 × 64 = 4,096 threadgroups for
 the 4096 by 4096 example, each of 128 threads. Each threadgroup walks the shared
-dimension in 256 steps of 16, staging a 64 by 16 tile of A and a 16 by 64 tile of
+dimension in 4096 / 16 = 256 steps of 16, staging a 64 by 16 tile of A and a 16 by 64 tile of
 B per step with the cooperative load above, 8 KB per step. There is no number
 yet, because the multiply that consumes the staged tiles is in the next chapter.
 
@@ -166,11 +177,11 @@ yet, because the multiply that consumes the staged tiles is in the next chapter.
 1. `BM` = `BN` = 2 × 4 × 8 = 64, `BK` = 2 × 8 = 16, and 2 × 2 simdgroups of 32
    threads is 128 threads. The output has (4096 / 64)² = 4,096 tiles, so 4,096
    threadgroups.
-2. Coalescing: at each step consecutive threads read consecutive `float4` units
-   from device memory and write consecutive units into threadgroup memory. It
-   matters here because scattered threadgroup-memory access is comparatively
-   expensive, Chapter 2, and because there is no copy engine to hide a poor
-   pattern.
+2. Coalescing: at each step consecutive threads write consecutive `float4`
+   units into threadgroup memory and read consecutive units from device memory
+   within each tile row, with a stride jump at the row boundary. It matters here
+   because scattered threadgroup-memory access is comparatively expensive,
+   Chapter 2.
 3. 64 × 24 = 1,536 floats, 384 units, 3 per thread, so the loop runs three times
    and the `if (idx >= total4) break;` line never fires; it would fire if the unit
    count were not a multiple of 128.

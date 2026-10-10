@@ -51,7 +51,7 @@ Rules of thumb, all CUDA-familiar: consecutive threads → consecutive addresses
 in *both* directions (DRAM coalescing on the read, bank-friendliness on the
 write, which matters since
 [scattered threadgroup-memory access is pricey here](../machine/threadgroup-memory.md));
-vectorize to `float4`/`half8` when layout permits; derive the mapping at compile
+vectorize to `float4`, or an aligned aggregate of eight halves, when layout permits; derive the mapping at compile
 time so the loop fully unrolls. The historical footnote explains why older
 codebases look different: a single simdgroup issuing a
 [DMA copy for the whole group](../metal/simdgroup-async-copy.md) used to beat

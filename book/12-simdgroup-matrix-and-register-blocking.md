@@ -44,8 +44,10 @@ Load a fragment of A and a fragment of B from threadgroup memory, multiply and
 accumulate into `acc`, advance 8 along the shared dimension, repeat. Three rules
 of use follow, and all of them match what you expect from `wmma`.
 
-- **Fragments are opaque.** You never index into a `simdgroup_float8x8`; its 64
-  elements live distributed across the 32 threads in an undocumented layout.
+- **Fragments are opaque.** A `simdgroup_float8x8` holds 64 elements distributed
+  across the 32 threads in an undocumented layout. `thread_elements()` gives each
+  thread its own two, and steel uses it (Chapter 18), but which matrix coordinate
+  a lane holds is not something to rely on.
   `simdgroup_load` and `simdgroup_store` move whole tiles between a fragment and
   threadgroup or device memory.
 - **Fragments are registers, and they add up.** A 4 by 4 grid of accumulators is
@@ -68,7 +70,8 @@ Register blocking keeps each simdgroup's patch of the output resident in
 registers for the kernel's entire lifetime: accumulate across every step of the
 shared dimension, write to memory exactly once. The idea is the same as the
 accumulator fragments of any warp-tiled CUDA matrix multiply. What differs is the
-proportion. With about 208 KB of registers against 32 KB of threadgroup memory,
+proportion. With about 208 KB of registers per core against 60 KB of scratch per
+core and 32 KB per threadgroup,
 Apple kernels push more of the working set into registers than typical CUDA
 kernels do, and the technique's failure mode, spilling, is correspondingly worse.
 
@@ -84,16 +87,22 @@ Source: [m5-gemm `sync_copy.metal:104-107`](https://github.com/yaroslavvb/m5-gem
 
 ![The accumulator grid: a column of A fragments and a row of B fragments feed a four by four grid of 8x8 accumulators forming one simdgroup's 32x32 output patch](../diagrams/register-blocking.svg)
 
-*The reuse geometry: eight fragment loads feed sixteen multiply-accumulates per
-step, and the accumulator grid never leaves the register file.*
+*The reuse geometry: eight distinct fragments feed sixteen multiply-accumulates
+per step, and the accumulator grid never leaves the register file. In the grid,
+`i` runs along columns and `j` along rows, following the kernel's `(i * 8, j * 8)`
+offset.*
 
 Count the reuse, because it is the reason the grid is 4 by 4 and not 1 by 1. Per
-step of 8 along the shared dimension, the simdgroup loads 4 fragments of A, one
-per row of the grid, and 4 fragments of B, one per column: 8 loads from
-threadgroup memory. They feed 4 × 4 = 16 multiply-accumulates. Every fragment
-loaded is used four times. With a 1 by 1 grid, each step would load 2 fragments
-for 1 multiply, and the simdgroup would be limited by threadgroup-memory
-bandwidth instead of arithmetic. That is the "too small" cliff.
+step of 8 along the shared dimension, the simdgroup needs 4 distinct fragments
+of A, one per row of the grid, and 4 of B, one per column, and they feed 4 × 4 =
+16 multiply-accumulates: every fragment is used four times. Note what the source
+above does with that geometry: each call of the helper loads its own A and B
+fragment, so the kernel as written issues 32 `simdgroup_load` calls per 8-deep
+step for 16 multiplies and leaves it to the compiler whether the repeats stay in
+registers; steel's `BlockMMA` loads the four A and four B fragments once into
+`Atile` and `Btile` and reuses them explicitly (Chapter 18). With a 1 by 1 grid
+there is no reuse to find: 2 fragments per multiply, four times the load traffic
+per multiply-accumulate. That is the "too small" cliff.
 
 The "too big" cliff is the one Chapter 2 introduced. The author tried `SIMD_TILE`
 = 8, an 8 by 8 grid, 64 fragments, a 64 by 64 patch per simdgroup, and the kernel
@@ -101,9 +110,10 @@ ran 10 times slower (not 10 percent slower) because the accumulators spilled.
 Once an accumulator is spilled, the multiply-accumulate that updates it is wrapped
 in a load and a store, and the loop is no longer arithmetic. The cliff is sharp
 because the payload crosses the per-thread budget the compiler set (Chapter 2).
-The 4 by 4 grid is the largest that stays under that budget on this kernel. Two
-register-pressure levers from Chapter 2 apply: 16-bit fragments, which halve the
-budget spent, and the attribute below.
+The sources show that 4 by 4 fits and 8 by 8 spills; where the boundary between
+them lies is not measured. Two register-pressure levers from Chapter 2 apply:
+16-bit input fragments, which halve their share of the budget (the accumulators
+stay 32-bit, Chapter 4), and the attribute below.
 
 ## The most consequential line
 
@@ -153,7 +163,9 @@ multiplies from registers (this chapter), waits at a second barrier, and advance
 `simd_origin` is where this simdgroup's 32 by 32 patch sits in the threadgroup's
 64 by 64 tile, computed from its position in the threadgroup.
 `simdgroup_multiply_tile` is the fragment loop quoted at the top of this chapter,
-run `TILE_K` = 2 times per step to cover the 16-deep slab. The
+called once per accumulator, 16 times per step, and each call runs its loop
+`TILE_K` = 2 times to cover the 16-deep slab. The loop count `k / BK` assumes
+that the shared dimension is a multiple of 16, which the harness enforces. The
 two barriers are the two hazards of Chapter 2: the first waits for the slab to
 arrive, the second waits for every simdgroup to finish reading it before the next
 iteration overwrites it.
@@ -180,10 +192,13 @@ The next chapter covers the epilogue and reads the full file.
 
 ### Answers
 
-1. 4 loads of A and 4 of B, 8 loads, feeding 16 multiply-accumulates, so half a
-   load per multiply-accumulate. A 2 by 2 grid loads 2 + 2 = 4 fragments for 4
-   multiply-accumulates, one load per multiply-accumulate, twice the
-   threadgroup-memory traffic per unit of arithmetic.
+1. 4 distinct fragments of A and 4 of B, 8 in all, feeding 16
+   multiply-accumulates, so half a fragment per multiply-accumulate when the
+   fragments are reused. A 2 by 2 grid needs 2 + 2 = 4 fragments for 4
+   multiply-accumulates, one per multiply-accumulate, twice the
+   threadgroup-memory traffic per unit of arithmetic. The kernel as written
+   reloads per accumulator, so its issued load count is 2 per multiply either
+   way; the reuse is in the distinct fragments.
 2. For its register layout and issue efficiency: the fragment is held across the
    32 threads in a layout the hardware multiplies efficiently, and the loop is a
    handful of calls per step. The gain is not a tenfold throughput unlock, and the
