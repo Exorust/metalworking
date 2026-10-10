@@ -119,9 +119,11 @@ Source: [`sync_copy.metal:84-85`](https://github.com/yaroslavvb/m5-gemm/blob/294
 With `SW` = 2 the bound is 128 threads. Chapters 1, 7 and 8 said what it does:
 the compiler allocates registers when it builds the pipeline, and without the
 bound it must plan for the hardware maximum and give each thread fewer. With it,
-the allocator commits to a budget for 128 threads, and the 16 accumulators per
-simdgroup stop spilling. Chapter 2 quoted the author's measurement of this
-change, and every later chapter refers back to it. The change is one line.
+the allocator commits to a budget for 128 threads, and the author calls the
+result the kernel's single biggest practical win. Note what the attribute does
+not do: the 10 times slower spill of Chapter 2 happened with this line already
+in the file, so the attribute sets the budget; it does not remove the cliff.
+The change is one line.
 
 The step over the shared dimension is the loop that ties the three chapters
 together.
@@ -174,8 +176,7 @@ The next chapter covers the epilogue and reads the full file.
 2. Why does the kernel use `simdgroup_matrix` if the hardware before M5 has no
    matrix unit?
 3. The attribute declares a maximum of 128 threads. What does the compiler do
-   differently with that information, and what happened to this kernel without
-   it?
+   differently with that information, and what does it not protect against?
 
 ### Answers
 
@@ -188,8 +189,9 @@ The next chapter covers the epilogue and reads the full file.
    handful of calls per step. The gain is not a tenfold throughput unlock, and the
    kernel still reaches the compute ceiling.
 3. It allocates registers for 128 threads instead of the hardware maximum, so each
-   thread gets a larger budget. Without it, the accumulators spilled; the author
-   calls the attribute the single biggest practical win in the kernel.
+   thread gets a larger budget; the author calls that the single biggest practical
+   win in the kernel. It does not protect against a payload that exceeds even
+   that budget: the 8 by 8 accumulator grid spilled with the attribute in place.
 
 Every line of the kernel except its ending has now been explained, and the next
 chapter reads the file from top to bottom, including the ending.

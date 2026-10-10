@@ -22,13 +22,14 @@ measurement of its effect on these limits.
 |---|---|---|
 | Register file | about 208 KB | about 256 KB per SM |
 | Scratch (threadgroup memory here, shared memory there) | about 60 KB physical per core; any one threadgroup may use at most 32 KB | up to 228 KB per SM on an H100, configurable |
-| Caches | about 8 KB of L1 data and about 12 KB of instruction cache; a small L2 | an A100 has a 40 MB L2 behind its SMs |
+| Caches | about 8 KB of L1 data and about 12 KB of instruction cache per core; behind the cores, a small L2 | an A100 has a 40 MB L2 behind its SMs |
 
 Compare the rows at the same scope. Per core, the two register files are nearly the
 same size. Per core, the scratch memory is about 60 KB against up to 228 KB, and
 per threadgroup it is capped at 32 KB with no carveout setting to raise it. Several
-resident threadgroups share the core's 60 KB, so the per-threadgroup cap and the
-per-core capacity are different limits, and Chapter 4 uses both. The cache row says
+resident threadgroups share the core's 60 KB (seven of the 8 KB kernel below;
+two at the 32 KB cap would not fit), so the per-threadgroup cap and the per-core
+capacity are different limits, and Chapter 4 uses both. The cache row says
 the caches will not rescue a kernel that does not plan its reuse: 8 KB of L1 is
 small, and there is no 40 MB L2 behind it.
 
@@ -95,8 +96,8 @@ avoid scattered access.
 When a working set will not fit in 32 KB, there is no setting that gives a
 threadgroup more. The two responses are to shrink the slab, consuming the shared
 dimension in smaller steps, or to move values into registers, which works when each
-value is read by only one simdgroup, because registers are private to a thread and
-cannot be read by another simdgroup.
+value is read by only one simdgroup, because a register value can be shared
+within a simdgroup through shuffles (Chapter 1) but never across simdgroups.
 
 ## Spilling, the first cliff
 
@@ -106,15 +107,20 @@ builds the pipeline, and the budget depends on how many threads it must plan for
 without the `max_total_threads_per_threadgroup` attribute from Chapter 1, it plans
 for the largest threadgroup the hardware allows and gives each thread less. When a
 kernel's live values exceed the budget, the compiler spills some of them to memory,
-and every use of a spilled value pays a load or a store around the arithmetic.
+and every update of a spilled accumulator pays a load and a store around the
+arithmetic.
 
 Later chapters refer back to one measurement from the kernel this book follows.
 Its author tried a larger patch per simdgroup, 64 by 64 instead of 32 by
-32, which raises the accumulator count from 16 fragments of 8 by 8 to 64. The
-kernel ran 10 times slower, not 10 percent slower, because accumulators spilled.
-The payload arithmetic alone does not predict the cliff, because the limit is the
-per-thread budget rather than the 208 KB file. The number is a measurement, and
-Chapter 12 shows the attribute that moves it.
+32, which raises the accumulator count from 16 fragments of 8 by 8 to 64: 128
+accumulator registers per thread before any fragment, address or counter. The
+kernel ran 10 times slower, not 10 percent slower, because accumulators spilled,
+and it did so with the threadgroup-size attribute already declared in the file.
+The payload arithmetic alone does not predict the cliff: 64 KB of accumulators
+across four simdgroups is well under the 208 KB file, but the limit is each
+thread's share of the file for the threads the compiler plans to keep resident,
+and only the compiler's output shows where that share runs out (Chapter 26).
+The number is a measurement; Chapter 12 reads the loop it came from.
 
 When an Apple kernel is unexpectedly slow, suspect spills first, the way you would suspect uncoalesced loads first on NVIDIA. Confirming
 them takes the compiler's output, and Chapter 26 shows how to read it. Two levers
@@ -129,7 +135,8 @@ familiar CUDA way: when registers are the limiting resource, more registers per
 thread means fewer resident simdgroups. A larger scratch footprint per threadgroup
 can have the same effect when scratch becomes the limit, and that is part of the
 cost of double buffering, which allocates two staging buffers so that the next
-slab's loads can be issued before the current slab's math is done. Chapter 4
+slab's loads can be issued, by the same threads, before the current slab's math
+is done. Chapter 4
 sets the balance point, and Chapter 14 measures the trade.
 
 ## Check yourself
@@ -154,9 +161,11 @@ sets the balance point, and Chapter 14 measures the trade.
    in smaller steps so the slab shrinks, or to keep in registers any values that
    only one simdgroup reads.
 3. Register spilling: the larger patch needs four times the accumulators per
-   simdgroup. Payload does not predict it because the limit is the per-thread
-   budget the compiler set at pipeline build, which depends on the threadgroup
-   size it had to plan for, not the 208 KB of the whole file.
+   simdgroup, 128 accumulator registers per thread. Payload does not predict it
+   because the limit is each thread's share of the file for the resident threads
+   the compiler planned for, a budget set at pipeline build, not the 208 KB of
+   the whole file; and the kernel already declared its threadgroup size, so the
+   attribute is not what moved this number.
 
 The next chapter goes below the core, to the one memory pool that every
 threadgroup reads from, and to the number that decides most kernel designs here.
