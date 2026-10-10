@@ -5,8 +5,8 @@
 Part 2 gave you the least Metal needed to run a kernel. Part 3 is about measuring
 it before anyone optimizes it, which on this platform is harder than on NVIDIA
 because the profiler you are used to does not exist. This chapter settles two
-things first: the number a custom kernel has to beat, and the one reliable way to
-time it. It also starts the running example. From here to the end of Part 6, one
+things first: the number a custom kernel has to beat, and the way this book
+times it. It also starts the running example. From here to the end of Part 6, one
 matrix multiply, 4096 by 4096 in 32-bit floats on a 40-core M5 Max, carries a
 number from chapter to chapter.
 
@@ -32,8 +32,8 @@ Apple Silicon has repeatedly matched or beaten it with open kernels.
   operations.
 
 MPS is beatable because its kernels are general and opaque. There is no
-function-constant specialization for your shapes, Chapter 8; no fusion with the
-operations around the call, Chapter 15; and no kernels for the quantized weight
+function-constant specialization for your shapes, Chapter 8; no fusion with your own
+surrounding operations, Chapter 15, beyond the few fused operations MPS ships; and no kernels for the quantized weight
 formats that language models use, Chapter 23. The places where frameworks still
 lean on MPS are where its coverage is hard to replicate: convolution variants,
 some reductions, and small-matrix cases where the CPU's own matrix unit and
@@ -68,18 +68,23 @@ Isolate what you are measuring in its own command buffer, so the time contains
 nothing else. Create the pipeline state before the timed loop, Chapter 6, so that
 compilation never lands in a timing, and discard the first runs, which start with
 cold caches and clocks. And take several trials and report a median or a best-of,
-because single timings vary; the m5-gemm numbers in this book are the best of 3
-runs of 5 trials each. From the time, you compute the rate: a matrix
-multiply at size n does 2n³ floating point operations, so 4096 by 4096 is about
-137 GFLOP, and 137 GFLOP in 10.2 milliseconds is about 13.5 TFLOPS.
+because single timings vary. The m5-gemm README reports the best of 3 runs,
+each run the average of 5 trials; the harness itself keeps every sample and
+averages them, discarding none, so apply the warm-up rule yourself. Its contract
+is the full alpha × A × B + beta × C with random alpha and beta on untransposed
+32-bit operands, and it checks every result against NumPy before it keeps the
+time. From the time, you compute the rate: a matrix multiply at size n does 2n³
+floating point operations, so 4096 by 4096 is 2 × 4096³ = 137.4 GFLOP, and
+137.4 GFLOP in 10.2 milliseconds is 13.47, about 13.5 TFLOPS.
 
 ## What else exists, and why it is not the feedback loop
 
 Xcode's GPU capture, the Metal Debugger, is the closest thing to a real profiler:
 per-encoder timings, an occupancy estimate, memory-bandwidth counters, shader
-profiling. It has two structural limits. It is a GUI, so there is no continuous
-integration and no scripted regression check. And capture perturbs heavily on big
-machine-learning workloads: inference projects report slowdowns of 50 to 100
+profiling. It has two structural limits. Capture can be started from code, which the
+m5-gemm harness does through `MTLCaptureManager`, but reading its counters is a
+GUI job, so there is no scripted regression check on them. And capture perturbs
+heavily on big machine-learning workloads: inference projects report slowdowns of 50 to 100
 times and traces of several gigabytes. You can use it to study one dispatch,
 but not as a feedback loop.
 
@@ -89,11 +94,12 @@ per kernel are not in the public programmatic interface. The GUI capture does
 surface them: the flash-moe project pulled a full instruction-cost breakdown from
 a GPU trace, 63.9 percent of instruction cost in arithmetic, 25 percent in type
 conversion from bf16 scale and bias values, a 93.4 percent L1 hit rate, and 2.4
-percent GPU utilization, which told them their model was bound by input and
-output, not by compute. This is changing: macOS 27 adds always-on
+percent GPU utilization, 747 microseconds of GPU time in a 31.5 millisecond
+step, which told them their model was bound by input and output, not by compute. This is changing: macOS 27 adds always-on
 performance metrics, a `metalperftrace` command-line tool, and a state-reporting
 API, announced in session 388 of WWDC 2026, which would give this platform its
-first scriptable feedback loop. Until that ships and proves itself, use the
+first scriptable hardware-counter loop; the timestamp loop above is scriptable
+already. Until that ships and proves itself, use the
 methodology below.
 
 ## The methodology
@@ -122,14 +128,14 @@ independently.
 MPS multiplies two 4096 by 4096 32-bit matrices on an M5 Max at 11.7 TFLOPS, best
 of 3 runs of 5 trials, measured by command-buffer timestamps. That is the number
 to beat. At 1024 by 1024, where launch costs matter more, MPS reaches only 2.9
-TFLOPS; at 8192 by 8192 it reaches 13.5. The kernel of Part 4 has to beat the
-middle number at the middle size.
+TFLOPS; at 8192 by 8192 it reaches 13.5. The kernel of Part 4 has to beat 11.7
+TFLOPS at 4096 by 4096.
 
 ## Check yourself
 
 1. A harness times one dispatch by wrapping `commit` and `waitUntilCompleted` with
-   the CPU clock. What does the chapter say to use instead, and what three
-   things must the harness do before it trusts a number?
+   the CPU clock. What does the chapter say to use instead, and what must
+   the harness do before it trusts a number?
 2. A custom kernel reaches 12 TFLOPS at 4096 by 4096 on an M5 Max. Is that a win,
    and what does the chapter say to do if it reaches 11?
 3. Why does the chapter call Xcode's GPU capture unusable as a feedback loop,
@@ -138,12 +144,14 @@ middle number at the middle size.
 ### Answers
 
 1. The command buffer's `GPUStartTime` and `GPUEndTime`, which measure GPU time
-   rather than CPU wait time. The harness must build its pipelines before timing
-   and discard the first runs, and take several trials.
+   rather than CPU wait time. The harness must isolate the dispatch in its own
+   command buffer, build its pipelines before timing and discard the first
+   runs, and take several trials.
 2. Yes: MPS is 11.7, so 12 beats the baseline at that shape. At 11 it does not,
    and the rule is to ship MPS.
-3. Because it is a GUI with no scripted path, and because capturing a large
-   machine-learning workload perturbs it by 50 to 100 times and produces traces of
+3. Because its counters can only be read in the GUI, even though a capture can
+   be started from code, and because capturing a large machine-learning
+   workload perturbs it by 50 to 100 times and produces traces of
    several gigabytes, so it cannot run on every change the way a benchmark can.
 
 A time and a rate are not yet a verdict; the next chapter builds the chart that

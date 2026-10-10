@@ -78,7 +78,7 @@ was short of.
 ## Three sizes, three winners
 
 The author measured the single-buffered kernel, the double-buffered kernel and
-MPS at four sizes on an M5 Max, 32-bit, best of 3 runs of 5 trials.
+MPS at four sizes on an M5 Max, 32-bit, best of 3 runs each averaging 5 trials.
 
 | Size | sync_copy | sync_copy_db | MPS |
 |---:|---:|---:|---:|

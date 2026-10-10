@@ -161,7 +161,7 @@ iteration overwrites it.
 ## Where the matmul stands
 
 The kernel multiplies two 4096 by 4096 32-bit matrices on a 40-core M5 Max at
-13.5 TFLOPS, best of 3 runs of 5 trials, against 11.7 for MPS. It beats the
+13.5 TFLOPS, best of 3 runs each averaging 5 trials, against 11.7 for MPS. It beats the
 library by (13.5 - 11.7) / 11.7, about 15 percent, and it sits at the practical
 compute ceiling of Chapter 10, which is defined by this result. Three techniques
 got it there: tiling, the cooperative load, and register blocking on
