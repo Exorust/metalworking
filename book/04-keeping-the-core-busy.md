@@ -185,4 +185,4 @@ Part 1 ends with the two instruction-level facts that fit under neither bandwidt
 nor occupancy and that shape the attention kernels: one exponent path and one
 missing atomic.
 
-Next: [The two asymmetries: fast exp2, no float atomics](05-the-two-asymmetries.md)
+Next: [The two asymmetries: fast exp2, emulated float atomics](05-the-two-asymmetries.md)

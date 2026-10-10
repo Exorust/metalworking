@@ -1,4 +1,4 @@
-# The two asymmetries: fast exp2, no float atomics
+# The two asymmetries: fast exp2, emulated float atomics
 
 ## Where we are
 
@@ -31,22 +31,24 @@ calls `fast::exp2` on the scaled score. Here is the fold in MLX's attention kern
 ```
 Source: [MLX `steel_attention.h:166`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/attn/kernels/steel_attention.h#L166)
 
-Compared with computing `exp2(s * scale * log2(e))` inside the loop, the fold saves
-one multiply per score, and `fast::exp2` goes to the hardware exponent rather than
-to whatever a library `exp` expands to. Two things to know before you copy it. A
-stable softmax subtracts a running maximum and keeps correction terms, and all of
-them must be in the same base-2 units once the scores are; an additive mask or
-bias has to be multiplied by `log2(e)` as well, which the same MLX kernel does.
-And reassociating the arithmetic changes rounding, so the first time you apply it
-to a kernel, check the output against the original. Chapter 20 derives the
+The point of the fold is not the multiply, which a compiler hoists out of the
+loop anyway; it is that the loop then calls `fast::exp2`, the hardware exponent,
+instead of whatever a library `exp` expands to. Two things to know before you
+copy it. A stable softmax subtracts a running maximum and keeps correction
+terms, and all of them must be in the same base-2 units once the scores are: the
+correction becomes `fast::exp2(m2_old - m2_new)`, and an additive mask or bias
+has to be multiplied by `log2(e)` (not by the folded scale), which the same MLX
+kernel does. And `fast::exp2` is a reduced-precision path, like CUDA's
+`__exp2f`, so the first time you apply it to a kernel, check the output against
+the original. Chapter 20 derives the
 algorithm the fold lives in. Not every production kernel does it: the pinned
 llama.cpp attention calls `exp` on the shifted score and leaves the lowering to
 the compiler.
 
 ## Float atomics that run slowly
 
-In CUDA, `atomicAdd` on a 32-bit float is a hardware instruction, cheap when the
-addresses are not contended, and CUDA kernels use it freely: accumulation across
+In CUDA, `atomicAdd` on a 32-bit float is a hardware instruction on every
+current GPU, and CUDA kernels use it freely: accumulation across
 thread blocks, gradient reductions, histogram bins. Do not carry that habit over.
 The Metal API accepts float atomic adds, but on Apple hardware they are emulated
 with compare-and-swap loops. The emulation costs more than a few percent; it is
@@ -54,7 +56,10 @@ slow enough to decide how a kernel is structured.
 
 Chapter 1 said that two threadgroups in one grid can combine results through
 atomic operations on device memory. For floats, that route is legal and slow, and
-the production kernels in this book are shaped around avoiding it.
+the attention kernels in this book are shaped around avoiding it. MLX's general
+reductions do still call the emulated add on their outputs, where contention is
+rare; the compare-and-swap loop you will find written out by hand in MLX's
+`atomic.h` is for float min and max, for which no builtin exists at all.
 
 - metal-flash-attention splits its backward pass into two kernels, one that
   produces dQ and one that produces dK and dV. Each output element then has one
@@ -77,8 +82,9 @@ is the first thing to redesign, and there are two directions to take it.
 
 1. **Split and combine.** Give each threadgroup its own slice of the output, write
    partials to a scratch buffer, and combine them in a second dispatch. For P
-   partial values this costs 4P bytes written and 4P bytes read, plus one extra
-   dispatch.
+   32-bit partial values this costs 4P bytes written and 4P bytes read, plus one
+   extra dispatch; the decode kernel above also writes a maximum and a sum per
+   partial.
 2. **Make the accumulation local to one simdgroup.** When every contribution to a
    given sum can be arranged to live in one simdgroup, `simd_sum` combines them in
    registers with no memory traffic for the intermediate. Fusion, Chapter 15, is
@@ -90,14 +96,15 @@ says which direction to try first; a measurement says which one wins.
 
 ## Why these two belong together
 
-Both asymmetries push in the same direction as the law. The exponent fold removes
-arithmetic from a loop, at no cost in traffic. The slow float atomic removes the
-easy way to combine results across threadgroups, which forces kernels toward
-designs that keep partial results local for as long as possible, in registers,
-inside one simdgroup. A kernel designed that way tends to move fewer bytes, which
-is what the law rewards whenever bandwidth is the binding ceiling. The two-pass
-pattern that float atomics force on reductions is a pattern a bandwidth-bound
-reduction would often use anyway.
+Both are facts about the arithmetic units that the budgets of Chapters 2 to 4
+do not capture, and both show up in the attention kernels of Part 6. The exponent
+fold is the one arithmetic trick every attention kernel on the platform shares.
+The slow float atomic removes the easy way to combine results across
+threadgroups, and each of the three workarounds has a price: owner-computes
+recomputes the scores, split-and-combine writes and rereads the partials and
+adds a dispatch, and `simd_sum` stays in registers only when the whole sum fits
+in one simdgroup. Which price is smallest is a byte count, Chapter 3's
+arithmetic, and then a measurement.
 
 That is Part 1. You now have the vocabulary of the two hierarchies, the budgets
 inside a core, the law that says most kernels are bandwidth bound and the ridge
@@ -118,13 +125,15 @@ and the two instruction-level asymmetries. Later chapters cite these by number.
 
 1. Compute `scale2 = scale * log2(e)` once outside the loop, keep the running
    maximum in the same scaled units, and compute `fast::exp2(s * scale2 - m2)` in
-   the loop. It saves one multiply per score; the maximum and any additive mask
-   must be converted to the same base-2 units, and the output should be checked
-   for rounding differences.
+   the loop, with the correction factor as `fast::exp2(m2_old - m2_new)`. The
+   gain is the hardware exponent, not the hoisted multiply. Any additive mask
+   must be multiplied by `log2(e)`, and the output should be checked, because
+   `fast::exp2` is a reduced-precision path.
 2. Split and combine, where each threadgroup writes its partial and a second
    kernel adds them; or give each row to one simdgroup and use `simd_sum` in
    registers. The second moves fewer bytes, because the partials never leave
-   registers, and a measurement decides whether the lost parallelism costs more.
+   registers, but it is available only when the whole sum fits in one simdgroup,
+   and a measurement decides whether the lost parallelism costs more.
 3. So that every output element has exactly one owning threadgroup: the dQ kernel
    owns query rows and the dK and dV kernel owns key rows. Accumulating one
    element from two threadgroups would need float atomic adds, which are emulated

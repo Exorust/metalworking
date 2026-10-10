@@ -84,7 +84,7 @@ export const BOOK = [
     ["02-the-cores-memories", "The core's memories: 208 KB of registers, 32 KB of scratch", "Explain why Apple kernels keep their working set in registers."],
     ["03-one-memory-pool-one-law", "One memory pool and the one law: bandwidth", "Compute a ridge point and say whether a kernel is bandwidth bound."],
     ["04-keeping-the-core-busy", "Keeping the core busy: occupancy, stalls, and F16", "Reason about occupancy from resource arithmetic, and say why F16 wins."],
-    ["05-the-two-asymmetries", "The two asymmetries: fast exp2, no float atomics", "Recognize the two hardware paths that reshape kernels here."],
+    ["05-the-two-asymmetries", "The two asymmetries: fast exp2, emulated float atomics", "Recognize the two hardware paths that reshape kernels here."],
   ]},
   { n: 2, title: "Running a kernel", question: "What is the least Metal you need?", chapters: [
     ["06-from-source-to-pipeline-state", "From source to pipeline state", "Read a Metal kernel signature and follow it from source to a pipeline state."],
