@@ -222,7 +222,7 @@ maps to a chapter.
    column count and each thread's share are multiples of 4, which holds for 64 by
    16 and 16 by 64 tiles with 128 threads. The fallback would run for a tile
    shape that fails either test, for example `SIMD_TILE` = 1 with `TILE_K` = 1,
-   where a 32 by 8 tile gives 256 / 128 = 2 floats per thread.
+   where the 16 by 8 tile of A is 128 floats, 128 / 128 = 1 per thread.
 3. The `simdgroup_load` of C and the `simdgroup_store` of the result; the two
    multiplies work on fragments in registers. Each output element is read once
    and written once.
