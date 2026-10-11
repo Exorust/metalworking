@@ -1,17 +1,18 @@
 # Sparse-V: The Canonical Win
 
-**+22.8% decode at 32K context, perplexity unchanged, from three lines, after
-fourteen clever micro-optimizations all lost to baseline. The single most
+**+22.8% decode at 32K context (47.0 to 57.7 tok/s against the turbo3 baseline),
+perplexity unchanged, from three lines, after fourteen dequant-level
+optimizations had topped out at +38%. The single most
 instructive optimization story on the platform.**
 ([r/LocalLLaMA thread](https://www.reddit.com/r/LocalLLaMA/comments/1s56g07/);
 Qwen3.5-35B-A3B on an M5 Max, llama.cpp fork)
 
 The setup: llama.cpp decode at long context, where the
 [bandwidth-bound](../techniques/decode-vs-prefill.md) cost is streaming and
-[dequantizing](../mlx/quantization.md) the KV cache every token. The author tried
-fourteen micro-optimizations: tile shapes, load widths, the usual
-[GEMM-school](../techniques/tiling.md) repertoire. All fourteen lost to baseline.
-(The defaults are good; [this is the norm](the-failures.md).)
+[dequantizing](../mlx/quantization.md) the KV cache every token. The author first tried
+fourteen ways to make the dequantization itself faster: lookup-table layouts,
+byte extraction, bit arithmetic, shuffles. The best gained +38% at 8K on an M2
+Pro; the rest were slower than it.
 
 The observation that worked, a pure
 [question-1 delete](three-questions.md): [flash
@@ -48,9 +49,10 @@ Why it teaches so much per line:
 
 Same author, same insight one level up: **TurboQuant KV compression**
 ([thread](https://www.reddit.com/r/LocalLLaMA/comments/1s5vhf6/)),
-Walsh-Hadamard rotation plus quantization of the KV cache, 4.6× compression at
-0.98× fp16 decode speed. The naive version ran 0.28×; fusing the quant/dequant
-into the surrounding kernels was
-[the entire difference](../techniques/fusion-and-epilogues.md).
+Walsh-Hadamard rotation plus quantization of the KV cache. Its own history
+records prefill at 0.27× a q8_0 baseline at first and 0.98× after five changes
+(fp16 rotation, vectorization, graph-side rotation, block storage, optimized
+dequant), two of which are
+[fusion](../techniques/fusion-and-epilogues.md).
 
 Next: [The failures](the-failures.md)

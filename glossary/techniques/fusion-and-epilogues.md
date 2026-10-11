@@ -40,10 +40,10 @@ reuse. Every layer of the local stack uses fusion:
   same idea to search-based extremes (one command buffer per forward pass; flash
   attention rediscovered by e-graph search).
 - **Fusion into quantized loops**: the
-  [TurboQuant war story](../war-stories/sparse-v.md)'s KV-cache compression ran at
-  0.28× until its quantize/dequantize steps were fused into the surrounding
-  kernels; 0.98× after. The difference between a technique that works on paper
-  and one that ships was *only* the fusion.
+  [TurboQuant war story](../war-stories/sparse-v.md)'s KV-cache compression ran
+  prefill at 0.27× its q8_0 baseline until the rotation moved into the graph and
+  the dequant into the kernels (with fp16, vectorization and block storage
+  alongside); 0.98× after. About half the gain is fusion in this page's sense.
 
 The discipline the technique imposes: before writing any new kernel, ask whether
 the win is actually "delete a round trip"

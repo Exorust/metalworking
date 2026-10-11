@@ -80,12 +80,15 @@ streaming softmax of Chapter 20, and the quantization-aware loops of Chapter 23.
 
 ## Fusion into quantized loops
 
-One case puts a number on the principle. The TurboQuant key-value cache
-compression of Chapter 25 ran at 0.28 times the baseline speed until its
-quantize and dequantize steps were fused into the surrounding kernels, and at
-0.98 times after. Fusion was the only difference between the version that worked
-on paper and the version that shipped. The compression and the arithmetic were
-the same, and the unfused version paid for its intermediates in traffic.
+One case puts numbers on the principle, with a caveat about attribution. The
+TurboQuant key-value cache compression of Chapter 25 ran prefill at 0.27 times
+its q8_0 baseline at first and 0.98 times after five changes, by the project's
+own history: a 16-bit rotation (to 0.40), vectorizing it (0.52), moving the
+rotation into the graph so it is not a separate pass (0.78), block storage
+(1.02) and an optimized dequantization inside the kernels (0.98 at a longer
+context). The compression was the same throughout; what changed was how many
+separate passes over the cache the arithmetic cost. Two of the five steps are
+fusion in this chapter's sense, and they account for about half the gain.
 
 ## The discipline
 
@@ -111,8 +114,9 @@ them. The example changes from a kernel to a framework in the next chapter.
    as two separate kernels on a 4096 by 4096 32-bit output. How many bytes of
    traffic do the two kernels add, and what does fusing them into the epilogue
    save at 516 GB/s?
-2. Why did the TurboQuant compression run at 0.28 times baseline before fusion,
-   even though it moved fewer bytes of cache?
+2. Why did the TurboQuant compression run at 0.27 times its baseline at first,
+   even though it stored fewer bytes of cache, and which of its five fixes are
+   fusion?
 3. Which patterns does the chapter say to leave to `mx.compile`, and which does it
    say need a custom kernel?
 
@@ -123,9 +127,11 @@ them. The example changes from a kernel to a framework in the next chapter.
    GB/s that is about 0.52 milliseconds, against 2 × 4096³ / 13.5 TFLOPS = 10.2
    milliseconds for the multiply itself. The fused epilogue adds no output
    traffic; the bias vector it reads is 16 KB.
-2. Because its quantize and dequantize steps ran as separate kernels, each paying
-   a full round trip for its intermediate; the savings on the cache were smaller
-   than the traffic the intermediates cost until they were fused away.
+2. Because the rotation and the dequantization ran as separate passes in
+   32-bit, each a round trip over the cache, so the extra passes cost more than
+   the smaller cache saved. Moving the rotation into the graph and fusing the
+   dequantization into the attention kernel are the fusion steps; the 16-bit
+   rotation, vectorization and block storage are not.
 3. Elementwise chains go to `mx.compile`. Reductions with structure, streaming
    softmax, and quantization-aware loops need a kernel that already knows the
    pattern, the framework's own fused primitive where one exists and a custom
