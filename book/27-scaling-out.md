@@ -8,7 +8,7 @@ unified memory. This chapter covers the other direction: when a model does not
 fit in one machine, `mx.distributed` runs it across several. With macOS 26.3 and
 Thunderbolt 5 the connection between them is remote direct memory access at
 microsecond latencies, so the lack of NVLink no longer ends the scaling story.
-The chapter is short because Chapter 22 already built the performance intuition.
+Chapter 22 already built the performance intuition this chapter leans on.
 
 ## What it is, against NCCL
 
@@ -17,8 +17,9 @@ numbers: NVLink moves hundreds of gigabytes per second between GPUs in one
 chassis; Thunderbolt 5 RDMA moves tens of gigabytes per second between chassis.
 The Apple version is still worth having because of the memory arithmetic. Each
 node brings up to 512 GB of unified memory, so two Mac Studios hold a
-trillion-parameter model that no single consumer NVIDIA machine can load at any
-speed. The public existence proof is Kimi K2, a trillion-parameter model,
+trillion-parameter model resident in GPU-addressable memory, which no single
+consumer NVIDIA card can do; a machine with such a card can still run the model
+by paging weights through host memory, slowly. The public existence proof is Kimi K2, a trillion-parameter model,
 running across two M3 Ultra machines through `mx.distributed`.
 
 The pieces, from the MLX distributed documentation and session 233 of WWDC 2026:
@@ -31,45 +32,70 @@ The pieces, from the MLX distributed documentation and session 233 of WWDC 2026:
 - **The API is collective-shaped.** It provides `mx.distributed.init()`, `all_sum`,
   `all_gather`, `send` and `recv`, and you launch it with `mlx.launch --hosts`. The lazy
   model of Chapter 16 carries over: communication operations are graph nodes,
-  batched and overlapped like everything else.
+  scheduled and overlapped with the rest of the graph. They are not Metal
+  kernels, though. In the pinned MLX, every distributed primitive's GPU
+  evaluator throws "has no GPU implementation", so the collectives run on the
+  CPU stream and the overlap you get is between that stream and the GPU's.
 - **Sharding strategies.** Pipeline parallelism splits the layers across nodes,
-  with one link crossing per token per boundary, and suits decode's serial
-  nature. Tensor parallelism splits every matrix multiply, with collectives per
-  layer, and demands the RDMA path. Mixture-of-experts models shard naturally by
-  expert placement, which is the three-questions territory of Chapter 24. llama.cpp
-  reached the same place independently; its Metal backend grew tensor-split
-  support.
+  with one activation crossing per boundary per token, and suits decode's
+  serial nature. Tensor parallelism splits the matrix multiplies across nodes,
+  with collectives per layer; it runs over TCP, but it is only worth running
+  over the RDMA path. Mixture-of-experts models shard naturally by expert
+  placement, which is the placement question of Chapter 24. llama.cpp reached
+  the same place independently: `--split-mode layer` and `--split-mode tensor`,
+  with `--tensor-split` setting the proportions, across the devices one process
+  can see.
 
 ## The performance intuition, from Chapter 22
 
-Decode is latency dominated, one token at a time, so what matters is the number
-of round trips per token, which is pipeline parallelism's advantage: one crossing
-per boundary per token. Prefill is throughput dominated and tolerates chattier
-schemes, so tensor parallelism's per-layer collectives cost less there than they
-would in decode.
+Decode is latency dominated, one token at a time, so every message on the
+token's critical path adds to the time per token. That is pipeline
+parallelism's advantage: one activation crossing per boundary, plus the sampled
+token travelling back to the first stage to start the next step. Prefill is
+throughput dominated and tolerates schemes with more messages, so tensor
+parallelism's per-layer collectives cost a smaller share of the time there than
+they would in decode. Fewest messages is not automatically fastest, though.
+Pipeline stages run one after another for a single sequence, while a tensor
+split lets both machines work on the same layer at once; which wins is a
+comparison of complete critical paths, not a count of messages.
 
-The law of Chapter 3 still applies. A cluster whose links are slower than its
-local memory bandwidth, tens of gigabytes per second against hundreds, only wins
-when the alternative is not fitting at all. Local language-model clusters are
-in that regime: the model is too large for one machine's memory, so one machine
-cannot run it and there is nothing to compare the cluster against. The question
-is whether the cluster's tokens per second are worth having at all. By the arithmetic of Chapter 22, a
-pipeline-parallel decode step pays the per-machine bandwidth time for its share
-of the weights plus one link crossing per boundary, and with crossings of a few
-microseconds against weight streaming of tens of milliseconds, the link is not
-where the time goes.
+The law of Chapter 3 still applies, with one derived comparison attached. Put
+the time to stream a model's weights through one machine at W divided by B,
+bytes over bandwidth. A tensor split across p machines streams W divided by pB
+per machine and adds communication time T. Splitting wins only when T is less
+than the time it saved, W over B times (1 minus 1 over p). With links at tens
+of gigabytes per second against local memory in the hundreds, that condition
+is hard to meet for a model that fits in one machine, which is why the usual
+advice is that a cluster pays off when the alternative is not fitting at all.
+"Not fitting" needs care too: Chapter 24's flash-moe runner serves a 209 GB
+model from 128 GB of RAM by streaming experts from disk, so one machine can
+run such a model, just not with all of it resident. The cluster's comparison
+point is that streaming runner, not nothing.
+
+For pipeline parallelism the per-token cost is the sum of the stages' weight
+streaming times plus the crossings. Take Chapter 23's dense example, about 80
+milliseconds per token to stream 39 GB of weights on one machine, and split it
+in half: each stage streams about 40 milliseconds. A crossing is the link
+latency, about 3 microseconds, plus the activation payload. If the hidden size
+is 8,192 values in 16 bits, that is 16 KiB, and at an assumed 40 gigabytes per
+second it takes under half a microsecond. Two crossings per token add well
+under 10 microseconds against 80 milliseconds of streaming, so for dense
+pipeline decode the link is not where the time goes. The assumption to check is
+the 40 gigabytes per second: measure your own link before trusting it.
 
 ## What transfers from CUDA, and what does not
 
 The collective vocabulary transfers whole: an `all_sum` is an all-reduce, an
 `all_gather` is an all-gather, and the sharding strategies have the same names
 and the same trade-offs as on a multi-GPU NVIDIA box. Two things do not transfer.
-The first is the ratio between link bandwidth and local bandwidth, which is far
-worse here, so schemes that are routine on NVLink, tensor parallelism for decode
-in particular, cost more than their CUDA reputation suggests. The second is the
-unit of scaling: on NVIDIA you add cards to a chassis, and here you add
-machines, each with its own operating system, its own wired-memory ceiling
-(Chapter 25), and its own copy of the runtime.
+The first is the ratio between link bandwidth and local bandwidth. NVLink's
+hundreds of gigabytes per second sit in the same class as local memory;
+Thunderbolt's tens do not, so schemes that are routine over NVLink, tensor
+parallelism for decode in particular, cost more here than they do there. The
+second is the first step of scaling: on NVIDIA you can add a card to the
+chassis before you add a machine, and here the first step is already another
+machine, with its own operating system, its own wired-memory ceiling (Chapter
+25), and its own copy of the runtime.
 
 ## Setup realities
 
@@ -83,27 +109,35 @@ in the book's sources.
 ## Check yourself
 
 1. Two machines each hold half of a model's layers. For one generated token,
-   how many link crossings does pipeline parallelism cost, and why is that the
-   right choice for decode?
-2. Why does the chapter say a Thunderbolt cluster "only wins when the
-   alternative is not fitting at all"?
+   what crosses the link under pipeline parallelism, and why is that a good fit
+   for decode?
+2. Under what condition does splitting a model that fits in one machine across
+   two machines make a token faster, and why is that condition hard to meet
+   over Thunderbolt?
 3. A trillion-parameter model in 16-bit needs about 2 TB of weights. Why can two
    Mac Studios not hold it in that form, and what does the Kimi K2 proof imply
    about how it was stored?
 
 ### Answers
 
-1. One, at the boundary between the two halves, per token. Decode is latency
-   dominated, so the scheme with the fewest round trips per token wins.
-2. Because the link, at tens of gigabytes per second, is slower than local memory
-   bandwidth, so any work that could have stayed on one machine is slower when
-   split; the cluster pays off only for models that one machine cannot load.
-3. Two machines at 512 GB each hold 1 TB, half of 2 TB, so the weights must have
-   been quantized (Chapter 23), and to fewer than 8 bits, since 8 bits would fill
-   the whole 1 TB with nothing left for the cache or the runtime.
+1. One activation crossing at the boundary between the halves, and the sampled
+   token going back to the first machine for the next step. Decode is latency
+   dominated, so a scheme whose messages are few and small, and whose per-token
+   time is dominated by weight streaming rather than by waiting on the link,
+   fits it well.
+2. When the communication time is less than the streaming time saved: with two
+   machines, less than half of the single-machine time W over B. Thunderbolt's
+   tens of gigabytes per second against local memory's hundreds make that
+   saving small relative to the collectives a tensor split needs per layer.
+3. A trillion parameters at 2 bytes each is 2 times 10 to the 12 bytes, 2 TB.
+   Two machines at 512 GB hold 1,024 GB, about half. So the weights were
+   quantized (Chapter 23). Raw 8-bit codes would take 1,000 GB and leave 24 GB,
+   but the affine format of Chapter 23, with a 16-bit scale and bias per group
+   of 64, costs 8 plus 32 over 64, which is 8.5 bits per weight, or 1,062.5 GB,
+   and does not fit. So either the average width was below 8 bits, or the
+   metadata was cheaper than that example; the proof alone does not say which.
 
-Part 7 is done. The last part is about the hardware that arrived after most of
-this book's kernels were written: a real matrix unit in every GPU core, and the
-programming model that reaches it.
+Part 7 is done, and the last part is about the M5 generation's real matrix
+unit in every GPU core and the programming model that reaches it.
 
 Next: [Three matrix engines on one die](28-three-matrix-engines.md)
