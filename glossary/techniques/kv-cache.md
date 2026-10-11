@@ -32,8 +32,9 @@ consequences the glossary keeps meeting:
 measured that quantizing K to 4 bits or below breaks greedy decode (softmax is
 sensitive to small score perturbations, and K sits upstream of the softmax),
 while V tolerates 3-bit quantization fine (V is consumed by a weighted
-average, which absorbs noise). Its mixed K8/V4 configuration cut a 6.21 GB
-fp16 cache to 5.08 GB with greedy output verified identical to baseline. The
+average, which absorbs noise). Its mixed K8/V4 configuration cut active memory from 6.21 GB
+to 5.08 GB with greedy output verified identical to baseline (decode ran slower
+in that measurement, 25.84 vs 35.75 tok/s). The
 general rule: treat K's precision as accuracy-critical and V's as a bandwidth
 knob. Practitioner reports of `kv_bits=4` corrupting long prefilled contexts
 are this asymmetry being ignored. Quantized KV also does not speed up
