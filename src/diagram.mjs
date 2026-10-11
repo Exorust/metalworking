@@ -30,8 +30,21 @@ export function hasDiagram(name) {
   return name in KEYS;
 }
 
+// Text drawn in the accent, soft or amber hue takes a text-specific token first, because the
+// Light theme needs a darker tone for 4.5:1 on its pale surfaces than the same hue used as a fill.
+const TEXT_MAP = [
+  ["#77ef5e", "--dg-acc-fg", "--dg-acc"],
+  ["#a6cc97", "--dg-soft-fg", "--dg-soft"],
+  ["#e8c268", "--dg-amber-fg", "--dg-amber"],
+];
+
 export function themedDiagram(name = "memory-hierarchy.svg") {
   let svg = raw[KEYS[name]];
+  svg = svg.replace(/<(?:text|tspan)\b[^>]*>/g, (tag) => {
+    for (const [hex, fg, fill] of TEXT_MAP)
+      tag = tag.replaceAll(`fill="${hex}"`, `fill="var(${fg}, var(${fill}, ${hex}))"`);
+    return tag;
+  });
   // The background rect first; remaining #0d180a occurrences are dark-on-accent text.
   svg = svg.replace('rx="6" fill="#0d180a"', 'rx="6" fill="var(--dg-bg, #0d180a)"');
   svg = svg.replaceAll("#0d180a", "var(--dg-on-acc, #0d180a)");

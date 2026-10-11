@@ -15,7 +15,7 @@ function item(r, label, extra, activeRoute) {
   return `<li><a href="${r}"${cls}>${extra}${label}</a></li>`;
 }
 function section(key, heading, items) {
-  return `<div class="toc-section" data-sec="${key}"><div class="toc-head"><span>${heading}</span><button class="fold" aria-label="toggle">&minus;</button></div><ul>${items}</ul></div>`;
+  return `<div class="toc-section" data-sec="${key}"><div class="toc-head"><span>${heading}</span><button class="fold" aria-label="${heading}" aria-expanded="true">&minus;</button></div><ul>${items}</ul></div>`;
 }
 function glossarySidebar(activeRoute) {
   const head = section("glossary-home", "Glossary", item("/glossary/", "All entries", "", activeRoute));
@@ -33,6 +33,8 @@ function bookSidebar(activeRoute) {
 }
 const toc = form === "glossary" ? glossarySidebar(route) : bookSidebar(route);
 const arrow = pixelArrow();
+// The wordmark's pixel "M" is decoration next to the word, so it is hidden from assistive tech.
+const mark = MARK.replace('role="img" aria-label="M"', 'aria-hidden="true"');
 ---
 
 <!doctype html>
@@ -44,6 +46,7 @@ const arrow = pixelArrow();
 <meta name="description" content={description} />
 <link rel="canonical" href={SITE + route} />
 <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/fonts/azeret-mono-latin-400-normal.woff2" />
 <meta property="og:type" content="website" />
 <meta property="og:title" content={pageTitle} />
 <meta property="og:description" content={description} />
@@ -57,30 +60,30 @@ const arrow = pixelArrow();
 <a class="skip" href="#main">Skip to content</a>
 <div class="frame">
 <header class="top">
-  <button class="burger" aria-label="Open navigation">&#9776;</button>
-  <a class="wordmark" href="/"><Fragment set:html={MARK} />metalworking</a>
+  <button class="burger" aria-label="Open navigation" aria-expanded="false" aria-controls="toc">&#9776;</button>
+  <a class="wordmark" href="/" aria-label="metalworking, home"><Fragment set:html={mark} /><span class="wordmark-text">metalworking</span></a>
   <nav class="forms" aria-label="Book or glossary">
     <a href="/book/" class={form === "book" ? "on" : ""} aria-current={form === "book" ? "true" : undefined}>Book</a>
     <a href="/glossary/" class={form === "glossary" ? "on" : ""} aria-current={form === "glossary" ? "true" : undefined}>Glossary</a>
   </nav>
-  <nav class="themes" aria-label="theme">
-    <button class="theme-btn" id="theme-open" aria-haspopup="listbox" aria-expanded="false">
-      <span id="theme-current">Light</span><span class="caret" aria-hidden="true">&#9662;</span>
+  <div class="themes">
+    <button class="theme-btn" id="theme-open" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-list">
+      <span class="visually-hidden">Color theme: </span><span id="theme-current"></span><span class="caret" aria-hidden="true">&#9662;</span>
     </button>
-    <ul class="theme-list" id="theme-list" role="listbox" aria-label="Color theme" hidden>
-      <li><button role="option" data-theme="terminal">Terminal</button></li>
-      <li><button role="option" data-theme="green">Light green</button></li>
-      <li><button role="option" data-theme="light">Light</button></li>
-      <li><button role="option" data-theme="violet">Violet Midnight</button></li>
-    </ul>
-  </nav>
+    <div class="theme-list" id="theme-list" role="listbox" aria-label="Color theme" hidden>
+      <button role="option" data-theme="terminal" aria-selected="false">Terminal</button>
+      <button role="option" data-theme="green" aria-selected="false">Light green</button>
+      <button role="option" data-theme="light" aria-selected="false">Light</button>
+      <button role="option" data-theme="violet" aria-selected="false">Violet Midnight</button>
+    </div>
+  </div>
   <button class="searchbox" id="search-open"><svg class="mag" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.5" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="10" y1="10" x2="14" y2="14" stroke="currentColor" stroke-width="1.6"/></svg> Search <kbd id="search-kbd">&#8984;K</kbd></button>
-  <a class="gh-btn" href={REPO} target="_blank" rel="noopener">GitHub <span class="ext">&#8599;</span></a>
+  <a class="gh-btn" href={REPO} target="_blank" rel="noopener">GitHub <span class="ext" aria-hidden="true">&#8599;</span><span class="visually-hidden"> (opens in a new tab)</span></a>
 </header>
 <div class="body">
 <div class="backdrop" id="nav-backdrop" hidden></div>
-<aside class="toc" id="toc"><div class="toc-bar"><div class="toc-title">{form === "glossary" ? "GLOSSARY" : "THE BOOK"}</div><button class="toc-close" aria-label="Close navigation">&times;</button></div><Fragment set:html={toc} /></aside>
-<main class="content" id="main">
+<aside class="toc" id="toc" tabindex="-1"><div class="toc-bar"><div class="toc-title">{form === "glossary" ? "GLOSSARY" : "THE BOOK"}</div><button class="toc-close" aria-label="Close navigation">&times;</button></div><div class="toc-tools" id="toc-tools"></div><Fragment set:html={toc} /></aside>
+<main class="content" id="main" tabindex="-1">
   <div class="crumb">{crumb}</div>
   <slot />
   <div class="pagenav">
@@ -91,16 +94,25 @@ const arrow = pixelArrow();
       ? <a class="pager next" href={next.route}><span class="pager-kicker">Next <Fragment set:html={arrow} /></span><span class="pager-title">{next.title}</span></a>
       : <span class="pager-empty"></span>}
   </div>
-  <div class="pagefoot"><a href={`${REPO}/blob/main/${src}`} target="_blank" rel="noopener">Edit this page on GitHub <span class="ext">&#8599;</span></a></div>
+  <div class="pagefoot"><a href={`${REPO}/blob/main/${src}`} target="_blank" rel="noopener">Edit this page on GitHub <span class="ext" aria-hidden="true">&#8599;</span><span class="visually-hidden"> (opens in a new tab)</span></a></div>
 </main>
 </div>
 </div>
 <div class="search-overlay" id="search-overlay" hidden>
   <div class="search-panel" role="dialog" aria-modal="true" aria-label="Search">
-    <input id="search-input" type="text" placeholder="Search the book and the glossary..." autocomplete="off" />
-    <ul id="search-results"></ul>
+    <div class="search-row">
+      <input id="search-input" type="search" placeholder="Search the book and the glossary..." autocomplete="off"
+             aria-label="Search the book and the glossary" role="combobox" aria-expanded="true" aria-controls="search-results" aria-autocomplete="list" />
+      <button class="search-close" id="search-close" aria-label="Close search">&times;</button>
+    </div>
+    <div id="search-status" class="visually-hidden" aria-live="polite"></div>
+    <ul id="search-results" role="listbox" aria-label="Search results"></ul>
     <div class="search-hint"><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigate &nbsp; <kbd>&crarr;</kbd> open &nbsp; <kbd>esc</kbd> close</div>
   </div>
+</div>
+<div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Enlarged diagram">
+  <div class="lightbox-bar"><button class="lightbox-close" aria-label="Close enlarged diagram">Close &times;</button></div>
+  <div class="lightbox-body"></div>
 </div>
 <script is:inline>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
 <script is:inline defer src="/_vercel/insights/script.js"></script>
