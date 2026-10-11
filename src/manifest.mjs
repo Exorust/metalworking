@@ -80,7 +80,7 @@ export const SECTIONS = [
 // Each chapter: [file stem, title, one line on what the reader can do after it].
 export const BOOK = [
   { n: 1, title: "The machine", question: "What is different about this chip?", chapters: [
-    ["01-two-hierarchies", "Two hierarchies: what you launch and what runs it", "Apple uses one word, "core", for a different level than NVIDIA does, and that one word causes a lot of the early confusion."],
+    ["01-two-hierarchies", "Two hierarchies: what you launch and what runs it", "Apple uses one word, 'core', for a different level than NVIDIA does, and that one word causes a lot of the early confusion."],
     ["02-the-cores-memories", "The core's memories: 208 KB of registers, 32 KB of scratch", "208 KB of registers per core and 32 KB of threadgroup memory, which is why Apple kernels keep their working set in registers and why a spill costs 10 times, not 10 percent."],
     ["03-one-memory-pool-one-law", "One memory pool and the one law: bandwidth", "One memory pool, no transfers, and one law: most kernels are decided by bandwidth before they are written."],
     ["04-keeping-the-core-busy", "Keeping the core busy: occupancy, stalls, and F16", "Occupancy here is resource arithmetic, and F16 wins for stall and register reasons, not for throughput."],
