@@ -2,9 +2,10 @@
 
 ## Where we are
 
-The methodology of Chapter 9 had four steps, and the first three, timestamps and
-arithmetic, differential benchmarking, and the hygiene rules, carry most kernels
-to an answer. This chapter is the fourth. When the roofline of Chapter 10 says a
+The methodology of Chapter 9 had four steps. Timestamps and arithmetic,
+differential benchmarking, and the hygiene rules carry most kernels to an
+answer. This chapter is the remaining step, the third in Chapter 9's list,
+disassembly when the arithmetic says impossible. When the roofline of Chapter 10 says a
 kernel should be fast and it is not, and changing one thing at a time has not
 found the lever, the last resort is reading what the compiler emitted. Apple
 ships no tool for that. You do it with the reverse-engineered applegpu
@@ -48,18 +49,35 @@ has not found the lever. The usual finds, in order of frequency:
    register-only. This is the single most common finding, and it is why the
    attribute of Chapter 12 and the 16-bit rule of Chapter 4 exist.
 2. **Loops that did not unroll the way the source suggests.** The matrix
-   multiply of Part 4 depends on its fragment loop and its load loop becoming
-   straight-line code; when a trip count is not a compile-time constant, they
-   do not, and the kernel pays loop overhead and loses the scheduling freedom of
-   Chapter 4.
-3. **Instruction-selection surprises.** Chapter 6 said to expect one surprise
-   every time you look; the disassembly is where you look.
+   multiply of Part 4 asks for its fragment loop and its load loop to become
+   straight-line code: the bounds are compile-time constants and the loops carry
+   a full-unroll pragma. A compiler can still decline, or unroll partially and
+   leave a remainder loop, and when it does the kernel pays loop overhead and
+   loses some of the scheduling freedom of Chapter 4. The disassembly is the only
+   place you can see which happened.
+3. **Instruction-selection surprises.** Expect one surprise every time you
+   look; the disassembly is where you look.
 
 For the kernel of Part 4, expect the following: the inner loop should be a short
 straight-line sequence of fragment loads and multiply-accumulates with no
-memory operations on the accumulators between them. If the disassembly shows
-stores of accumulator registers inside that sequence, the accumulators spilled,
-and the fix is in Chapter 12.
+memory operations on the accumulators between them. A store inside that
+sequence is a suspect, not a verdict: check where it goes and whether the same
+value is loaded back later in the loop. An intended output or staging write goes
+to a buffer and is never reloaded; a spill goes to compiler-managed backing
+storage and comes back. If it is a spill, the levers are the tile size and the
+attribute of Chapter 12, with the caveat that chapter recorded: the enlarged
+tile spilled with the attribute already present, so the attribute is a hint, not
+a cure.
+
+Two practical notes before you run it. The pinned `metal-matmul` kernel does
+not compile from its raw source alone; `sync_copy.metal` expects `SW`,
+`SIMD_TILE` and `TILE_K` to arrive as preprocessor definitions from the host,
+and the applegpu compile helper takes no `-D` option, so write the three values
+into a copy of the source before you hand it over, and make sure they match the
+configuration you timed. And when the disassembler meets an encoding it does not
+know, it prints a failure marker and advances two bytes, so if the unknown
+instruction was longer than that, everything after it may be misaligned. Treat
+the output after the first unknown encoding as unreliable.
 
 ## Two caveats
 
@@ -82,9 +100,11 @@ here in one place because on this platform it replaces the profiler.
    and the first runs are discarded, over several trials.
 2. Compute achieved operations per second and bytes per second, and compare
    them with ceilings you measured yourself, Chapter 10.
-3. If one ratio is near 1, the kernel is at that ceiling, and the only moves are
-   fewer bytes or fewer operations. If both are low, change one thing at a time
-   and measure again.
+3. If one ratio is near 1, the kernel is at that ceiling as you measured it.
+   For the bandwidth ceiling that means fewer bytes. For the compute reference,
+   which Chapter 10 took from the best kernel you could find rather than from a
+   proven hardware limit, it means fewer operations or a better kernel than the
+   reference. If both are low, change one thing at a time and measure again.
 4. If the arithmetic says the kernel should be fast and it is not, read the
    machine code, this chapter, and look for spills and loops that did not
    unroll.
@@ -100,15 +120,18 @@ here in one place because on this platform it replaces the profiler.
 2. Why can the binary you disassemble on your machine differ from the one
    another engineer sees on theirs?
 3. Why does the chapter say not to build a product on the applegpu toolchain,
-   even though it is the only way to read the machine code?
+   even though it is the usual way to read the machine code?
 
 ### Answers
 
 1. Read the disassembly with `compiler_explorer.py`, and look first for register
-   spills: loads and stores of accumulator registers inside the inner loop.
-2. Because the final compile happens on the device at pipeline creation, so the
-   machine code is produced by that machine's compiler for that machine's GPU
-   generation, Chapter 6.
+   spills: stores of accumulator registers inside the inner loop that are
+   loaded back later in the same loop.
+2. Because the final compile happens on the device, so the machine code is
+   produced by that machine's compiler for that machine's GPU generation,
+   Chapter 6. Normally that happens at pipeline creation; the applegpu helper
+   triggers the same compile by building a binary archive and serializing it,
+   which is how it gets bytes to disassemble.
 3. Because it is a reverse-engineered, unsupported interface whose coverage
    lags the hardware, the same risk class as the dead copy intrinsic of Chapter
    14; it is for reading, and a product built on it can break with any release.
