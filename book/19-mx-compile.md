@@ -13,10 +13,13 @@ its boundary tells you where custom kernel work starts.
 `mx.compile` traces a function's lazy graph once, fuses runs of elementwise
 operations into generated Metal kernels, and replays the optimized graph on later
 calls. In CUDA terms it is a deliberately scoped `torch.compile`. It has no graph
-breaks, no guards of the `torch.compile` kind (a changed shape or data type is
-the only thing that retraces), and no autotuning of the kind Inductor does. The scope is narrower because MLX is already lazy (Chapter 16), so the graph
-exists anyway. Compile adds shape-specialized caching and elementwise fusion and
-nothing more. Matrix multiply and attention are already fused kernels (Chapters 18
+breaks, no guards of the `torch.compile` kind, and no autotuning of the kind
+Inductor does; a compiled function retraces on a cache miss, which a changed
+shape or data type, a different stream or device, or different constants can
+cause. The scope is narrower because MLX is already lazy (Chapter 16), so the
+graph exists anyway. Compile adds caching per specialization, a simplification
+pass that merges duplicate computations and scalar constants and removes no-ops,
+and elementwise fusion. Matrix multiply and attention are already fused kernels (Chapters 18
 and 21), so what compile targets is the long tail between them.
 
 The tail matters more here than on NVIDIA because of the law of Chapter 3. An
@@ -31,29 +34,34 @@ and its search rediscovered flash attention.
 
 ## The mechanics, briefly
 
-The first call traces the function with placeholder inputs. Fusable subgraphs
-are compiled to Metal Shading Language through the run-time compilation path of
-Chapter 6; `compiled.cpp` in the Metal backend generates the source, and the
-result is cached against the input shapes and data types. Changed shapes
-retrace. `shapeless=True` opts hot functions out of shape specialization where
+The first call traces the function with placeholder inputs; a Python branch on
+a placeholder's value, or a read of one, is an error during tracing rather than
+a silent fallback. Fusable subgraphs become generated kernels: `compiled.cpp` in
+the Metal backend generates their Metal Shading Language at first evaluation and
+compiles it through the run-time path of Chapter 6, and the result is cached
+against the input shapes, data types and the other cache keys above. `shapeless=True` opts hot functions out of shape specialization where
 their kernels permit it. Constants get baked in, and the usual tracing caveats
 apply as in JAX: Python side effects run once, at trace time.
 
 The boundary discussed below depends on what "elementwise" covers. An
-elementwise operation produces each output element from the same positions of
-its inputs and nothing else: activations, scaling, residual adds, masks. A
-reduction, which combines many positions into one, is not elementwise, and
-neither is anything that needs to see a whole row before producing a value;
-softmax is both. `mx.compile` fuses the first kind and leaves the second to the
+elementwise operation produces each output element from the corresponding
+positions of its inputs, after broadcasting, and nothing else: activations,
+scaling, residual adds, masks. A reduction, which combines many positions into
+one, is not elementwise, and neither is anything whose outputs depend on a whole
+row; softmax is the second kind, a same-shaped output built on row-wide
+reductions. `mx.compile` fuses the first kind and leaves the second to the
 kernels that handle it.
 
-Take the example above and count what fusion saves. Three elementwise
-operations on a 4096 by 4096 16-bit activation, unfused, each read 32 MiB and
-write 32 MiB: 192 MiB of traffic and three dispatches. Fused, one kernel reads 32
-MiB and writes 32 MiB: 64 MiB of traffic and one dispatch. At the measured 516 GB/s of
-Chapter 3, the unfused chain's traffic alone is about 0.39 milliseconds and the
-fused kernel's about 0.13; the matrix multiply next to it takes about 10. The
-saving per block is real but small, and every `mx.compile` win looks like this.
+Take the example above and count what fusion saves, with the multiplier and
+the residual as full tensors. A 4096 by 4096 16-bit activation is 4096 × 4096 ×
+2 bytes = 32 MiB. Unfused, SiLU reads one array and writes one, the multiply
+reads two and writes one, the add reads two and writes one: 8 × 32 = 256 MiB of
+traffic and three dispatches. Fused, one kernel reads the three inputs and
+writes one output: 4 × 32 = 128 MiB and one dispatch. At the measured 516 GB/s
+of Chapter 3 that is about 0.52 milliseconds against about 0.26, a saving of
+about 0.26 milliseconds in requested traffic that caches may partly absorb; the
+32-bit matrix multiply next to it takes about 10 ms, and a 16-bit one less. The
+saving per block is real but small, and most `mx.compile` wins look like this.
 
 ## When to reach for it, and when not to
 
@@ -97,15 +105,22 @@ a language model, attention, where the fused intermediate is a whole matrix.
 
 ### Answers
 
-1. Because MLX is lazy: the graph already exists at evaluation time, so compile
-   only traces it, fuses elementwise runs, and caches the result per shape; there
-   is no eager execution to break out of.
-2. Little: the matrix multiply is already a single fused kernel, so there is no
-   elementwise tail to fuse, and the gain is bounded by the other 10 percent.
-3. No. Fusion merges and renames dispatches, so the timings no longer map to the
-   operations you wrote; measure uncompiled first, then compile.
+1. Because it traces the function with placeholder inputs under a restricted
+   contract: Python control flow that depends on an array's value is an error
+   during tracing rather than a point to fall back to eager execution, so there
+   is nothing to guard. The lazy graph already exists, so compile only fuses
+   and caches it per specialization.
+2. Little: compile does not touch the matrix multiply, so whatever fusible tail
+   the other 10 percent holds bounds the gain. With the multiply fixed at 90
+   percent, even an infinitely fast tail gives 1 / 0.9, about 1.11 times, and
+   compilation overhead can eat that.
+3. Not at first. Fusion merges and renames dispatches, so the timings no longer
+   map to the operations you wrote; isolate and measure the uncompiled kernels
+   first (Chapter 9), then compile and time the fused kernels as their own
+   targets.
 
-Part 6 opens with the algorithm that makes attention possible on a bandwidth-bound
-machine: a softmax computed in one pass without ever holding the whole row.
+Part 6 opens with the algorithm that makes attention affordable on a
+bandwidth-bound machine: an attention output accumulated in one pass over the
+scores, without ever holding a whole row of probabilities.
 
 Next: [Online softmax and flash attention](20-online-softmax-and-flash-attention.md)
