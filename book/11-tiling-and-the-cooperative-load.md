@@ -80,9 +80,11 @@ multiply, and two platform facts make it matter more here. There is no
 `cp.async`-style copy engine, Chapter 14, so cooperative loads are the only way
 tiles move. Barriers are nearly free, Chapter 7, so the sequence of load, sync,
 compute, sync costs little beyond the loads themselves and the wait for the
-slowest simdgroup at each barrier. The loader below has no barrier in it; the
-caller stages A and B, barriers, consumes both, and barriers again before the
-next slab overwrites the buffer, which is the loop Chapter 12 reads.
+slowest simdgroup at each barrier.
+
+The loader below has no barrier in it. The caller stages A and B, barriers,
+consumes both, and barriers again before the next slab overwrites the buffer;
+that is the loop Chapter 12 reads.
 
 Here is the reference implementation.
 
@@ -118,7 +120,7 @@ units. On the write into threadgroup memory the whole tile is contiguous. On the
 read from device memory the run is contiguous within each tile row and jumps by
 the matrix's row stride at the row boundary: for the 64 by 16 tile of A, four
 `float4` units per row, so every fourth thread starts a new row 1,024 units
-away. That is the coalescing, by row segment. The division by `cols4` turns a unit
+away. The accesses coalesce within each row segment. The division by `cols4` turns a unit
 index into a row and a column, so the same loop serves a 64 by 16 tile of A and a
 16 by 64 tile of B. The `break` handles a tile whose unit count is not a multiple
 of the thread count; with the sizes here it never fires.
@@ -126,10 +128,11 @@ of the thread count; with the sizes here it never fires.
 Count the work. A 64 by 16 tile is 1,024 floats, which is 256 `float4` units.
 With 128 threads, that is two units per thread: two loads and two stores each,
 512 vector memory operations across the threadgroup per tile.
+
 The `#pragma clang loop unroll(full)` and the `ushort` indices are the
-micro-optimizations of Chapters 4 and 6: the trip count is a compile-time
-constant, so the loop can fully unroll, and the tile-local index arithmetic runs
-in 16-bit while the device address, `uint(r) * stride4 + c`, stays 32-bit.
+micro-optimizations of Chapters 4 and 6. The trip count is a compile-time
+constant, so the loop can fully unroll. The tile-local index arithmetic runs in
+16-bit, while the device address, `uint(r) * stride4 + c`, stays 32-bit.
 
 You already know the rules of thumb from CUDA. Map consecutive threads to
 consecutive addresses in both directions, since coalescing matters on the
@@ -140,15 +143,15 @@ thread-to-tile mapping at compile time so the loop fully unrolls.
 
 The production version of this loop is steel's `BlockLoader`, Chapter 18. It
 derives the same arithmetic, elements per thread and the thread-to-tile mapping,
-from template parameters at compile time; it expresses the vector width as an
-`alignas` struct so the compiler emits the widest legal load; and it adds a
+from template parameters at compile time. It expresses the vector width as an
+`alignas` struct, so the compiler emits the widest legal load. And it adds a
 bounds-checked `load_safe` twin for ragged edges, selected per pipeline by function
-constants so that aligned dispatches never pay for the checks.
+constants, so aligned dispatches never pay for the checks.
 
 If you read older code, it looks different, and the reason is historical. Before Metal 4, a
 single simdgroup could issue one copy for the whole threadgroup through an
 undocumented intrinsic, and the hardware copy engine did the moving. That was
-faster than any cooperative load, and it no longer compiles. Chapter 14 covers
+faster than any cooperative load, and it no longer compiles; Chapter 14 covers
 it.
 
 ## Where the matmul stands

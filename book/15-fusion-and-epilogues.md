@@ -51,9 +51,9 @@ Source: [`steel/gemm/transforms.h:38-54`](https://github.com/ml-explore/mlx/blob
 The transform is applied in the matrix-multiply component's `store_result`
 (Chapter 18) to every accumulator element in registers before the one store.
 `x` is the accumulated product and `c` is the corresponding element of the
-additive input C, which steel reads from its own buffer and which need not be
-the output's old contents, so this one type reproduces the hand-written epilogue
-of Chapter 13, and a different type in the same slot gives a different ending.
+additive input C. Steel reads C from its own buffer, and it need not be the
+output's old contents. So this one type reproduces the hand-written epilogue of
+Chapter 13, and a different type in the same slot gives a different ending.
 Anything expressible as an epilogue (a bias, an activation, a scaling) costs no
 extra pass over the output; the operands the ending itself needs, a bias vector
 or the C matrix, are still read once.
@@ -83,7 +83,7 @@ streaming softmax of Chapter 20, and the quantization-aware loops of Chapter 23.
 
 ## Fusion into quantized loops
 
-One case puts numbers on the principle, with a caveat about attribution. The
+What is fusion worth in a real loop? The
 TurboQuant key-value cache compression of Chapter 25 ran prefill at 0.27 times
 its q8_0 baseline at first and 0.98 times after five changes, by the project's
 own history: a 16-bit rotation (to 0.40), vectorizing it (0.52), moving the
@@ -98,10 +98,10 @@ fusion in this chapter's sense, and they account for about half the gain.
 Before writing any new kernel, ask whether the win you are after is "delete a
 round trip". That is the first of the three questions of Chapter 24, and most of
 the measured wins in Part 7 are fusions or deletions under other names. The test
-is the sixty-second arithmetic of Chapter 3: count the bytes the unfused version
-moves, count the bytes the fused version moves, and the difference, divided by
-the measured bandwidth, estimates the time you can save if those kernels are
-bandwidth bound; then measure the difference.
+is the sixty-second arithmetic of Chapter 3. Count the bytes the unfused version
+moves and the bytes the fused version moves; if those kernels are bandwidth
+bound, the difference divided by the measured bandwidth estimates the time you
+can save. Then measure the difference.
 
 ## Where the matmul stands
 

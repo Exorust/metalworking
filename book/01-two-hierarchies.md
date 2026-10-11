@@ -46,17 +46,17 @@ the whole SM-sized unit, with its own register file, its own scratch memory, and
 its own set of arithmetic units. When an Apple spec sheet says a chip has 40 GPU
 cores, it means 40 units at the level of an SM, each running its own threadgroups. "Size"
 here means the level in the hierarchy, not die area or throughput. A base M5 has
-10 of them, and an M5 Max has 40. There is no Apple datacenter part: the largest GPU Apple makes is in a
+10 of them, and an M5 Max has 40.
+
+There is no Apple datacenter part: the largest GPU Apple makes is in a
 laptop or a desktop, and the design follows from that. The cores are wide and run
 at low clocks, tuned for performance per watt rather than peak throughput.
 
 ## How a launch maps onto the chip
 
-The two hierarchies meet at four points. You will reason with these four rules for
-the rest of the book.
+The two hierarchies meet at four points.
 
-**A threadgroup runs on one core.** The hardware assigns each threadgroup to a
-single core. This is the reason its threads can share memory: the scratch memory a
+**A threadgroup runs on one core.** This is the reason its threads can share memory: the scratch memory a
 threadgroup uses is physically inside the core it runs on. It is also the reason
 threadgroups share nothing with each other. Two threadgroups in the same grid can
 both read and write device memory, and integer atomic operations on device memory
@@ -119,18 +119,22 @@ needs: many threads copy one tile into the shared buffer, all wait until the cop
 complete, each simdgroup reads its part, and all wait again before the next tile
 overwrites the buffer. Size threadgroups in multiples of 32 so that every simdgroup
 is full; 128 threads, four simdgroups, is the size of the matrix multiply this book
-follows and of MLX's steel attention kernel. The launch call that counts in
+follows and of MLX's steel attention kernel.
+
+The launch call that counts in
 threads can make a partial threadgroup at the edge of the grid, the common case
 where a simdgroup is not full; a threadgroup size that is not a multiple of 32 is
 the other. Simdgroup operations, shuffles, reductions and `simdgroup_matrix`,
 assume every lane takes part, so a short simdgroup breaks them rather than merely
 wasting lanes.
 
-One Metal-specific fact shapes the kernels you will read. The compiler allocates registers when it builds the pipeline, before it knows the
+The compiler allocates registers when it builds the pipeline, before it knows the
 launch dimensions. Unless the kernel declares a maximum threadgroup size with the
 attribute `max_total_threads_per_threadgroup`, the compiler must plan for the
 largest threadgroup the hardware allows, and it has fewer registers per thread to
-give. CUDA's `__launch_bounds__` looks similar but works the other way around:
+give.
+
+CUDA's `__launch_bounds__` looks similar but works the other way around:
 nvcc spends registers freely by default, and the bound caps them to raise
 occupancy. Here the default is the stingy one, and the attribute raises each
 thread's grant, which matters because kernels on this platform keep their

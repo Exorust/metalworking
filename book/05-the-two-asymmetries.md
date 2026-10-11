@@ -33,14 +33,17 @@ Source: [MLX `steel_attention.h:166`](https://github.com/ml-explore/mlx/blob/47b
 
 The point of the fold is not the multiply, which a compiler hoists out of the
 loop anyway; it is that the loop then calls `fast::exp2`, the hardware exponent,
-instead of whatever a library `exp` expands to. Two things to know before you
-copy it. A stable softmax subtracts a running maximum and keeps correction
-terms, and all of them must be in the same base-2 units once the scores are: the
-correction becomes `fast::exp2(m2_old - m2_new)`, and an additive mask or bias
-has to be multiplied by `log2(e)` (not by the folded scale), which the same MLX
-kernel does. And `fast::exp2` is a reduced-precision path, like CUDA's
-`__exp2f`, so the first time you apply it to a kernel, check the output against
-the original. Chapter 20 derives the
+instead of whatever a library `exp` expands to.
+
+Once you scale the scores into base-2 units, the running maximum and correction
+terms must follow. A stable softmax subtracts that maximum and keeps those
+terms, so the correction becomes `fast::exp2(m2_old - m2_new)`, and an additive
+mask or bias has to be multiplied by `log2(e)` (not by the folded scale), which
+the same MLX kernel does.
+
+`fast::exp2` is also a reduced-precision path, like CUDA's `__exp2f`, so the
+first time you apply it to a kernel, check the output against the original.
+Chapter 20 derives the
 algorithm the fold lives in. Not every production kernel does it: the pinned
 llama.cpp attention calls `exp` on the shifted score and leaves the lowering to
 the compiler.
@@ -68,7 +71,8 @@ rows and walks the keys, the dK and dV kernel owns tiles of key rows and walks t
 queries, at the price of recomputing the scores in both. No element is ever
 accumulated by two threadgroups. Chapter 21 reads that kernel.
 
-Reduction-shaped problems use partial results and a combine step instead. The
+When several threadgroups contribute to one sum, give each its own partial
+result and add a combine step instead. The
 decode attention kernel of Chapter 22 is the example: llama.cpp splits the
 key-value cache across simdgroups and across threadgroups, merges the
 simdgroups' partials inside the first kernel through threadgroup memory, and
@@ -97,7 +101,8 @@ says which direction to try first; a measurement says which one wins.
 
 ## Why these two belong together
 
-Why put an exponent trick and an atomic next to each other? Both are facts about
+What do these two change in the attention kernel you would bring over from
+CUDA? Both are facts about
 the arithmetic units that the budgets of Chapters 2 to 4 do not capture, and both show up in the attention kernels of Part 6. The exponent
 fold is the one arithmetic trick every attention kernel on the platform shares.
 The slow float atomic removes the easy way to combine results across
@@ -110,7 +115,7 @@ you measure.
 That is Part 1. You now have the vocabulary of the two hierarchies, the budgets
 inside a core, the law that says most kernels are bandwidth bound and the ridge
 point that quantifies it, the occupancy constants and the case for 16-bit values,
-and the two instruction-level asymmetries. Later chapters cite these by number.
+and the two instruction-level asymmetries.
 
 ## Check yourself
 

@@ -105,8 +105,7 @@ within a simdgroup through shuffles (Chapter 1) but never across simdgroups.
 ## Spilling, the first cliff
 
 With so much of the kernel's state in the register file, the question is what
-happens when it runs out. That failure mode is the first one you need to recognize.
-The compiler decides each thread's register budget when it
+happens when it runs out. The compiler decides each thread's register budget when it
 builds the pipeline, and the budget depends on how many threads it must plan for:
 without the `max_total_threads_per_threadgroup` attribute from Chapter 1, it plans
 for the largest threadgroup the hardware allows and gives each thread less. When a
@@ -114,8 +113,8 @@ kernel's live values exceed the budget, the compiler spills some of them to memo
 and every update of a spilled accumulator pays a load and a store around the
 arithmetic.
 
-Later chapters refer back to one measurement from the kernel this book follows.
-Its author tried a larger patch per simdgroup, 64 by 64 instead of 32 by
+Making each simdgroup's output patch larger pushed the kernel this book follows
+over the spill limit. Its author tried a larger patch per simdgroup, 64 by 64 instead of 32 by
 32, which raises the accumulator count from 16 fragments of 8 by 8 to 64: 128
 accumulator registers per thread before any fragment, address or counter. The
 kernel ran 10 times slower, not 10 percent slower, because accumulators spilled,
@@ -137,10 +136,9 @@ rule.
 Registers also interact with how many threadgroups a core can hold at once, in the
 familiar CUDA way: when registers are the limiting resource, more registers per
 thread means fewer resident simdgroups. A larger scratch footprint per threadgroup
-can have the same effect when scratch becomes the limit, and that is part of the
-cost of double buffering, which allocates two staging buffers so that the next
-slab's loads can be issued, by the same threads, before the current slab's math
-is done. Chapter 4
+can have the same effect when scratch becomes the limit. That is part of the cost
+of double buffering, which allocates two staging buffers so that the same threads
+can issue the next slab's loads before the current slab's math is done. Chapter 4
 sets the balance point, and Chapter 14 measures the trade.
 
 ## Check yourself

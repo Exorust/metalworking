@@ -73,10 +73,10 @@ simplest kind: the gap between a dependent pair of arithmetic instructions. The
 numbers come from the ALU Bottlenecks section of metal-benchmarks, measured on
 M1- and M2-class chips with a shader setup its author calls sub-optimal. A later
 run with a better setup measured 6 cycles for a dependent 32-bit fused
-multiply-add and 3 for 16-bit. Take the shape from the table, worse at low
-occupancy and better in 16-bit, and the size of the gap, about 2 times, from the
-later figures. The 1.84-cycle figure quoted elsewhere in the sources is the
-plain multiply row of the same table; this is the fused multiply-add row.
+multiply-add and 3 for 16-bit. Trust the table for the shape, worse at low
+occupancy and better in 16-bit, and the later run for the size of the gap, about
+2 times. Use the fused multiply-add rows for this comparison; the 1.84-cycle
+figure quoted elsewhere in the sources is the plain multiply row of the same table.
 
 | Condition | 32-bit dependent chain | 16-bit dependent chain |
 |---|---|---|
@@ -107,15 +107,19 @@ the throughput tables say the two precisions are equal.
 
 ## The numerics rule that comes with it
 
-Half-precision storage does not mean half-precision arithmetic. The discipline the
-attention and inference kernels of Parts 5 and 6 follow is storage and traffic in
-16-bit, accumulation in 32-bit: MLX's steel templates default their accumulator
+Half-precision storage does not mean half-precision arithmetic. The attention and
+inference kernels of Parts 5 and 6 store and move values in 16-bit and accumulate
+in 32-bit: MLX's steel templates default their accumulator
 type to `float` regardless of the data type, and the attention kernels keep their
 running sums in 32-bit while streaming 16-bit keys and values. This limits the
 growth of rounding error over long sums; it does not repair precision lost before
-the sum. This has a cost: the accumulators are 32-bit registers, so the stall
+the sum.
+
+This has a cost: the accumulators are 32-bit registers, so the stall
 and payload advantages apply to the 16-bit operands, not to the accumulation
-chain. The 32-bit matrix multiply of Part 4 is 32-bit throughout by design, because
+chain.
+
+The 32-bit matrix multiply of Part 4 is 32-bit throughout by design, because
 it is a 32-bit benchmark against the library.
 
 Which half-precision formats does the rule cover? bf16 is supported, and the storage and
@@ -138,13 +142,13 @@ see `ushort` loop counters throughout the kernel in Part 4.
 ## Occupancy is a currency
 
 If moderate occupancy already fills the core, what is the rest of it for? Treat
-occupancy as something you spend rather than something you maximize. The table above showed the second channel for
-hiding latency: independent instructions inside one simdgroup's own stream, which
-the hardware reorders freely. A kernel that issues two loads that do not depend on
+occupancy as something you spend rather than something you maximize. The second channel for hiding latency is
+independent instructions inside one simdgroup's own stream, which the hardware
+reorders freely. A kernel that issues two loads that do not depend on
 each other, or a load and an unrelated multiply, hides latency without any help
 from other simdgroups.
 
-The recurring trade in Part 4 uses this second channel. Double buffering allocates two
+Double buffering, the recurring trade in Part 4, uses this second channel. It allocates two
 staging buffers instead of one, which doubles the threadgroup's scratch footprint
 and cuts the scratch-limited bound on residency from 7 threadgroups to 3 (60 / 8
 and 60 / 16, rounded down), which is 12 simdgroups, below the 24 that saturate

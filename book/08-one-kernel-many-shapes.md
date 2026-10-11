@@ -56,12 +56,14 @@ Each is a `constant bool` with a numbered slot. The kernel body branches on them
 like ordinary variables. When the host knows that the output divides evenly by
 the tile in both dimensions, it binds `align_M` and `align_N` to true, and the
 compiled pipeline's main loop contains only the unchecked, vectorized loads, with
-no edge handling for those two dimensions. `align_K` is a separate constant,
-because the shared dimension can be ragged on its own, and when it is false the
-kernel keeps a bounds-checked tail step. When `align_M` and `align_N` are false,
-the pipeline contains the checked loads for the edge tiles, and it still contains
-the unchecked path, selected at run time for the full tiles in the interior. So
-the aligned pipeline carries none of the edge code, and the ragged pipeline
+no edge handling for those two dimensions.
+
+`align_K` is a separate constant, because the shared dimension can be ragged on
+its own, and when it is false the kernel keeps a bounds-checked tail step.
+
+When `align_M` and `align_N` are false, the pipeline keeps both paths: checked
+loads for the edge tiles, and unchecked loads, selected at run time, for the full
+tiles in the interior. So the aligned pipeline carries none of the edge code, and the ragged pipeline
 carries both. Chapter 18 shows the two paths side by side.
 
 The attention kernels use the same mechanism for causality and masking. `do_causal`

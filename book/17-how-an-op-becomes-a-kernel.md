@@ -25,18 +25,18 @@ collapses batch dimensions where it can. Then it routes, in this order.
    a multiple of 4 and the operands' offsets and strides pass its alignment
    checks.
 2. `gemv`, when M or N is 1.
-3. `steel_matmul_axpby`, for everything else that is not empty. Inside it, the
-   first decision is the hardware: `use_nax` is true when `is_nax_available()`
-   holds, which on a Mac needs a generation-17 or later GPU, macOS 26.2 or later
-   and a build without `MLX_METAL_NO_NAX`, when the type is not complex, and
-   when either the type is not 32-bit float or TF32 is enabled, which
-   `MLX_ENABLE_TF32` turns on by default. If `use_nax` is true the multiply
-   returns through the NAX fork of Chapter 29, with its own split-K branch for
-   large K, and never reaches the macro below. If it is false, an unbatched
-   multiply whose output is small against K (at most 2,048 tiles of 16 by 16 on
-   a Max or Ultra, K at least 128 and at least max(M, N)) takes the plain
-   split-K kernel. Only then does the tile macro pick the plain steel kernel's
-   shape.
+3. `steel_matmul_axpby`, for everything else that is not empty.
+
+Inside that last route, the hardware decides first. `use_nax` is true when
+`is_nax_available()` holds, which on a Mac needs a generation-17 or later GPU,
+macOS 26.2 or later and a build without `MLX_METAL_NO_NAX`; the type must not be
+complex, and a 32-bit float type also needs TF32, which `MLX_ENABLE_TF32` turns
+on by default. If `use_nax` is true your multiply returns through the NAX fork
+of Chapter 29, with its own split-K branch for large K, and never reaches the
+macro below. If it is false, an unbatched multiply whose output is small against
+K (at most 2,048 tiles of 16 by 16 on a Max or Ultra, K at least 128 and at
+least max(M, N)) takes the plain split-K kernel. Only then does the tile macro
+pick the plain steel kernel's shape.
 
 ```cpp
 #define GEMM_TPARAM_MACRO(devc)                                           \
@@ -132,10 +132,7 @@ there.
 
 ## What this means for the kernel writer
 
-What do you do differently once you can read the dispatcher? Three habits
-follow.
-
-First, before writing anything, read the branch your shape takes. The question
+What do you do differently once you can read the dispatcher? First, before writing anything, read the branch your shape takes. The question
 "why is this slow" often has the answer "because it took the branch for a
 different shape", and the fix is a change to the dispatch rather than a new kernel.
 
@@ -157,10 +154,10 @@ later and a default build, the hardware gate fires: `is_nax_available()` is true
 and TF32 is on by default, so the multiply goes to `steel_gemm_fused_nax` with a
 64 by 128 tile, 256 deep, eight simdgroups, the fork Chapter 29 reads; note that
 TF32 changes the 32-bit multiply's numerics. On a Max before M5, or on an M5
-Max with `MLX_ENABLE_TF32=0`, it takes the plain path this part follows: the
-Max class lands in the "Medium device" `else`, `bm` = `bn` = 64, `bk` = 16,
-`wm` = `wn` = 2, the base name `steel_gemm_fused_...` names that precompiled
-instantiation, the `align_M`, `align_N` and `align_K` constants bind to true
+Max with `MLX_ENABLE_TF32=0`, it takes the plain path this part follows. The
+Max class lands in the "Medium device" `else`, with `bm` = `bn` = 64, `bk` = 16,
+`wm` = `wn` = 2, and the base name `steel_gemm_fused_...` names that precompiled
+instantiation. The `align_M`, `align_N` and `align_K` constants bind to true
 because 4096 % 64 = 0 and 4096 % 16 = 0, and the aligned pipeline is
 dispatched. A base or Pro chip, class `g`, would read the small-device branch
 instead. That
@@ -197,8 +194,7 @@ kernel is the subject of the next chapter.
    and the hash name, which appends the six function constants, keys the
    pipeline state.
 
-The dispatch has chosen `steel_gemm_fused` on the plain path, and the next
-chapter reads it as the hand-written kernel of Part 4 rebuilt from three
-components.
+Inside `steel_gemm_fused`, the kernel the plain path dispatches, the next
+chapter finds the hand-written kernel of Part 4 rebuilt from three components.
 
 Next: [Steel: the GEMM as components](18-steel-the-gemm-as-components.md)

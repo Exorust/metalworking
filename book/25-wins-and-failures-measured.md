@@ -2,7 +2,8 @@
 
 ## Where we are
 
-Chapter 24 gave you the three questions and named the cases behind them. Here
+Chapter 24 gave you three questions to ask before writing a kernel, and named
+the cases behind them. Here
 is the evidence: one win read in full, because it teaches more per line
 than anything else on the platform; three published failures, because the loss
 modes are predictable once you have seen them; the one project that measured the
@@ -11,7 +12,7 @@ along with the risk they carry.
 
 ## The canonical win: sparse-V
 
-Three lines of code raised decode throughput by 22.8 percent at a 32K context,
+Can you avoid dequantization instead of making it faster? Three lines of code raised decode throughput by 22.8 percent at a 32K context,
 47.0 to 57.7 tokens per second with the project's own turbo3 cache format as the
 baseline, with perplexity numerically unchanged on its test corpora. The setting
 is llama.cpp decode at long context on an M5 Max, running Qwen3.5-35B-A3B, where
@@ -42,14 +43,13 @@ same family gave 28 percent at 4K, rising with context. The entire change:
 It goes in the accumulate loop of llama.cpp's attention kernel, Chapter 21, and
 is live in the author's fork at `ggml-metal.metal:8926`, with an ablation
 write-up in the companion repository; both are among the pinned repositories
-under `code/`. Three properties make it worth studying.
+under `code/`.
 
 The skip is visible only from inside the fused kernel. An exact graph optimizer
 may not introduce it, because it is an approximation; a kernel author can,
 because flash attention's ordering, weights before V, exposes the weights in
 time to use them, and the pay-per-use dequantization of Chapter 23 makes the
-skipped work worth something. The optimization came from understanding the
-kernel.
+skipped work worth something.
 
 It also deletes loads, dequantization and multiply-adds together. The author's
 profile attributes the win to the dequantization cost. On this machine the bytes
@@ -89,9 +89,9 @@ evolutionary search over Metal source for a grouped-query attention kernel. Its
 own analysis file, titled "Why Optimization Failed", reports the best evolved
 kernel at 3.2 percent slower than the MLX baseline. The search improved from 11.5
 percent slower to 3.2 percent slower and never crossed zero. It is useful as a
-methodology study: a search can climb a hill efficiently and still be on the wrong hill
-when the baseline is a hand-tuned library and the search cannot touch the
-dispatch layer above it, Chapter 17.
+methodology study: the search climbed efficiently, but the baseline was a
+hand-tuned library and the search could not touch the dispatch layer above it,
+Chapter 17.
 
 The third is titled "I beat MLX's attention, then
 discovered it was useless." A hand-rolled
@@ -108,11 +108,13 @@ isolation. The ledger scores 2 isolation wins, 11 losses or neutral results and
 context. Both wins were prefill fusions where stock MLX has no
 matrix-unit-backed path, and the larger one, measured at 4.7 times against a
 naive combine, shrank to 1 to 4 percent against the shipped reference, which
-already fuses that step, and was left off by default. The ledger's own thesis is
-that cross-operation fusion transfers and hand-written matrix-vector and
-attention kernels do not, because they race steel's tuned kernels, which a
-custom `mx.fast.metal_kernel` cannot call (it can issue `simdgroup_matrix`
-instructions of its own, and MTPLX's kernels do, Chapter 21). This explains the
+already fuses that step, and was left off by default.
+
+The ledger's own thesis is that cross-operation fusion transfers and
+hand-written matrix-vector and attention kernels do not. Those race steel's
+tuned kernels, which a custom `mx.fast.metal_kernel` cannot call, though it can
+issue `simdgroup_matrix` instructions of its own, and MTPLX's kernels do,
+Chapter 21. This explains the
 0.5 to 0.8 prior: the fast paths live below the API a custom kernel is written
 against. Custom kernels win where there is no fast path to race, and even then
 against the baseline that matters.
@@ -124,7 +126,7 @@ claim:
 2. Which of the three questions did it answer? "None, I wrote a better kernel" predicts reversion.
 3. What is the baseline: stock steel or llama.cpp at the right shapes, or a straw man?
 4. Prefill or decode? A phase-specific win shows only in that phase's metric, Chapter 22.
-5. Were thermals controlled? Sustained throughput differs from the first second, as the next section shows.
+5. Were thermals controlled? Sustained throughput differs from the first second.
 
 ## Cheap tricks, with their risk
 
@@ -149,21 +151,20 @@ second. The second is sanity checks: if your tokens per second are far from
 bandwidth divided by model bytes, find out why, long-context cache traffic, a
 missed fast path or dispatch overhead before anything in Chapter 26.
 
-**Control thermals or your benchmark lies.** MTPLX measured long-run throughput
+**Control thermals before comparing sustained throughput.** MTPLX measured long-run throughput
 decay dropping from 50 percent to 6.7 percent by locking the fans at maximum.
 Laptop and fanless chips throttle under sustained load; a benchmark's first ten
 seconds and its steady state behave like different machines. On this platform,
 fan control or a desktop chip is part of measurement methodology.
 
-The Neural Engine also deserves a mention. It is the third matrix engine on
-the die after the GPU and AMX, Chapter 28, reaches about 6.6 TFLOPS per watt
+The Neural Engine is the third matrix engine on the die after the GPU and AMX, Chapter 28, reaches about 6.6 TFLOPS per watt
 against about 1 for the GPU, and speaks only Apple's model frameworks, Core ML
 and, for generative workloads in the macOS 27 cycle, Core AI, which adds a
 documented hook for custom Metal kernels. The community has tried to train on it
-through private interfaces, which is impressive work and also a warning. For
-Metal work, what matters is knowing that some workloads, quantized
-convolution-shaped inference at low power, have a better home than the GPU, and
-that Apple's own frameworks may route there without telling you.
+through private interfaces, which is impressive work and also a warning. If your
+workload is quantized convolution-shaped inference at low power, it may have a
+better home than the GPU, and Apple's own frameworks may route it there without
+telling you.
 
 ## Check yourself
 

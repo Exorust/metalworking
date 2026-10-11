@@ -4,15 +4,14 @@
 
 You left Chapter 20 with online softmax derived and the flash-attention shape
 drawn. Three production kernels on the platform implement it, and you already know
-their algorithm, because it is the same in all three. That makes it the least
-interesting thing about them. Read them together and you see where they disagree
-on engineering: how each one gets its specialization, how each one spends
-registers, and what each one is shaped by.
+their algorithm, because it is the same in all three. Read them together for
+where they disagree on engineering: how each one gets its specialization, how
+each one spends registers, and what each one is shaped by.
 
-MLX's kernel gets the most detail, because it is the most readable and the one the
-running example runs on. metal-flash-attention and llama.cpp follow, read for their
-differences. The last question is the gate that decides whether your attention
-runs on any of them.
+Your running example runs on MLX, so start with its kernel, which is also the
+most readable and gets the most detail. Then read metal-flash-attention and
+llama.cpp for their differences. Last, you check the gate that decides whether
+your attention runs on any of them.
 
 ## MLX: steel attention
 
@@ -75,19 +74,22 @@ with the running maximum, so the row reduction is over the running maximum and
 the tile; and the comment's sign is backwards, the code computes `exp2(m_old -
 m_new)`, at most 1.
 
-If Chapter 20 landed, this file holds no surprises, which is the point of
-reading it second. A few other details are worth carrying. Causal handling is a loop
-bound plus a mask: `kb_lim` at lines 239 to 247 means tiles wholly above the
+You can now follow the running maximum, the correction factor and the
+accumulated output through the loop without surprises, which is why you read
+Chapter 20 first.
+
+Causal handling is a loop bound plus a mask: `kb_lim` at lines 239 to 247 means tiles wholly above the
 diagonal are never visited, and the tiles the diagonal crosses are masked
 elementwise (line 305). K loads transposed through a differently
 parameterized `BlockLoader`. Grouped-query attention is a stride trick,
 `kv_head_idx = tid.y / gqa_factor`.
 
 This kernel serves `mx.fast.scaled_dot_product_attention` for query lengths
-above 8 with a head dimension its gate accepts; shorter queries, including
+above 8 with a head dimension its gate accepts. Shorter queries, including
 short prefills, go to the vector path, Chapter 22, whose head-dimension list
-differs (80 is on the full list only), and MLX's fused attention has no Metal
-backward at this commit, Chapter 20.
+differs (80 is on the full list only).
+
+MLX's fused attention also has no Metal backward at this commit, Chapter 20.
 
 ## metal-flash-attention: the codegen school
 
@@ -121,29 +123,29 @@ Source: [`AttentionKernel+Source.swift:23-54`](https://github.com/philipturner/m
 
 Where MLX uses templates and llama.cpp enumerates, metal-flash-attention writes a
 bespoke kernel: head dimension, precision, transpose state, even loop bounds
-become literals. The result is maximum specialization with no shipped binary.
+become literals. Every choice is fixed before the source compiles, and no binary
+ships.
 
-Three positions distinguish the project. First, it spills on purpose: it adds a
-third blocking dimension along the head dimension, with tile shapes sometimes
-chosen to spill predictably, on the thesis that a mapped spill of the right
-operand beats a smaller tile. Given Chapter 2's warning, this is the boldest
-register-pressure stance of any kernel in this book. Second, it has a backward
-pass, the only open-source one on the platform,
-split into dQ and dK, dV kernels because of the emulated float atomics of
-Chapter 5.
+The project also spills on purpose. It adds a third blocking dimension along the
+head dimension, with tile shapes sometimes chosen to spill predictably, on the
+thesis that a mapped spill of the right operand beats a smaller tile. Given
+Chapter 2's warning, no other kernel in this book takes a bigger
+register-pressure risk. It has a backward pass, the only open-source one on the
+platform, split into dQ and dK, dV kernels because of the emulated float
+atomics of Chapter 5.
 
-Third, its tile staging is built on the dead copy intrinsics of Chapter
-14, with the comment documenting the M1-era hang. The repository is pre-Metal 4
+Its tile staging is built on the dead copy intrinsics of Chapter 14, with the
+comment documenting the M1-era hang. The repository is pre-Metal 4
 and unmaintained since 2024, but its production descendant, MFA 2.0 in C++
 inside the Draw Things application, ships int8 and sparse-indexed attention to
-real users. For the engineering narrative behind decisions like these, llama.cpp
-pull request 5021, where the flash-attention kernel was built across 154 public
-comments, is the best line-by-line account anywhere.
+real users. For the engineering narrative behind decisions like these, read
+llama.cpp pull request 5021, where the flash-attention kernel was built across
+154 public comments; it is the best line-by-line account anywhere.
 
 ## llama.cpp: the enumeration school
 
-The third answer to the specialization question is to write the shapes down by
-hand. One shader file of 11,603 lines, `ggml-metal.metal`, serves every model
+When every model brings another head dimension or data type, which shapes do
+you compile? llama.cpp writes them down by hand. One shader file of 11,603 lines, `ggml-metal.metal`, serves every model
 architecture and quantization format llama.cpp runs on Apple hardware. Its flash
 attention is a family around one shared implementation, specialized by explicit
 enumeration: an instantiation per head-dimension and data-type combination the
@@ -158,13 +160,15 @@ template [[host_name("kernel_flash_attn_ext_f32_dk32_dv32"  )]]  kernel flash_at
 Source: [`ggml-metal.metal:7128-7143`](https://github.com/ggml-org/llama.cpp/blob/3653e6d6d547ec763317d9ecd0ace334a7e21359/ggml/src/ggml-metal/ggml-metal.metal#L7128-L7143), abridged
 
 Read the template arguments: `dequantize_f32` here, and in sibling instantiations
-the dequantizers for the quantized formats of Chapter 23. This school is shaped
-by one constraint: when K and V arrive quantized, the dequantizer argument fuses
-dequantization into the attention loop itself; `dequantize_f32` is the
-floating-point pass-through that, as its own comment says, only fits the
-template. The asymmetric entries such as `dk576_dv512` exist for
-specific model families. Behavior toggles ride on function constants, Chapter 8,
-and its decode member, the vector kernel, is the subject of Chapter 22. This file
+the dequantizers for the quantized formats of Chapter 23. When K and V arrive
+quantized, the dequantizer argument fuses dequantization into the attention
+loop itself, and that one constraint shapes the whole family. `dequantize_f32`
+is the floating-point pass-through that, as its own comment says, only fits the
+template. The asymmetric entries such as `dk576_dv512` exist for specific
+model families.
+
+Behavior toggles ride on function constants, Chapter 8, and the family's decode
+member, the vector kernel, is the subject of Chapter 22. This file
 is also where llama.cpp deleted MPS in 2023, Chapter 9, and most of the measured
 wins in Part 7 were made inside it.
 
@@ -179,22 +183,22 @@ and differ on three axes.
 | Register pressure | tiles sized not to spill, by design | spill on purpose where mapped | set per instantiation, plus a function constant choosing 4 or 8 simdgroups |
 | Correction step | exponential every tile | exponential and maximum update skipped when the maximum did not move; the multiply by 1 stays | `exp` on the shifted score, lowering left to the compiler |
 
-The schools are not exclusive: MLX also enumerates its template instantiations,
+None of the three is pure: MLX also enumerates its template instantiations,
 llama.cpp also uses templates and function constants, and metal-flash-attention's
 generated source still carries function constants for the sequence dimensions.
 On the same hardware with the same mathematics, all three are defensible
-implementation choices; no controlled three-way comparison exists, and the
+implementation choices. No controlled three-way comparison exists, and the
 measurements in Part 7 bear on them only indirectly.
 
 ## The gate: why is my attention not fused?
 
-None of these kernels helps you if your model never reaches one. On MLX, the
-question is answered by a few lines of host code. `mx.fast` is MLX's set of fused operations, attention, normalizations and
-rotary embedding as one kernel each, or two for the decode attention that
-combines partial results in a second dispatch, plus `mx.fast.metal_kernel` for
-writing your own. Its attention entry runs steel attention for prefill and
-the vector kernels for decode, and the decision between fused and fallback is
-readable.
+None of these kernels helps you if your model never reaches one. On MLX, a few
+lines of host code decide whether it does. `mx.fast` is MLX's set of fused
+operations: attention, normalizations and rotary embedding as one kernel each,
+or two for the decode attention, which combines partial results in a second
+dispatch. It also holds `mx.fast.metal_kernel` for writing your own. Its
+attention entry runs steel attention for prefill and the vector kernels for
+decode, and you can read the decision between fused and fallback directly.
 
 ```cpp
   const bool sdpa_full_supported_head_dim = query_head_dim == value_head_dim &&
@@ -220,7 +224,9 @@ training mode, then at the pinned commit you
 silently got the unfused fallback graph. Current MLX removes the silence: the gate is refactored into
 `has_fused_kernel()`, which returns a human-readable reason, and calling
 `mx.fast.scaled_dot_product_attention(..., force_fused=True)` raises with that
-reason instead of falling back. The DFlash case of
+reason instead of falling back.
+
+The DFlash case of
 Chapter 24 got its single best kernel-level win from a head-dimension patch that
 moved a model inside this gate.
 
@@ -235,8 +241,8 @@ beating steel, which the MTPLX ledger of Chapter 25 measured.
 
 ## Where the matmul stands
 
-The attention example runs on steel attention for prefill, with the function
-constants that match its shape, and only if its head dimension and mask type
+For the attention example to reach steel attention for prefill, with the
+function constants that match its shape, its head dimension and mask type must
 pass the gate. One query row at a time, the generation case, takes a different
 kernel, and the next chapter is about why.
 
@@ -264,8 +270,7 @@ kernel, and the next chapter is about why.
    would cost the traffic the quantization saved; the floating-point
    instantiations pass a converter that only fits the template.
 
-Every kernel read in this chapter serves many query rows at once, and the next
-chapter is about what runs when the query is one row and why its speed is a byte
-count.
+Next, the query shrinks to one row, a different kernel runs, and its speed
+becomes a byte count.
 
 Next: [The KV cache, decode, and prefill](22-the-kv-cache-decode-and-prefill.md)

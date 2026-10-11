@@ -3,18 +3,20 @@
 ## Where we are
 
 You finished Chapter 21 on the case every attention kernel in it refuses: one
-query row. That case is generation, and it is where most of a chat's tokens are
-produced. To reason about it you need to separate the two workloads that share
-the name "inference", see why generation cannot use the matrix kernels, and meet
-the data structure whose size becomes generation's latency on this platform.
+query row. That case is generation. It is where most of a chat's tokens are
+produced. Generation shares the name "inference" with a second workload. It
+cannot use the matrix kernels, and on this platform the size of one data
+structure becomes its latency.
 
 ## Two workloads, one API
 
-When you call a model to generate text, you are running two different programs.
-Language-model inference is two different workloads behind one API. Prefill
-processes the prompt: every token's query against every key it may attend to,
+When you call a model to generate text, you are running two different workloads
+behind one API. Prefill processes the prompt: every token's query against every
+key it may attend to,
 which is a big matrix multiply for the scores, then a softmax and a multiply by
-V, and typically compute bound by the arithmetic of Chapter 3. Decode generates
+V, and typically compute bound by the arithmetic of Chapter 3.
+
+Decode generates
 one token at a time: one query row against the whole history, a dot product per
 key and a weighted sum, and typically bandwidth bound. For a dense model at
 batch size one those regimes hold; short prefills, sliding windows,
@@ -66,16 +68,17 @@ quantization does not have.
 The asymmetry was measured by the turboquant-mlx project on Qwen 2.5 7B at a
 32K context. Quantizing K to 4 bits or below changed the greedy output: K feeds
 the scores that pick the weights, and small score errors can move them. V
-tolerated 3-bit quantization: V is consumed by a weighted average whose weights
-sum to one, which spreads uncorrelated error. The project's mixed configuration,
-8-bit K and 4-bit V, cut active memory from 6.21 GB to 5.08 GB with greedy output
-identical to the baseline, and in that measurement decode ran slower, 25.84
-against 35.75 tokens per second, because the dequantization inside attention
-cost more than the bytes it saved. The working rule is that you treat K's precision as
-accuracy-critical and V's as the knob; reports of a uniform `kv_bits=4`
-corrupting long prefilled contexts fit that pattern. The project kept prefill
-in 16-bit and quantized the cache afterwards, so prefill was unchanged by
-design.
+tolerated 3-bit quantization. It is consumed by a weighted average whose weights
+sum to one, which spreads uncorrelated error. With the project's mixed
+configuration, 8-bit K and 4-bit V, active memory fell from 6.21 GB to 5.08 GB
+and greedy output stayed identical to the baseline, but in that measurement
+decode ran slower, 25.84 against 35.75 tokens per second, because the
+dequantization inside attention cost more than the bytes it saved.
+
+The working rule: K's precision is accuracy-critical and V's is the knob, and
+reports of a uniform `kv_bits=4` corrupting long prefilled contexts fit that
+pattern. The project kept prefill in 16-bit and quantized the cache afterwards,
+so prefill was unchanged by design.
 
 Layout matters at the kernel level. The simple layout is one contiguous,
 append-only allocation per layer. Serving stacks use paged layouts, fixed-size
@@ -118,10 +121,9 @@ where speculative decoding's 3 to 6 query rows fit neither tuning.
 ## Practical readings of the split
 
 What changes in your own work once you treat prefill and decode as two
-workloads? Different optimizations apply. Prefill wants everything in the
-matrix-multiply school of Part 4. Decode wants fewer bytes (quantized weights and
-cache compression) and fewer synchronizations (one evaluation per token, Chapter
-16).
+workloads? Different optimizations apply. For prefill, use everything in the
+matrix-multiply school of Part 4. For decode, cut bytes (quantized weights and
+cache compression) and synchronizations (one evaluation per token, Chapter 16).
 
 You also have to benchmark them separately. A "2 times faster attention" that speeds up
 prefill only shows up in the time to the first token and not at all in tokens
@@ -139,8 +141,7 @@ The example has two numbers now. For prefill, the attention kernel of Chapter 21
 and the matrix multiply of Part 4 are compute bound. For decode, one token at a
 32K context streams about 4.29 GB of cache plus the weights, and the floor is
 set by bandwidth: at about 495 GB/s, the cache alone is about 8.7 milliseconds
-per token. Everything that speeds decode from here deletes bytes or deletes
-waits.
+per token. To speed decode from here, you delete bytes or delete waits.
 
 ## Check yourself
 

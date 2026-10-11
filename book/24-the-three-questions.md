@@ -51,7 +51,7 @@ of dispatch gates: the head-dimension list of Chapter 21, the
 sequence-length thresholds of the same gate, the tile-size lookup table of
 Chapter 17. Falling off a fast path is silent, or was at the pinned commits, and
 the fix is often a few lines, at the dispatch or inside a kernel's tuning rather
-than a new kernel. Two measured wins show the pattern.
+than a new kernel.
 
 DFlash, a port of speculative decoding, reached 3.34 times end to end with output
 identical to the greedy baseline. Every hand-written custom kernel tried along
@@ -63,8 +63,8 @@ second as rounded in its report. Stock quantized matrix-vector multiply, Chapter
 23, stalls at the 3 to 6 row shapes that speculative decode produces, between the
 single-row tuning and the tile sizes of the matrix path. About 10 lines of Metal
 fixed it with wider simdgroup tiles (a simdgroup is still 32 lanes) plus
-unrolling, and the output stayed bit-exact. This is a typical question-2 result.
-The kernel existed, but its tuning grid had a hole.
+unrolling, and the output stayed bit-exact. You already had the kernel; its
+tuning grid had a hole, the typical question-2 result.
 
 The method for a question-2 win is reading, and the files to read are the ones
 Chapters 17 and 21 showed: the branch your shape takes, and the condition that
@@ -100,8 +100,8 @@ effort goes below the kernel first, and because it is a set of published negativ
 results, it is the most instructive reading on the platform.
 
 The questions also connect back to the arithmetic. Question 1 is Chapter 3's
-byte count applied to the whole model. Question 2 is Chapter 17's file reading.
-Question 3 is Chapter 7's count of buffers and waits. None of the three needs a
+byte count applied to the whole model, question 2 is Chapter 17's file reading,
+and question 3 is Chapter 7's count of buffers and waits. None of the three needs a
 profiler, which matters because Chapter 9 said the one that exists cannot run in
 a feedback loop.
 

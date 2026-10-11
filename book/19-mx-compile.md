@@ -36,19 +36,17 @@ command buffer per forward pass, and its search rediscovered flash attention.
 
 ## The mechanics, briefly
 
-The first call traces the function with placeholder inputs; a Python branch on
-a placeholder's value, or a read of one, is an error during tracing rather than
+What happens the first time you call a compiled function? It is traced with
+placeholder inputs; a Python branch on a placeholder's value, or a read of one, is an error during tracing rather than
 a silent fallback. Fusable subgraphs become generated kernels: `compiled.cpp` in
 the Metal backend generates their Metal Shading Language at first evaluation and
 compiles it through the run-time path of Chapter 6, and the result is cached
 against the input shapes, data types and the other cache keys above.
-`shapeless=True` opts hot functions out of shape specialization where their
+If your inputs change shape, `shapeless=True` opts hot functions out of shape specialization where their
 kernels permit it. Constants get baked in. The usual tracing caveats
 apply as in JAX: Python side effects run once, at trace time.
 
-Which operations does that cover? Everything after this depends on what
-"elementwise" means. An
-elementwise operation produces each output element from the corresponding
+Which operations does that cover? An elementwise operation produces each output element from the corresponding
 positions of its inputs, after broadcasting, and nothing else: activations,
 scaling, residual adds, masks. A reduction, which combines many positions into
 one, is not elementwise, and neither is anything whose outputs depend on a whole
@@ -84,8 +82,7 @@ it help a workload that is one giant matrix multiply.
 
 ## The boundary of custom work
 
-If you write kernels, you need to know where hand-written work should begin.
-`mx.compile` defines that line.
+Where should your hand-written work begin? `mx.compile` defines that line.
 The compiler fuses anything expressible as an elementwise chain well enough that
 writing it by hand buys little. Custom effort belongs on the patterns the
 compiler cannot see: reductions with structure, the streaming softmax of Chapter

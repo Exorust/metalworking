@@ -47,10 +47,9 @@ sum `l` and a running output `O`, which holds the unnormalized numerator:
     O     = O * c + P * V_tile     # same correction, same reason
     m     = m_new
 
-After the last tile, divide `O` by `l`. That is the algorithm, in six lines. If
-you can re-derive the correction factor, you understand it: the sum and the
-output were both accumulated as sums of `exp(x - m_old)` terms, so both need the
-same factor when the reference maximum moves. Nothing about the row's length
+After the last tile, divide `O` by `l`. That is the algorithm, in six lines. The
+sum and the output were both accumulated as sums of `exp(x - m_old)` terms, so
+both need the same factor when the reference maximum moves. Nothing about the row's length
 enters the state; the kernel keeps one maximum, one sum and one output row per
 query, whatever the context length.
 
@@ -62,8 +61,8 @@ shuffles, Chapter 1, not trips through memory.
 
 ## The same five lines in two production dialects
 
-You will meet this derivation in code in the next chapter, and seeing both
-dialects now lets you recognize them there. MLX's attention kernel:
+What does the correction look like in production code? Seeing both dialects now
+lets you recognize them in the next chapter. MLX's attention kernel:
 
 ```cpp
     // Factor exp(rowmax(Si) - rowmax(Si-1))
@@ -125,8 +124,8 @@ O caching and separate S and P register arrays.
    simdgroup's `simdgroup_matrix` fragments; it is masked and softmaxed in place,
    multiplies V, and dies. This transform-in-place requirement is why steel
    forked its attention multiply from the matrix-multiply one, Chapter 18.
-3. Online softmax makes the streaming legal; the base-2 exponent path makes it
-   cheap.
+3. Online softmax lets the output accumulate as K and V stream past, and the
+   base-2 exponent path keeps that cheap.
 4. Where possible, causal masking skips tiles instead of masking them: whole
    tiles above the diagonal are never visited, and only the tiles the diagonal
    crosses are masked elementwise. This is the first of the three questions of
@@ -146,9 +145,9 @@ Count what step 2 deletes, for one head at a context of L tokens and a head
 dimension of d. Naive attention writes the L by L score matrix and reads it
 back: 2 L² values of round trip, and a separate probability matrix would double
 that. Flash attention's compulsory traffic is K and V once, 2 L d values, plus
-Q and the output, another 2 L d; each query tile also streams K and V again,
-about 2 L d × (L / Bq) requested values for a query tile of Bq rows, and whether
-those repeated reads reach DRAM depends on the caches of Chapter 2, the same
+Q and the output, another 2 L d. Each query tile of Bq rows also streams K and V
+again, about 2 L d × (L / Bq) requested values. Whether those repeated reads
+reach DRAM depends on the caches of Chapter 2, the same
 requested-versus-compulsory distinction Chapter 10 drew for the matrix multiply.
 
 Now put numbers in. At L = 32,768 and d = 128, the deleted round trip is about 2.1 billion values
@@ -160,8 +159,9 @@ across every head and layer, that cost is the reason the technique exists.
 
 ## Two boundaries on this platform
 
-The kernel shape above covers the forward pass over many queries. You will hit its
-edges in two places.
+What happens when you have one query, or need the backward pass? The kernel
+shape above covers the forward pass over many queries, and you hit its edges in
+exactly those two places.
 
 Decode is a different problem. One query row cannot fill an 8 by 8 tile, so
 MLX and llama.cpp ship separate vector kernels for generation, Chapter 22;
@@ -191,9 +191,9 @@ unwritten kernel, it is this one.
 ## Where the matmul stands
 
 The example is now attention: one head at a long context, with the score matrix
-held in registers one tile at a time and never written. What is left to decide
-is how the three production kernels on the platform make the engineering choices
-the algorithm leaves open.
+held in registers one tile at a time and never written. What you still have to
+see is how the three production kernels on the platform make the engineering
+choices the algorithm leaves open.
 
 ## Check yourself
 

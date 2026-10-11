@@ -7,9 +7,8 @@ on the GPU's regular arithmetic pipes, and until the M5 generation that is all
 the GPU had: Chapter 12 said `simdgroup_matrix` is the API of a Tensor Core on
 hardware that had none. The benchmarks ran on an M5 Max, and Chapter 17 showed
 MLX's own dispatcher already taking the other route there; what you read was the
-portable path. The last part of this book
-is about the hardware that changed that, and the programming model that reaches
-it. Before the new unit, step one level up to the three matrix engines that share
+portable path. The new generation gave the GPU a dedicated matrix unit, and
+reaching it takes a different programming model. Before the new unit, step one level up to the three matrix engines that share
 one Apple die, because two of them affect GPU work whether or not you ever
 program them, and the third is the new one.
 
@@ -20,7 +19,8 @@ program them, and the third is the new one.
 *Where the engines sit. Three share one bandwidth budget; Metal talks to the
 middle one, and the API rows at the bottom are the only ways to reach each.*
 
-**AMX, on the CPU.** AMX is Apple's undocumented CPU matrix coprocessor. It is
+**AMX, on the CPU.** When Accelerate beats your GPU kernel on a small matrix,
+AMX is often the reason. It is Apple's undocumented CPU matrix coprocessor,
 not part of the GPU, but it is the other half of Apple's matrix-multiply
 performance, and it explains small-matrix CPU throughput that NEON alone could
 not deliver. There is
@@ -41,14 +41,16 @@ sanctioned interface, and corsix's documentation is where you find out what
 those libraries can be doing underneath the numbers you measure.
 
 AMX matters to GPU work in two ways. The first is dispatch: for small matrices, the
-fastest processor on the chip is often AMX, not the GPU, because kernel launch
-overhead plus the round trips of Chapter 7 swamp the GPU's advantage below a size
-threshold, and Accelerate and BNNS, which run on the CPU side, can use it.
+fastest processor on the chip is often AMX, not the GPU. Below a size threshold,
+kernel launch overhead plus the round trips of Chapter 7 swamp the GPU's
+advantage, and Accelerate and BNNS, which run on the CPU side, can use AMX.
 Metal Performance Shaders cannot: MPS encodes its matrix multiply into a command
 buffer and runs it on the GPU, which is how Chapter 9 timed it with GPU
 timestamps. So if Accelerate beats your kernel at 256 by 256, this is frequently
 why; if MPS does, the explanation is in the GPU kernel and its dispatch, not in
-AMX. The second is the shared memory pool: unified memory means CPU-side AMX
+AMX.
+
+The second is the shared memory pool: unified memory means CPU-side AMX
 work and GPU work compete for the same bandwidth, so a background BNNS workload
 can cut the bandwidth a bandwidth-bound GPU kernel achieves.
 
@@ -63,16 +65,15 @@ the first real Tensor Core counterpart on the GPU.
 
 ## What M5 changes, and what it does not
 
-The earlier chapters told the pre-M5 story on purpose. `simdgroup_matrix`
-executes on the regular 32-bit pipes, and the reverse-engineered Rigel work
+What did M5 add under your kernels? The `simdgroup_matrix` kernels of the
+earlier chapters execute on the regular 32-bit pipes, and the reverse-engineered Rigel work
 confirmed no dedicated matrix datapath as late as M4. On M5 that changed, and
 Apple's own numbers for MLX on M5 say where: about 3.97 times faster time to
 first token and 1.19 to 1.27 times faster decode than M4, end-to-end numbers
 that fold in everything else that changed between the chips. The prefill gain
 is where a matrix unit should show, in the compute-bound territory of
 Chapter 3. Decode stays bandwidth bound, so it moves with the memory spec
-instead (Chapter 22). The two numbers follow the compute-bound versus
-bandwidth-bound split that the rest of the book uses.
+instead (Chapter 22).
 
 So what should you carry over from CUDA, and what not? Start with the fragment
 shape, which moves from 8 by 8 to 16 by 16. MLX's NAX steel is built on a 16 by
@@ -106,11 +107,11 @@ to. You describe a matrix multiply with a descriptor and cooperative tensors,
 and the compiler and the hardware choose the datapath. Chapter 29 covers the
 model and reads real code.
 
-Software support is early. MLX ships a parallel steel fork for it (`gemm/nax.h`,
+How ready is the software? Support is early. MLX ships a parallel steel fork for it (`gemm/nax.h`,
 `attn/nax.h`, `quantized_nax` and `fp_quantized_nax`), llama.cpp has a tensor-API
-matrix-multiply path, and the tuning is young. Recent MLX work is
-disproportionately NAX-shaped: batch limits raised for M5-class GPUs,
-NVFP4 matrix-vector optimization, and per-expert tile picks. The path is still
+matrix-multiply path, and the tuning is young. A disproportionate share of recent MLX work targets NAX: it
+raised batch limits for M5-class GPUs, optimized NVFP4 matrix-vector kernels,
+and added per-expert tile picks. The path is still
 changing quickly. `simdgroup_matrix` remains the portable primitive. It runs on
 every M-series chip and most shipped kernels still use it, which is why this
 book teaches both.
@@ -120,9 +121,9 @@ book teaches both.
 On a 40-core M5 Max, the running example has a second route: the tiled matrix
 multiply of Part 4 still runs on the regular pipes at the 13.5 TFLOPS Chapter 10
 measured in 32-bit, and the same multiply described to the neural accelerators
-runs on a dedicated unit with 16 by 16 fragments. For 32-bit inputs that route
-multiplies in TF32, which changes the numerics, Chapter 17, so a comparison
-between the two has to state the precision and check the error. The next
+runs on a dedicated unit with 16 by 16 fragments. If you compare the two with
+32-bit inputs, state the precision and check the error: the second route
+multiplies in TF32, which changes the numerics, Chapter 17. The next
 chapter reads the code for the second route.
 
 ## Check yourself
@@ -153,7 +154,8 @@ chapter reads the code for the second route.
    type. That is payload per fragment, not more registers per output tile: four
    8 by 8 fragments cover the same 16 by 16 patch with the same element count.
 
-The last chapter reads the programming model for the new unit and a kernel
-written for it, and ends where the book began, with a matrix multiply.
+To take the accelerator route you have to describe the multiply with descriptors
+and cooperative tensors, and the last chapter reads that model and a kernel
+written for it, ending where the book began, with a matrix multiply.
 
 Next: [Tensor ops and the NAX GEMM](29-tensor-ops-and-the-nax-gemm.md)

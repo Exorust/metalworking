@@ -64,11 +64,12 @@ GB/s, and 26 / 516 is about 5 percent of the bandwidth roof. The compute ratio i
 13,500 / 13,500. That ratio is 1 by construction, because this kernel's result
 defines the practical ceiling; it says that no measured 32-bit kernel on this
 chip does better, not that the arithmetic units are proven saturated. MPS at the
-same size is 11,700 / 13,500, about 0.87. The requested traffic of Chapter 3's 16
-FLOPs per byte would be 13,500 / 16, about 844 GB/s, more than the DRAM roof, so
-at least 1 - 516 / 844, about 39 percent, of the requested bytes were served by
-the caches rather than by memory; the true share is unknown, because none of
-these counts is a measurement of DRAM traffic.
+same size is 11,700 / 13,500, about 0.87.
+
+At Chapter 3's 16 FLOPs per byte, the requested traffic would be 13,500 / 16,
+about 844 GB/s. That exceeds the DRAM roof, so the caches rather than memory
+served at least 1 - 516 / 844, about 39 percent, of the requested bytes. The true
+share is unknown, because none of these counts is a measurement of DRAM traffic.
 
 If both ratios are low, the kernel is far from both references, and the ratios
 alone do not say why. The candidates are dispatch and synchronization overhead
@@ -88,12 +89,12 @@ under sustained load when they hit their thermal or power limits. One project
 measured its long-run throughput decay dropping from 50 percent to 6.7 percent
 by locking the fans at maximum, and Chapter 25 has the command. Report sustained numbers, not first-second numbers.
 
-The winner also moves with problem size. The ceilings of a machine do not change
-with the matrix size, but which kernel is nearest them does: the matrix multiply
-ladder of Chapter 14 has a different winner at three sizes, and its author's
-explanations (launch latency at small sizes, unroll quality in the middle,
-convergence at large sizes) are hypotheses from differential benchmarking rather
-than isolated measurements. Without a size sweep, a roofline claim is a guess.
+The winner also moves with problem size. The ceilings of a machine stay fixed as
+the matrix size changes, but which kernel is nearest them does not: the matrix
+multiply ladder of Chapter 14 has a different winner at three sizes. Its author
+suspects launch latency at small sizes, unroll quality in the middle, and
+convergence at large sizes; those are hypotheses from differential benchmarking,
+not isolated measurements. Without a size sweep, a roofline claim is a guess.
 That is why the running example always states its size.
 
 And you report end to end as well as per kernel. A kernel at 90 percent of its
@@ -106,7 +107,7 @@ hardware limits do, and Chapter 25 lists the measured cases.
 
 ## Where the matmul stands
 
-The 4096 by 4096 example has a chart now. The bandwidth roof is 516 GB/s
+How much room does the 4096 by 4096 chart leave you to beat MPS? The bandwidth roof is 516 GB/s
 measured, the compute roof is 13.5 TFLOPS, and the ridge is about 26 FLOPs per
 byte. MPS sits at 11.7 TFLOPS on the compute side of the ridge, and 11.7 / 13.5
 is about 87 percent of the compute ceiling. The target for Part 4 is the ceiling itself.

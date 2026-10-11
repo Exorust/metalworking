@@ -3,10 +3,10 @@
 ## Where we are
 
 In Chapter 2 you opened the core and found a large register file next to a small
-scratch memory. Below the core sits the memory that every threadgroup reads its inputs from
-and writes its results to. On a discrete NVIDIA card that memory is on the card,
+scratch memory. Every threadgroup you launch reads its inputs from the memory below the core
+and writes its results there. On a discrete NVIDIA card that memory is on the card,
 and the host's memory is on the other side of a bus. On Apple Silicon there is one
-pool, and it is shared with the CPU. What that buys is easy to see. What it costs
+pool, and it is shared with the CPU. You can share a buffer with the CPU without copying it. What it costs
 turns out to be the number that decides most kernel designs on this platform.
 
 ## One pool
@@ -27,7 +27,7 @@ this platform. The usable budget is smaller than the installed RAM: macOS caps h
 much the GPU may wire, a `sysctl` raises the cap (Chapter 25), and GPU allocations
 compete with everything else running.
 
-The second is that transfer engineering disappears. There is no `cudaMemcpy`, no
+The second is that you stop engineering transfers. There is no `cudaMemcpy`, no
 pinned host memory, and no arrangement of streams to overlap copies with compute.
 That class of CUDA optimization does not apply.
 
@@ -74,20 +74,19 @@ for this path, and the spec bandwidth is 614 GB/s.
 Use the measured 516 GB/s instead of the spec and the ridge moves to about 26
 FLOPs per byte. Both use the
 same measured compute figure, and both apply to this precision and path; other
-precisions have their own ceilings (Chapter 10). The magnitude matters more than
-the exact value. A kernel needs more than about twenty-two to twenty-six
+precisions have their own ceilings (Chapter 10). A kernel needs more than about twenty-two to twenty-six
 operations for every byte it moves before the compute ceiling binds.
 
 Compare that with an H100: on its 32-bit path, about 67 TFLOPS over 3.35 TB/s,
 the ridge is about 20, the same as here; on its 16-bit tensor-core path, about
 989 TFLOPS over the same bandwidth, it is near 300. So the law is not that this
 ridge is unusually high. It is that both ceilings are low in absolute terms and
-bandwidth lowest of all, 516 GB/s against several terabytes per second: a
+bandwidth lowest of all, 516 GB/s against several terabytes per second. A
 bandwidth-bound kernel takes about six times longer here for the same bytes, so
 such kernels are a larger share of a model's time than your CUDA intuition
-expects, and moving fewer bytes is the lever that pays most often.
+expects. Moving fewer bytes is the lever that pays most often.
 
-Now put the canonical workloads against it. The intensities below are ideal
+Compare the ridge with matrix multiply, elementwise work and decode. The intensities below are ideal
 counts, every byte touched once: what a workload could reach, not what an
 implementation moves.
 
@@ -106,11 +105,11 @@ so each threadgroup loads a 64-row strip of A and a 64-column strip of B: 2 × 6
 byte requested, still below the ridge. Tiling raises the requested intensity from
 0.25 to a quarter of the tile edge.
 
-Requested is not compulsory: each value of A
+Requested is not compulsory. Each value of A
 and B needs to come from memory once and C once each way, so the compulsory
-traffic at 4096 by 4096 is 192 MiB in about 10 ms (256 MiB for the kernel here,
-which also reads C), about 20 to 26 GB/s, roughly 25 times below the measured
-roof. The requested traffic, 4,096 threadgroups times 2 MiB of strips, about 8
+traffic at 4096 by 4096 is 192 MiB (256 MiB for the kernel here, which also
+reads C). In about 10 ms that is 20 to 26 GB/s, roughly 25 times below the
+measured roof. The requested traffic, 4,096 threadgroups times 2 MiB of strips, about 8
 GiB in the same 10 ms, would be about 840 GB/s, above any roof, so the caches
 must serve most of it. The measured 13.5
 TFLOPS at 4096 by 4096 is the best rate on this path and the figure this book

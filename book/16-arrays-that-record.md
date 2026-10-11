@@ -8,8 +8,8 @@ usually optimize through MLX, Apple's open-source array framework, and its
 architecture decides what is fast before any kernel runs. Part 5 follows the same
 matrix multiply into MLX: what the framework does with `mx.matmul(a, b)` before,
 during and after the kernel. You start here with the before. At that stage MLX
-does no GPU work at all, and why that design matters is the subject of what
-follows.
+does no GPU work at all; it records the operations so that it can batch their
+GPU work when you evaluate the result.
 
 ## What MLX is, for a CUDA-stack reader
 
@@ -100,10 +100,10 @@ void eval(array& arr) {
 ```
 Source: [`mlx/backend/metal/eval.cpp:29-62`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/eval.cpp#L29-L62), abridged
 
-The encoder is shared across primitives on a stream, the
-primitive encodes its dispatch into it, and a commit happens when the
-encoder says it needs one, which MLX decides from its own thresholds of work and
-memory, plus a final commit of whatever remains when the evaluation finishes. This is the batching rule of Chapter 7 applied automatically, and it is
+The encoder is shared across primitives on a stream, and each
+primitive encodes its dispatch into it. A commit happens when the encoder says
+it needs one, which MLX decides from its own thresholds of work and memory, plus
+a final commit of whatever remains when the evaluation finishes. This is the batching rule of Chapter 7 applied automatically, and it is
 also the opt-out Chapter 7 mentioned: MLX allocates its buffers untracked and
 dispatches concurrently, so it inserts the memory barriers between dependent
 dispatches itself rather than relying on Metal's hazard tracking.
@@ -126,9 +126,9 @@ accidental version is a Python `if` on a logit value in the middle of the loop,
 which forces a pipeline drain per token. Structure your loops so that the host reads no value mid-step unless the algorithm
 needs it, and exactly one evaluation happens per iteration, at the end.
 
-Streams are where operations run. `mx.gpu` and `mx.cpu` are devices; each has a
-default stream, `mx.default_stream(device)`, `mx.new_stream(device)` makes more,
-and every operation takes a `stream=` argument that accepts a stream or a device,
+Streams are where operations run. `mx.gpu` and `mx.cpu` are devices, and each has a
+default stream, `mx.default_stream(device)`; `mx.new_stream(device)` makes more.
+Every operation takes a `stream=` argument that accepts a stream or a device,
 meaning that device's default stream. Because arrays have no device, sending an operation to the
 CPU stream costs no transfer, so heterogeneous pipelines, CPU pre-processing and
 post-processing around GPU compute, are routine. Dependencies

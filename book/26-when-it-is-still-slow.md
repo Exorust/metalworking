@@ -3,7 +3,7 @@
 ## Where we are
 
 You have a kernel that the roofline of Chapter 10 says should be fast, and it is
-not. The methodology of Chapter 9 had four steps. Timestamps and arithmetic,
+not. You worked through the four steps of Chapter 9. Timestamps and arithmetic,
 differential benchmarking, and the hygiene rules carry most kernels to an
 answer. Yours did not. Changing one thing at a time has not found the lever either. What
 remains is the third step in Chapter 9's list, disassembly when the arithmetic
@@ -14,10 +14,9 @@ toolchain, which is also how the community learned most of what Part 1 reported.
 ## What you have, compared with CUDA
 
 On NVIDIA, you read SASS with `cuobjdump` and `nvdisasm`, the vendor documents the tool,
-and about half of the instruction set is documented. Here the instruction set of
+and about half of the instruction set is documented. Here the community reverse engineered the instruction set of
 the Apple G13 family, the M1 generation, with coverage of later generations
-growing, was reverse engineered by the community, and the on-device final
-compile of Chapter 6 means that the binary you inspect was built on your own
+growing, and the on-device final compile of Chapter 6 means that the binary you inspect was built on your own
 machine, for your chip, from your source.
 
 The toolchain lives at the pinned commit of dougallj/applegpu, and you start with
@@ -30,7 +29,7 @@ register formats. Around those three, `assemble.py` goes the other direction,
 `hwtestbed.py` runs encodings on real hardware, and `docs.html` is the browsable
 instruction reference.
 
-Reading is only half of it. Patch instruction bytes
+You can also test an instruction by experiment. Patch its bytes
 into a compiled shader, run it on the hardware test bed, and diff the GPU's
 behavior against the emulator's. That loop answers "what does this undocumented
 instruction actually do" by experiment, even though no documentation for it
@@ -57,7 +56,6 @@ the scheduling freedom of Chapter 4. The disassembly is the only place you can
 see which happened.
 
 Last come instruction-selection surprises. Expect one every time you look.
-The disassembly is where you look.
 
 For the kernel of Part 4, expect the following: the inner loop should be a short
 straight-line sequence of fragment loads and multiply-accumulates with no
@@ -70,32 +68,34 @@ attribute of Chapter 12, with the caveat that chapter recorded: the enlarged
 tile spilled with the attribute already present, so the attribute is a hint, not
 a cure.
 
-Two practical notes before you run it. The pinned `metal-matmul` kernel does
+Before you run it, know that the pinned `metal-matmul` kernel does
 not compile from its raw source alone; `sync_copy.metal` expects `SW`,
 `SIMD_TILE` and `TILE_K` to arrive as preprocessor definitions from the host,
 and the applegpu compile helper takes no `-D` option, so write the three values
 into a copy of the source before you hand it over, and make sure they match the
-configuration you timed. And when the disassembler meets an encoding it does not
+configuration you timed.
+
+When the disassembler meets an encoding it does not
 know, it prints a failure marker and advances two bytes, so if the unknown
 instruction was longer than that, everything after it may be misaligned. Treat
 the output after the first unknown encoding as unreliable.
 
 ## Two caveats
 
-The toolchain has two limits. First, coverage tracks the reverse-engineering effort, not Apple's release
+Kernels built on the newest hardware may disassemble into unknown encodings.
+Coverage tracks the reverse-engineering effort, not Apple's release
 schedule, so the newest instructions, the tensor paths of the M5 neural
-accelerators in Chapter 29 especially, lag until someone maps them, and a kernel
-built on the newest hardware may disassemble into unknown encodings.
+accelerators in Chapter 29 especially, lag until someone maps them.
 
-Second, everything here is unsupported surface. It is the same platform-risk
+Apple supports none of this toolchain. It is the same platform-risk
 trade that the copy-engine story of Chapter 14 documented. The toolchain is a
 debugging instrument. Use it to read machine code, and do not build or ship a
 product that depends on it.
 
 ## The methodology, complete
 
-You now have every step of the measurement method of Part 3, and since on this
-platform it replaces the profiler, here it is in one place.
+On this platform the measurement method of Part 3 replaces the profiler, so
+here are all of its steps in one place.
 
 1. Time with command-buffer timestamps, Chapter 9, after the pipeline is built
    and the first runs are discarded, over several trials.

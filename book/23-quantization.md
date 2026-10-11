@@ -59,7 +59,7 @@ and the family is split the same way as the attention kernels of Chapter 22.
 
 Host-side dispatch picks a kernel per shape, and the file reading of Chapter 17
 applies: QMV also serves a few rows, and on an M5 eligible QMM calls go to the
-NAX fork. Shape sensitivity is the running theme of Part 7. Stock QMV is tuned for
+NAX fork. Stock QMV is tuned for
 one row, and the MTPLX project found that 3 to 6 rows, the shape speculative
 decoding produces, stalled it. About 10 lines of wider-simdgroup unrolling fixed
 it, a factor of 2.24 end to end (Chapter 24).
@@ -70,8 +70,8 @@ work whose contribution falls below a threshold (positions with near-zero
 attention weight) is dequantization you can skip, an approximation the sparse-V
 case checked against perplexity.
 
-How much does all this buy you? Count the bytes for the decode case that the
-whole chapter is about. A 4096 by
+How much does all this buy you? For decode, count the bytes you load for one
+activation row. A 4096 by
 4096 weight matrix is 16.8 million values. In 16-bit that is 32 MiB per
 matrix-vector product; at 4 bits with a 64-value group, each group of 64 values
 costs 64 × 4 bits plus a scale and a bias in the weight's own type, 16 bits each
@@ -84,15 +84,15 @@ such matrices per layer, times tens of layers, per token.
 
 ## The newer modes: block-scaled floats
 
-Affine is not the only format you will meet in the pinned MLX. The three modes
-added alongside it are block-scaled floating point, not affine integers: `mxfp4`, `nvfp4` and `mxfp8`, with group sizes 32, 16 and 32,
-backed by `fp4.h` and `fp8.h` kernels, plus `quantize_input=True` for quantizing
-activations as well as weights in the nvfp4 and mxfp8 modes. These are the
+If your weights use `mxfp4`, `nvfp4` or `mxfp8`, the affine unpacking rule no
+longer applies. These three modes, added alongside affine in the pinned MLX, are
+block-scaled floating point, not affine integers, with groups of 32, 16 and 32
+values; `fp4.h` and `fp8.h` kernels implement them. In the nvfp4 and mxfp8
+modes, `quantize_input=True` quantizes activations as well as weights. These are the
 block-scaled formats that arrived with the M5 neural accelerators (Chapter 28);
 in the pinned MLX, the fp4 and fp8 NAX kernels dequantize the codes to 16-bit
 values before loading them into the matrix unit's tiles. The examples here stay
-with the affine mode. Remember that the affine description at the start does not
-cover every mode.
+with the affine mode.
 
 ## One trap for intuition
 
@@ -110,12 +110,12 @@ spec predicts decode speed almost linearly, which is Chapter 25's buying rule.
 
 ## Where the matmul stands
 
-The decode example now streams about 3.5 times fewer weight bytes per token at 4
-bits. The weights still set the floor (about 80 milliseconds per token for a
+With weight traffic cut by about 3.5 times at 4 bits, what still sets your decode
+time? The weights still set the floor (about 80 milliseconds per token for a
 70-billion parameter model), and on top of them sit the cache of Chapter 22, the
 dequantization inside the kernels, and the forced waits of Chapter 16.
 
-That finishes Part 6. You now have a number for each of the matrix multiply,
+You now have a number for each of the matrix multiply,
 attention, the cache and the weights. Part 7 asks where the measured wins on
 real models came from.
 

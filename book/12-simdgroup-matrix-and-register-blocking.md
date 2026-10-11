@@ -99,14 +99,15 @@ offset.*
 Count the reuse, because it is the reason the grid is 4 by 4 and not 1 by 1. Per
 step of 8 along the shared dimension, the simdgroup needs 4 distinct fragments
 of A, one per row of the grid, and 4 of B, one per column, and they feed 4 × 4 =
-16 multiply-accumulates: every fragment is used four times. Note what the source
-above does with that geometry: each call of the helper loads its own A and B
-fragment, so the kernel as written issues 32 `simdgroup_load` calls per 8-deep
-step for 16 multiplies and leaves it to the compiler whether the repeats stay in
-registers; steel's `BlockMMA` loads the four A and four B fragments once into
-`Atile` and `Btile` and reuses them explicitly (Chapter 18). With a 1 by 1 grid
+16 multiply-accumulates: every fragment is used four times. With a 1 by 1 grid
 there is no reuse to find: 2 fragments per multiply, four times the load traffic
 per multiply-accumulate. That is the "too small" cliff.
+
+The kernel's source does not spell that reuse out: each call of the helper loads
+its own A and B fragment, so the kernel as written issues 32 `simdgroup_load`
+calls per 8-deep step for 16 multiplies, and whether the repeats stay in
+registers is left to the compiler; steel's `BlockMMA` loads the four A and four B
+fragments once into `Atile` and `Btile` and reuses them explicitly (Chapter 18).
 
 The "too big" cliff is the one Chapter 2 introduced. The author tried `SIMD_TILE`
 = 8, an 8 by 8 grid, 64 fragments, a 64 by 64 patch per simdgroup, and the kernel
@@ -121,7 +122,7 @@ stay 32-bit, Chapter 4), and the attribute below.
 
 ## The most consequential line
 
-According to the kernel's author, its single biggest practical win is an
+Which line does the kernel's author call its single biggest practical win? An
 attribute on the kernel declaration.
 
 ```metal
@@ -163,7 +164,7 @@ together.
 Source: [`sync_copy.metal:113-128`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L113-L128)
 
 Each iteration stages the tiles cooperatively (Chapter 11), waits at a barrier,
-multiplies from registers (this chapter), waits at a second barrier, and advances.
+multiplies from registers, waits at a second barrier, and advances.
 `simd_origin` is where this simdgroup's 32 by 32 patch sits in the threadgroup's
 64 by 64 tile, computed from its position in the threadgroup.
 `simdgroup_multiply_tile` is the fragment loop quoted at the top of this chapter,
@@ -176,13 +177,15 @@ iteration overwrites it.
 
 ## Where the matmul stands
 
-The kernel multiplies two 4096 by 4096 32-bit matrices on a 40-core M5 Max at
+What did keeping the output in registers buy you? The kernel multiplies two
+4096 by 4096 32-bit matrices on a 40-core M5 Max at
 13.5 TFLOPS, best of 3 runs each averaging 5 trials, against 11.7 for MPS. It beats the
 library by (13.5 - 11.7) / 11.7, about 15 percent, and it sits at the practical
 compute ceiling of Chapter 10, which is defined by this result. Three techniques
 got it there: tiling, the cooperative load, and register blocking on
 `simdgroup_matrix`, with the attribute that keeps the accumulators in registers.
-The next chapter covers the epilogue and reads the full file.
+What remains is the epilogue, which stores the accumulated output, and the next
+chapter reads it with the rest of the file.
 
 ## Check yourself
 
@@ -212,7 +215,7 @@ The next chapter covers the epilogue and reads the full file.
    win in the kernel. It does not protect against a payload that exceeds even
    that budget: the 8 by 8 accumulator grid spilled with the attribute in place.
 
-Every line of the kernel except its ending has now been explained, and the next
-chapter reads the file from top to bottom, including the ending.
+The output is still in registers, and the next chapter reads the file from top
+to bottom, following one tile all the way to its final store.
 
 Next: [Reading the whole kernel](13-reading-the-whole-kernel.md)

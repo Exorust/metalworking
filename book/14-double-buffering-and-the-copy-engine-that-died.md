@@ -96,16 +96,21 @@ kernel, the double-buffered kernel and MPS at four sizes on an M5 Max, 32-bit, b
 
 ![Three Metal GEMM kernels benchmarked across matrix sizes, showing the fastest one changes with the problem size](../gemm-ladder.gif)
 
-Each size regime has a different winner. The author's explanations for each are
-hypotheses from differential benchmarking rather than isolated measurements. At
-1024 by 1024, the double-buffered kernel is 10.7 / 3.3, about 3.2 times the
-single-buffered one and 10.7 / 2.9, about 3.7 times MPS: the author attributes this to fetch latency that the prefetch hides, and
-since the GPU timestamps exclude launch cost, memory latency is the candidate.
-Small matrix multiplies are the shape that batched and speculative decoding
-produce (Chapter 22). At 4096 by
-4096 the simpler kernel wins by a little, 13.5 against 13.1, because its smaller
-loop unrolls better; compiler quality matters more than the algorithm here. At
-8192 by 8192 all three converge, 13.0, 12.7 and 13.5, and MPS takes the lead
+Each size regime has a different winner. The timings tell you which kernel
+wins; the author's explanations of why are hypotheses from differential
+benchmarking, not isolated measurements.
+
+At 1024 by 1024, the double-buffered kernel is 10.7 / 3.3, about 3.2 times the
+single-buffered one, and 10.7 / 2.9, about 3.7 times MPS. The author attributes
+this to fetch latency that the prefetch hides, and since the GPU timestamps
+exclude launch cost, memory latency is the candidate. Small matrix multiplies
+are the shape that batched and speculative decoding produce (Chapter 22).
+
+At 4096 by 4096 the simpler kernel wins by a little, 13.5 against 13.1, because
+its smaller loop unrolls better; compiler quality matters more than the
+algorithm here.
+
+At 8192 by 8192 all three converge, 13.0, 12.7 and 13.5, and MPS takes the lead
 back; the author attributes the convergence to the memory system, and whatever
 the mechanism, the kernels are no longer separated by their inner loop.
 
@@ -151,7 +156,7 @@ Then you used it: start the copies, wait on the events, barrier, compute. The
 pinned kernel does not overlap the copy with the previous slab's math; its gain
 was that the copy engine did the moving instead of the threads. The
 original of this book's matrix-multiply lineage, Zeke Medley's metal-matmul and
-its essay, was built on it. The use site is the more interesting part.
+its essay, was built on it.
 
 ```metal
     if (s_pos==0) {
@@ -192,11 +197,11 @@ failed attempts to resurrect it. Hence the two successor kernels you have read:
 cooperative loads for the staging, Chapter 11, and double buffering to win back
 some of the overlap through instruction-level parallelism, above.
 
-You have two reasons to keep the dead code in mind. The concept outlives the interface: an
-asynchronous copy with a completion you wait on is the idea behind `cp.async`
-groups and TMA's transaction barriers, how
-metal-flash-attention's generated kernels staged tiles, and plausibly how a future
-public Metal API will look, and you will recognize it at a glance. It is also a
+You have two reasons to keep the dead code in mind. The concept outlives the
+interface: an asynchronous copy with a completion you wait on is the idea behind
+`cp.async` groups and TMA's transaction barriers, and how metal-flash-attention's
+generated kernels staged tiles. It is plausibly how a future public Metal API
+will look, and you will recognize it at a glance. It is also a
 lesson in platform risk: every project that built on the undocumented intrinsic,
 the essay, metal-flash-attention, early steel, carried a breakage risk that
 Metal 4 made real. The cheap wins of Chapter 25 run the same trade knowingly, with
@@ -208,8 +213,8 @@ downside looks like.
 The example now has a family: at 1024 by 1024 the double-buffered kernel wins by
 about 3 times, at 4096 by 4096 the single-buffered kernel holds 13.5 TFLOPS, and
 at 8192 by 8192 the library catches up at 13.5. The DMA-staged original no longer
-compiles. The techniques this book covers inside the loop are used up; the remaining
-gains are in what surrounds it, which is the next chapter.
+compiles. Inside the loop, you have used up the techniques this book covers; the
+remaining gains are in what surrounds it, which is the next chapter.
 
 ## Check yourself
 

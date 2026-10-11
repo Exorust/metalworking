@@ -44,7 +44,7 @@ call `run`, which writes into it. The primary references are session 262 of WWDC
 2025, session 330 of WWDC 2026, and chapter 7 of the Metal Shading Language 4.1
 specification.
 
-That raises the question of what happens to the staging you built by hand. This
+What happens to the staging you built by hand? This
 model belongs next to the copy engine of Chapter 14, because it continues that
 story. Cooperative tensors can take operands from device memory or from
 threadgroup memory and keep results in distributed registers. How much of the
@@ -58,8 +58,8 @@ multiply uses; what you are reading here is the fork to watch.
 
 Before you port code, separate what the API needs from what pays. It needs macOS
 26 and a Metal 4 GPU. The pinned llama.cpp compiles its tensor path on M2 Ultra
-and M4 and turns it off there by default, because it measured no gain, about 5
-percent slower on M2 Ultra and no significant difference on M4, so the hardware
+and M4 and turns it off there by default, because it measured no gain: about 5
+percent slower on M2 Ultra and no significant difference on M4. The hardware
 that makes the API worth using is M5. Everything else in Part 2 runs back to M1,
 so your tensor-operation code needs a fallback path. MLX structures its parallel
 NAX steel that way, and its dispatcher adds conditions of its own: macOS 26.2, a
@@ -76,7 +76,7 @@ of Chapter 18 on 16 by 16 fragments; Chapter 28 quoted its fragment type. The
 file opens with the MPP include and wraps the library's tensor operations in the
 same loader, multiply and epilogue decomposition that steel uses everywhere else.
 The decomposition survived the hardware change in outline: the kernel still wires
-a loader, a multiply and an epilogue. The parts changed more than the outline.
+a loader, a multiply and an epilogue.
 The multiply layer moved to the tensor operations with 16 by 16 fragments, the
 loader no longer stages operands through threadgroup memory, and the epilogue is
 reimplemented for the new tile. You can see this by diffing a `_nax` kernel
@@ -146,7 +146,7 @@ in registers, and the measurement decided.
 Two did not. The thin staging buffer disappears in MLX's NAX loader and stays in
 flash-moe's. And the wins of Parts 4 to 6 came from moving fewer bytes, while the
 matrix unit's win is more arithmetic per second, the exception Chapter 3 made for
-large matrix multiply. This is where the book ends.
+large matrix multiply.
 
 ## Check yourself
 

@@ -13,8 +13,8 @@ difference that every later chapter depends on.
 
 On the CUDA side you reach the GPU through the driver API, the runtime API, and
 half of the toolkit. Metal, Apple's single graphics-and-compute API, occupies all
-of that ground: it owns devices, queues, memory, and kernel execution. Here is the orientation
-table, with the chapter that covers each row.
+of that ground: it owns devices, queues, memory, and kernel execution. You will recognize the
+operations, though Metal groups them under one API.
 
 | CUDA | Metal | Where |
 |---|---|---|
@@ -33,13 +33,12 @@ Three of the differences are in shape, not vocabulary. The first is that
 everything is explicit and command-buffer shaped. CUDA lets you pretend that
 `kernel<<<grid, block>>>(args)` is a function call. Metal never does: you create a
 command buffer, encode one or more dispatches into it with an encoder, commit it,
-and optionally wait. This is verbose, and it is also the optimization surface,
-because batching many dispatches into one command buffer amortizes the
-per-buffer cost. Chapter 7 is about that, and about where batching stops paying.
+and optionally wait. You write more host code, but that is where you optimize:
+many dispatches in one command buffer share the per-buffer cost. Chapter 7 is about that, and about where batching stops paying.
 
 The second is that compute and graphics are one API. There is no compute edition
 of Metal; the `MTLDevice` you encode a matrix multiply on is the one games render
-with. If you work on ML, this means that the documentation, the tooling, and half the API
+with. If you work on ML, the documentation, the tooling, and half the API
 surface (render passes and textures) are about someone else's problems, and the
 compute story is comparatively under-documented. That gap is why this book exists.
 
@@ -100,8 +99,9 @@ Notice two things in the signature. `SW` is not defined in the kernel; it
 arrives as a `-D` define when the source is compiled, so changing it means
 recompiling the source. And `constant uint &n` is an argument in the `constant`
 address space, which is uniform and cached, not a function constant; the two use
-the same keyword and are different things, as Chapter 8 explains. The indexing
-vocabulary replaces CUDA's `blockIdx * blockDim + threadIdx` arithmetic when you
+the same keyword and are different things, as Chapter 8 explains.
+
+The indexing vocabulary replaces CUDA's `blockIdx * blockDim + threadIdx` arithmetic when you
 want it to: `[[thread_position_in_grid]]` gives the composed index directly, one
 component per axis. This kernel instead takes the position inside the
 threadgroup, the threadgroup's position in the grid, and the threadgroup size,
@@ -153,8 +153,8 @@ with PTX for the driver to finish. Metal crosses it with portable intermediate
 code and finishes compiling on the user's
 device, which is what lets function constants take part in the final compile.*
 
-The difference that every later chapter depends on is in the fourth row. The
-normal path to machine code runs on the device. You can and should compile MSL to a
+The difference every later chapter depends on: creating the pipeline state
+turns AIR into instructions for your GPU. The normal path to machine code runs on the device. You can and should compile MSL to a
 metallib ahead of time for application startup, but the last step, from AIR to the
 instruction set of the GPU in the machine, happens inside the call that makes the
 pipeline state. Metal does offer binary archives, but they are a cache of a binary already
@@ -182,7 +182,7 @@ metal-flash-attention generates its kernels as Swift strings, Chapter 21, MLX
 compiles specialized kernels at run time, Chapter 17, and a Python harness
 needs no Xcode at all.
 
-Configuration arrives through three channels, in decreasing order of rigidity.
+Which settings can you change without recompiling the source?
 C++ templates are fixed when MSL becomes AIR, and steel uses them for tile shapes
 and data types. Preprocessor `-D` defines are fixed at the same stage, and the
 matrix multiply this book follows sets its tile sizes with them. Function

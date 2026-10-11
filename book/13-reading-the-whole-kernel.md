@@ -4,15 +4,17 @@
 
 You met the pieces of `sync_copy.metal` one at a time in Chapter 11 and Chapter 12:
 the tile constants, the cooperative load, the fragment multiply, the accumulator
-grid, the attribute, and the loop. Now you read the file from the first line to the
-last, 144 lines, in order, so that every line is explained. The only part you have
-not yet seen explained is the ending, where the kernel folds the full BLAS form of the
-operation into its single store. Every excerpt is quoted verbatim from the pinned
+grid, the attribute, and the loop. Now you follow one tile of C through
+the whole file, 144 lines in order: the constants that fix its shape, the
+cooperative load that stages its inputs, the fragments that accumulate it, and
+the single store that writes it. That store is the one stop you have not seen,
+where the kernel folds the full BLAS form of the operation into its ending. Every excerpt is quoted verbatim from the pinned
 commit of yaroslavvb/m5-gemm, BSD-3-Clause.
 
 ## Lines 1 to 20: the header and the constants
 
-Before any code, the file tells you where it came from.
+Why does your tile travel through a cooperative load and not an asynchronous
+copy? The file answers before any code.
 
 ```metal
 // Tiled fp32 GEMM via 8x8 simdgroup matrices ("tensor cores").
@@ -40,7 +42,7 @@ threadgroup, 16 deep per step.
 
 ## Lines 22 to 36: the fragment loop
 
-What does the multiply look like once you see the whole function? This is the
+What does one simdgroup do with your tile's staged inputs? The function is the
 one Chapter 12 quoted, now with its signature.
 
 ```metal
@@ -75,8 +77,9 @@ the distinct fragments.
 
 ## Lines 38 to 82: the cooperative load, and its fallback
 
-Chapter 11 read the vectorized path of `load_tile`, lines 56 to 71. What it did
-not show you is the preceding comment and the fallback path after it.
+What happens to your tile's load when its shape fails the vectorized path's
+tests? Chapter 11 read that path of `load_tile`, lines 56 to 71, but not the
+comment before it or the fallback after it.
 
 ```metal
   constexpr ushort total = rows * cols;
@@ -105,6 +108,7 @@ remainder that is not a multiple of 16.
 
 ## Lines 84 to 111: the signature and the setup
 
+Which tile of C does a threadgroup own, and where do its accumulators start?
 The signature was read in Chapter 6: five scalar arguments in the `constant`
 address space, `n`, `k`, `m`, `alpha` and `beta`; three buffers, `A`, `B` and
 `C`; two position attributes and one size attribute. The kernel takes `alpha`
@@ -142,7 +146,7 @@ because the cooperative load needs a flat index from 0 to 127.
 
 ## Lines 113 to 128: the loop
 
-Chapter 12 quoted the loop in full: for each of the `k / BK` steps, stage A and B
+Your tile is built in this loop, which Chapter 12 quoted in full: for each of the `k / BK` steps, stage A and B
 cooperatively, barrier, multiply every fragment of the grid against the staged
 tiles from the simdgroup's origin, barrier. The origin at line 120 is the
 simdgroup's position in the threadgroup, `t_tg_pos.y` and `t_tg_pos.z`, scaled by
@@ -171,7 +175,7 @@ reach C?
 ```
 Source: [`sync_copy.metal:130-143`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/sync_copy.metal#L130-L143)
 
-The ending is the first appearance of the technique that Chapter 15 covers. For each of the 16 accumulators, the kernel loads the existing 8 by
+For each of the 16 accumulators, the kernel loads the existing 8 by
 8 block of C from device memory into a fragment, multiplies it by `beta`,
 multiplies the accumulator by `alpha` and adds, and stores the result. The
 scaling uses matrix multiplies: `simdgroup_float8x8(beta)` constructs a diagonal
@@ -179,10 +183,13 @@ matrix with `beta` on the diagonal, so `c_simd × diag(beta)` scales every
 element, and the multiply-accumulate computes `acc × diag(alpha) + c_simd`. The whole
 BLAS form is applied while the result is still in registers, on its way to its
 one store, and the kernel makes no second pass over C to scale it and launches no
-separate kernel to add it. This is fusion on a small scale, and steel generalizes
-the same spot into a plug-in epilogue (Chapter 18). The guard at line 133 checks
-only that the simdgroup's origin is inside the matrix, which is always true when
-the sizes are divisible by 64. That check is all the edge handling the kernel has.
+separate kernel to add it. This is fusion on a small scale, the first appearance
+of the technique that Chapter 15 covers, and steel generalizes the same spot into
+a plug-in epilogue (Chapter 18).
+
+At the matrix edge, the guard at line 133 checks only that the simdgroup's origin
+is inside the matrix, which is always true when the sizes are divisible by 64.
+That check is all the edge handling the kernel has.
 
 Count the traffic of the epilogue against the loop. For the 4096-wide example the loop staged 4096 / 16 = 256 steps of 8 KB,
 2 MiB of requested inputs per threadgroup, through threadgroup memory. The epilogue
@@ -201,13 +208,13 @@ different tiers, and expect the sustained numbers of Chapter 10's hygiene rules.
 
 ## Where the matmul stands
 
-The matmul is unchanged at 13.5 TFLOPS, and its source is now fully accounted
-for: 144 lines, of which 12 are
-the header, 3 the tile constants, 15 the fragment loop, 45 the cooperative load
-with its fallback, 13 the signature, 14 the setup, 16 the loop, and 14 the
-epilogue; the other 12 are seven blank lines, two includes, two braces and
-`using namespace metal;`. Every line of code
-maps to a chapter.
+The matmul is unchanged at 13.5 TFLOPS. You have followed one tile from its
+cooperative load through the register accumulators to its single store, which
+applies the BLAS scaling in registers and writes each output element once, and the
+trip crossed all 144 lines: 12 of header, 3 of tile constants, 15 of fragment
+loop, 45 of cooperative load with its fallback, 13 of signature, 14 of setup, 16
+of loop, and 14 of epilogue, plus 12 more that are seven blank lines, two
+includes, two braces and `using namespace metal;`.
 
 ## Check yourself
 
@@ -233,8 +240,8 @@ maps to a chapter.
    multiplies work on fragments in registers. Each output element is read once
    and written once.
 
-The loop is done and the epilogue has shown the next technique in miniature; the
-next chapter asks whether the loop itself can overlap its loads with its math,
-and tells the story of the copy engine that used to do it.
+Your tile has reached C, and the next chapter asks whether the loop itself can
+overlap its loads with its math, and what happened to the copy engine that used
+to do it.
 
 Next: [Double buffering, and the copy engine that died](14-double-buffering-and-the-copy-engine-that-died.md)

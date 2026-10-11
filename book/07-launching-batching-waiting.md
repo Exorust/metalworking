@@ -90,7 +90,9 @@ the GPU execution itself. Batching removes the second. The pattern the community
 converged on for inference is one command buffer per forward pass: encode every
 layer's dispatches, commit once, wait once. Luminal runs all of Llama 3 8B as one
 command buffer, flash-moe encodes buffers before the GPU needs them, and MLX's
-scheduler (Chapter 16) commits on its own work and memory thresholds. The limit of the rule is latency: a
+scheduler (Chapter 16) commits on its own work and memory thresholds.
+
+The limit of the rule is latency: a
 batch is not submitted until it is encoded, so a very large batch leaves the GPU
 idle while the CPU is still encoding; commit buffer N, then encode N + 1, to
 overlap the two. When a port from CUDA is slow at small batch sizes, count your command
@@ -105,7 +107,7 @@ buffers, with host encoding at 56 to 59 milliseconds against 32 to 35 millisecon
 of GPU execution. Host encoding took longer than GPU execution, so
 its cost was exposed rather than hidden. The fix was structural: a collapsed normalization chain and one
 shared `mx.compile` tape cut dispatches by 26 percent, which saved about 15
-milliseconds of host encoding per token. The first rule has a ceiling.
+milliseconds of host encoding per token.
 Batching hides per-buffer overhead, but a graph that emits tens of thousands of
 tiny dispatches pays the encoder cost anyway, so count dispatches as well as
 buffers.
@@ -163,7 +165,7 @@ Steel's matrix-multiply component drops `mem_none` simdgroup barriers between
 fragment loads to keep one simdgroup's loads batched. Those barriers order no memory; their
 placement is a scheduling intent, as Chapter 18 shows.
 
-Between kernels, ordering is structural rather than explicit in the default case:
+Between kernels, in the default case, you get ordering without asking for it:
 dispatches in one command buffer on one queue execute in order, and Metal tracks
 hazards between the resources they use when those resources are tracked. A
 framework can opt out for speed, and MLX does: its buffers are untracked, its

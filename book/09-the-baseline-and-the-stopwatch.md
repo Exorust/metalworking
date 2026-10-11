@@ -19,8 +19,7 @@ beating cuBLAS at dense matrix multiply is a research result, because the librar
 has decades of tuning and hardware co-design behind it. MPS is good, and the machine-learning ecosystem on
 Apple Silicon has repeatedly matched or beaten it with open kernels.
 
-The evidence comes from three directions. The hand-written m5-gemm kernel that
-Part 4 reads reaches 13.5 TFLOPS in 32-bit at 4096 by 4096 on an M5 Max, against
+The hand-written m5-gemm kernel that Part 4 reads reaches 13.5 TFLOPS in 32-bit at 4096 by 4096 on an M5 Max, against
 11.7 for MPS. MPS takes the lead back at 8192 by 8192, 13.5 against 13.0, where
 the kernels converge on the same limit; Chapter 14 shows the whole table.
 llama.cpp deleted its MPS path in 2023, pull request 2615, in favor of its own
@@ -69,10 +68,13 @@ compilation never lands in a timing, and discard the first runs, which start wit
 cold caches and clocks. And take several trials and report a median or a best-of,
 because single timings vary. The m5-gemm README reports the best of 3 runs,
 each run the average of 5 trials; the harness itself keeps every sample and
-averages them, discarding none, so apply the warm-up rule yourself. Its contract
-is the full alpha × A × B + beta × C with random alpha and beta on untransposed
-32-bit operands, and it checks every result against NumPy before it keeps the
-time. From the time, you compute the rate: a matrix multiply at size n does 2n³
+averages them, discarding none, so apply the warm-up rule yourself.
+
+The harness computes the full alpha × A × B + beta × C on untransposed 32-bit
+operands, using random alpha and beta; it checks each result against NumPy before
+keeping the time.
+
+From the time, you compute the rate: a matrix multiply at size n does 2n³
 floating point operations, so 4096 by 4096 is 2 × 4096³ = 137.4 GFLOP, and
 137.4 GFLOP in 10.2 milliseconds is 13.47, about 13.5 TFLOPS.
 
@@ -80,7 +82,7 @@ floating point operations, so 4096 by 4096 is 2 × 4096³ = 137.4 GFLOP, and
 
 Is there no profiler at all, then? Xcode's GPU capture, the Metal Debugger, is the closest thing to a real profiler:
 per-encoder timings, an occupancy estimate, memory-bandwidth counters, shader
-profiling. It has two structural limits. Capture can be started from code, which the
+profiling. Capture can be started from code, which the
 m5-gemm harness does through `MTLCaptureManager`, but reading its counters is a
 GUI job, so there is no scripted regression check on them. And capture perturbs
 heavily on big machine-learning workloads: inference projects report slowdowns of 50 to 100
@@ -94,12 +96,13 @@ surface them: the flash-moe project pulled a full instruction-cost breakdown fro
 a GPU trace, 63.9 percent of instruction cost in arithmetic, 25 percent in type
 conversion from bf16 scale and bias values, a 93.4 percent L1 hit rate, and 2.4
 percent GPU utilization, 747 microseconds of GPU time in a 31.5 millisecond
-step, which told them their model was bound by input and output, not by compute. This is changing: macOS 27 adds always-on
-performance metrics, a `metalperftrace` command-line tool, and a state-reporting
-API, announced in session 388 of WWDC 2026, which would give this platform its
-first scriptable hardware-counter loop; the timestamp loop above is scriptable
-already. Until that ships and proves itself, use the
-methodology below.
+step, which told them their model was bound by input and output, not by compute.
+
+This is changing: macOS 27 adds always-on performance metrics, a
+`metalperftrace` command-line tool, and a state-reporting API, announced in
+session 388 of WWDC 2026, which would give this platform its first scriptable
+hardware-counter loop; the timestamp loop above is scriptable already. Until that
+ships and proves itself, use timestamps and change one thing at a time.
 
 ## The methodology
 

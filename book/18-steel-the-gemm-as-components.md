@@ -7,8 +7,8 @@ sizes for the running example on the plain path, the one every chip before M5
 takes and an M5 takes for 32-bit with TF32 off. Steel is MLX's kernel library, and it does for Apple
 Silicon what CUTLASS does for CUDA: it decomposes matrix multiply and attention
 into composable C++ templates that one wiring kernel assembles per shape. Ahead
-are the three components and the kernel that wires them. You have already seen
-all three in hand-written form in Part 4, so your task is to recognize them. Steel is the same cooperative load, the same register-blocked multiply
+are the three components and the kernel that wires them. The three components
+do the work you wrote by hand in Part 4, so you will recognize them. Steel is the same cooperative load, the same register-blocked multiply
 and the same fused epilogue, recomputed from template parameters for each tile
 shape MLX precompiles, six per type, with the problem dimensions as run-time
 arguments.
@@ -31,8 +31,8 @@ cooperative load of Chapter 11 as a template, with an unchecked vectorized
 variant and a bounds-checked, zero-filling variant that function constants
 select between. `BlockMMA`, in `gemm/mma.h`, is the register-blocked multiply of
 Chapter 12, a grid of 8 by 8 fragments per simdgroup marched along the shared
-dimension. The epilogues, in `gemm/transforms.h`, make the ending a plug-in
-type, Chapter 15.
+dimension. The epilogues, in `gemm/transforms.h`, turn the fused
+ending of Chapter 15 into a plug-in type.
 
 Everything else is wiring or a fork. The wiring kernels live in
 `gemm/kernels/`: `steel_gemm_fused.h`, and siblings that reuse the same
@@ -178,11 +178,14 @@ named.
 ```
 Source: [`steel/gemm/mma.h:513-537`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/mma.h#L513-L537), abridged
 
-Two details belong to production code. Transposition is handled by the stride constants: the
-`A_str_m` and `A_str_k` pair swaps for a transposed operand, and the code never
-branches on it. And the `mem_none` simdgroup barriers order no memory; they remain simdgroup
+Transposition is handled by the stride constants: the `A_str_m` and `A_str_k`
+pair swaps for a transposed operand, and the code never branches on it.
+
+The `mem_none` simdgroup barriers order no memory; they remain simdgroup
 execution barriers, placed, the authors intend, to keep each simdgroup's
-fragment loads batched (Chapter 7). The ending is where the epilogue plugs in: `store_result`,
+fragment loads batched (Chapter 7).
+
+The ending is where the epilogue plugs in: `store_result`,
 lines 540 to 551, applies the `Epilogue` type to every accumulator element in
 registers and then stores once, and the `apply_epilogue` variants additionally
 read an input matrix for endings of the alpha × A × B + beta × C form. The
@@ -235,13 +238,15 @@ which shows that the decomposition worked.
 
 Once this file reads as routine, the rest of steel's shape space is mostly a
 list of names: each kernel reuses the same loader and multiply with different
-wiring. That reuse is the argument for the decomposition. Two more facts set
-steel's place among the alternatives. First, it is the baseline to beat, and it
-usually wins: several independent projects report hand-written replacement
-kernels coming back at 0.5 to 0.8 times stock steel (Chapter 25), so the
-profitable moves are reaching its fast paths rather than replacing it. Second,
-unlike CUTLASS, steel has no packaged form outside MLX, so its ideas travel by
-reading, which is what this chapter was for.
+wiring. That reuse is the argument for the decomposition.
+
+Steel is also the baseline to beat, and it usually wins: several independent
+projects report hand-written replacement kernels coming back at 0.5 to 0.8
+times stock steel (Chapter 25), so the profitable moves are reaching its fast
+paths rather than replacing it.
+
+Unlike CUTLASS, steel has no packaged form outside MLX, so its ideas travel by
+reading.
 
 ## Where the matmul stands
 
