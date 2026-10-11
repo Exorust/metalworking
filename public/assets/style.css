@@ -388,8 +388,17 @@ body {
 /* ---- book and glossary indexes ---- */
 .kicker { color: var(--muted); font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 0.6rem; }
 .question { color: var(--muted); font-style: italic; margin-top: -0.6rem; }
-.toc-list li, .index li { margin: 0.55rem 0; }
+.index li { margin: 0.55rem 0; }
 .def { display: block; color: var(--muted); font-size: 0.9rem; margin-top: 0.15rem; }
+/* The book's contents: number, title, one line on what the chapter leaves you able to do. */
+.toc-list { list-style: none; padding: 0; margin: 0.9rem 0 0; }
+.toc-list li { display: grid; grid-template-columns: 2.4em 1fr; column-gap: 0.4rem; margin: 0.75rem 0; }
+.toc-list .num { color: var(--muted); font-size: 0.85rem; padding-top: 0.15em; }
+.toc-list a { text-decoration: none; color: var(--head); font-weight: 500; }
+.toc-list a:hover { text-decoration: underline; text-underline-offset: 0.2em; }
+.toc-list .def { grid-column: 2; margin-top: 0.1rem; }
+.start { margin: 1.6rem 0 0.5rem; }
+.start .cta { flex: 0 1 auto; }
 .forms-cta { display: flex; gap: 1rem; margin: 1.5rem 0 2.2rem; flex-wrap: wrap; }
 .cta { flex: 1 1 240px; border: 1px solid var(--fg); padding: 0.9rem 1.1rem; text-decoration: none; color: var(--fg); }
 .cta:hover { background: var(--sel-bg); color: var(--sel-fg); }

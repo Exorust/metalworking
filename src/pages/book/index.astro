@@ -2,19 +2,26 @@
 import Base from "../../layouts/Base.astro";
 import { BOOK, BOOK_ORDER } from "../../manifest.mjs";
 
-// The book's table of contents: parts, their driving questions, and what each
-// chapter lets the reader do.
-const total = BOOK.reduce((n, p) => n + p.chapters.length, 0);
+// The book's opening page: who it is for, the one piece of work that runs
+// through it, how to read it, then the contents by part.
+const first = `/book/${BOOK[0].chapters[0][0]}/`;
 const html = `<h1>The book</h1>
-<p>${total} chapters in ${BOOK.length} parts, written to be read in order. One matrix multiply runs
-through the middle parts: from the library baseline to a hand-written kernel that beats it, then
-into production, then into attention. Every chapter opens with where you are, derives its key
-numbers once, and ends with questions you can check yourself against.</p>
-<p>Start with <a class="term" href="/book/${BOOK[0].chapters[0][0]}/">Chapter 1</a>. The
-<a class="term" href="/glossary/">glossary</a> holds the same material as standalone entries.</p>` +
-  BOOK.map((p) => `<h2>Part ${p.n}. ${p.title}</h2><p class="question">${p.question}</p><ol class="toc-list" start="${Number(p.chapters[0][0].slice(0, 2))}">` +
+<p>You know GPUs from the CUDA side, and you have an Apple Silicon machine in front of you.
+This book replaces the hardware half of what you know with the Apple version, one difference
+at a time, and it does that around one piece of work. A matrix multiply starts as a library
+call at 11.7 TFLOPS. By the end of Part 4 it is a 144-line kernel at 13.5, the practical
+ceiling of the chip. Part 5 finds the same design inside MLX's production kernels. Part 6
+turns it into attention and asks why decoding a language model is slow. Part 7 is about
+where real wins come from and what the failures look like, and Part 8 is the M5's matrix
+unit, which did not exist when the kernel was written.</p>
+<p>Read it in order; every chapter assumes the ones before it. Each one opens with where you
+are, derives its numbers once, and ends with three questions you can check yourself against.
+If you want one topic rather than the whole track, the <a href="/glossary/">glossary</a>
+holds the same material as standalone entries.</p>
+<div class="forms-cta start"><a class="cta" href="${first}"><span class="cta-head">Begin with Chapter 1</span><span class="cta-sub">${BOOK[0].chapters[0][1]}</span></a></div>` +
+  BOOK.map((p) => `<h2>Part ${p.n}. ${p.title}</h2><p class="question">${p.question}</p><ol class="toc-list">` +
     p.chapters.map(([file, title, blurb]) =>
-      `<li><a class="term" href="/book/${file}/">${title}</a><span class="def">${blurb}</span></li>`).join("") +
+      `<li><span class="num">${file.slice(0, 2)}</span><a href="/book/${file}/">${title}</a><span class="def">${blurb}</span></li>`).join("") +
     "</ol>").join("");
 ---
 

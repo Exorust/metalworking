@@ -95,7 +95,7 @@ export const BOOK = [
     ["09-the-baseline-and-the-stopwatch", "The baseline and the stopwatch", "Time a kernel against MPS with GPU timestamps and trust the number."],
     ["10-build-your-own-roofline", "Build your own roofline", "Measure bandwidth and compute ceilings and place a kernel on the chart."],
   ]},
-  { n: 4, title: "One matrix multiply", question: "How does a 140-line kernel beat the library?", chapters: [
+  { n: 4, title: "One matrix multiply", question: "How does a 144-line kernel beat the library?", chapters: [
     ["11-tiling-and-the-cooperative-load", "Tiling and the cooperative load", "Size a tile for this platform and stage it with a coalesced cooperative load."],
     ["12-simdgroup-matrix-and-register-blocking", "simdgroup_matrix and register blocking", "Hold the output in registers across the whole K loop without spilling."],
     ["13-reading-the-whole-kernel", "Reading the whole kernel", "Read sync_copy.metal end to end and account for every line."],
