@@ -155,7 +155,7 @@ The three implementations share one algorithm and differ on three axes.
 |---|---|---|---|
 | How a shape gets its kernel | templates plus function constants | generated source per shape | one instantiation per shape, by hand |
 | Register pressure | avoid spills | spill on purpose where mapped | fixed by the enumerated shape |
-| Correction step | unconditional multiply | guarded by `if (m_new > m)` | `exp` on the shifted score, lowering left to the compiler |
+| Correction step | exponential every tile | exponential and maximum update skipped when the maximum did not move; the multiply by 1 stays | `exp` on the shifted score, lowering left to the compiler |
 
 On the same hardware with the same mathematics, all three are defensible. Once
 the algorithm is settled, the remaining decisions are measured trade-offs, and
@@ -226,8 +226,9 @@ kernel, and the next chapter is about why.
    runs as the unfused fallback graph, silently. On current MLX,
    `has_fused_kernel()` returns the reason, and `force_fused` raises with it.
 2. The correction step: metal-flash-attention guards it with `if (m_new > m)`,
-   trading a branch for a skipped multiply when the maximum did not move, and MLX
-   multiplies unconditionally, trading a multiply for no divergence. Or register
+   trading a branch for a skipped exponential when the maximum did not move (the
+   multiply by 1 still happens), and MLX computes the exponential every tile,
+   trading that work for no branch. Or register
    pressure: metal-flash-attention spills on purpose for a larger tile, MLX
    avoids spills.
 3. Because its K and V arrive quantized, so each instantiation dequantizes inside
