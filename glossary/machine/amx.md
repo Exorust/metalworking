@@ -17,8 +17,9 @@ Why it appears in a GPU glossary:
 - **Dispatch decisions.** For small matrices, the fastest processor on the chip is
   often AMX, not the GPU: kernel launch overhead plus
   [bandwidth](unified-memory.md) round trips swamp the GPU's advantage below a size
-  threshold. Apple's own libraries route accordingly. If your profiling shows MPS
-  beating your GPU kernel at 256×256, this is frequently why.
+  threshold. Accelerate and BNNS, on the CPU side, can use it; MPS cannot, it
+  encodes onto the GPU. If Accelerate beats your GPU kernel at 256×256, this is
+  frequently why; if MPS does, look at the two GPU kernels.
 - **It shares the memory pool.** [Unified memory](unified-memory.md) means
   CPU-side AMX work and GPU work compete for the same bandwidth; a background
   BNNS workload dents your GPU kernel's roofline.
@@ -38,8 +39,9 @@ the sanctioned interface. But reading corsix's docs is the only way to understan
 the performance you observe through those libraries.
 
 The [ANE war story](../war-stories/the-failures.md) is the same genre one chip
-region over: the Neural Engine, also undocumented, also reachable only through
-private interfaces, at ~6.6 TFLOPS/watt. The GPU is one of *three* matrix engines
+region over: the Neural Engine, also undocumented, reachable through Apple's
+model frameworks (Core ML, and Core AI for generative work) or private
+interfaces, at ~6.6 TFLOPS/watt. The GPU is one of *three* matrix engines
 on this die, and Metal only talks to one of them.
 
 Next: [Neural accelerators](neural-accelerators.md)

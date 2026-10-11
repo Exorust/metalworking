@@ -35,8 +35,9 @@ the top of the file: the new hardware arrives through a library, not new
 intrinsics.
 
 - **The formats are block-scaled floats.** The
-  [mxfp4/nvfp4/mxfp8 quantization modes](../mlx/quantization.md) exist because
-  this unit consumes them natively; the
+  [mxfp4/nvfp4/mxfp8 quantization modes](../mlx/quantization.md) arrived with
+  this unit and have NAX kernels, though the pinned ones dequantize to 16-bit
+  before loading tiles; the
   [fp8-is-emulated caveat](f16.md) is an M4-era fact.
 - **It is not programmed like a tensor core.** No `mma.sync` descent: you
   describe a matmul with a descriptor and cooperative tensors, and the

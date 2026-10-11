@@ -42,10 +42,11 @@ descriptor does not hide.
 What distinguishes the school, against the other three case-study lineages:
 
 - **vs [hand-placed steel](steel-gemm-fused.md)**: no `simdgroup_load`
-  choreography, no per-fragment stride constants. The descriptor states the
-  shape; placement is the library's problem. That surrenders the
-  [register-blocking](../techniques/register-blocking.md) dials this
-  glossary spends pages on, and buys the new hardware's throughput.
+  choreography. The descriptor states one operation's shape and the library
+  executes it; the tile size, accumulator grid and lane layout (`get_coord()`)
+  are still the kernel's, so the
+  [register-blocking](../techniques/register-blocking.md) choices remain. What
+  you give up is the multiply itself; what you buy is the matrix unit.
 - **vs [MFA codegen](mfa-codegen.md)**: specialization moves from generated
   source into descriptor parameters; the shader is generic and small.
 - **vs [llama.cpp enumeration](llamacpp-attention.md)**: llama.cpp's tensor
@@ -55,7 +56,8 @@ What distinguishes the school, against the other three case-study lineages:
 
 Status: this school is the youngest, its tuning is visibly in
 flux (recent MLX commits adjust NAX tile picks and batch limits release by
-release), and nothing here runs on pre-M5 hardware. Read it as the direction
+release), and the hardware it targets is M5: the API compiles on earlier
+Metal 4 GPUs but llama.cpp measured no gain there. Read it as the direction
 of travel, with the [tiled GEMM](gemm-tiled.md) still the foundation course.
 
 Next section: [War stories](../war-stories/three-questions.md)

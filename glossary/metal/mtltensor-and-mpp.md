@@ -6,8 +6,8 @@ Primitives (MPP), a shader-side library of matrix operations. Together they
 are the programming model for the [M5 neural
 accelerators](../machine/neural-accelerators.md).**
 
-CUDA equivalent: a blend of TMA (hardware-managed tile movement), `wmma`
-descriptors, and CUTLASS-as-a-vendor-library, arriving as one API. The pieces:
+CUDA equivalent: a loose blend of TMA (hardware-managed tile movement), `wmma`
+fragments, and CUTLASS-as-a-vendor-library, arriving as one API. The pieces:
 
 - **`MTLTensor`**: a host-side multi-dimensional resource with rank, extents,
   and strides, replacing hand-rolled buffer + stride arithmetic. Auxiliary
@@ -50,7 +50,8 @@ classic [tiling](../techniques/tiling.md) shape on M5 is still being
 established publicly; the techniques pages describe the shape every shipped
 pre-NAX kernel uses, and this page is the fork to watch.
 
-One caution for porters: this is macOS 26+ / M5-era surface. Everything else
+One caution for porters: this is macOS 26+ surface that compiles on any Metal 4
+GPU but pays only on M5-class hardware. Everything else
 in this glossary's [Metal section](metal-the-api.md) runs back to M1;
 tensor-ops code needs a fallback path, which is how MLX structures
 its parallel NAX steel.
