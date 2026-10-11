@@ -2,19 +2,19 @@
 
 ## Where we are
 
-Chapters 2 to 4 described the chip in terms of budgets: registers, scratch memory,
-bandwidth, resident simdgroups. Two facts about the arithmetic do not fit into any
-budget, and both change the shape of kernels. One is an exponent path that the
+Chapters 2 to 4 gave you the chip as a set of budgets: registers, scratch memory,
+bandwidth, resident simdgroups. You still need two facts about the arithmetic that
+do not fit into any budget, and both change the shape of kernels. One is an exponent path that the
 attention kernels lean on. The other is an operation CUDA code uses casually and
 this hardware runs slowly. Part 1 ends with them because the next three parts
 assume you know both.
 
 ## The fast exp2
 
-Both platforms exponentiate in base 2 at hardware speed. On NVIDIA the special
-function unit has an instruction for it, `MUFU.EX2`, and on Apple the Metal Shading
-Language function `fast::exp2` is the direct route to the equivalent path. What
-differs is how much the local kernels lean on it.
+If both platforms exponentiate in base 2 at hardware speed, what is there to
+learn? On NVIDIA the special function unit has an instruction for it, `MUFU.EX2`,
+and on Apple the Metal Shading Language function `fast::exp2` is the direct route
+to the equivalent path. What differs is how much the local kernels lean on it.
 
 Softmax is the operation that needs an exponent per element. The attention
 kernels in MLX and in metal-flash-attention compute it in base 2, using a one-line
@@ -61,23 +61,24 @@ reductions do still call the emulated add on their outputs, where contention is
 rare; the compare-and-swap loop you will find written out by hand in MLX's
 `atomic.h` is for float min and max, for which no builtin exists at all.
 
-- metal-flash-attention splits its backward pass into two kernels, one that
-  produces dQ and one that produces dK and dV. Each output element then has one
-  owning threadgroup: the dQ kernel owns tiles of query rows and walks the keys,
-  the dK and dV kernel owns tiles of key rows and walks the queries, at the price
-  of recomputing the scores in both. No element is ever accumulated by two
-  threadgroups. Chapter 21 reads that kernel.
-- Reduction-shaped problems use partial results and a combine step instead. The
-  decode attention kernel of Chapter 22 is the example: llama.cpp splits the
-  key-value cache across simdgroups and across threadgroups, merges the
-  simdgroups' partials inside the first kernel through threadgroup memory, and
-  merges the threadgroups' partials in a second kernel. Two partial softmaxes
-  cannot be summed directly. Each carries its own maximum and denominator and is
-  rescaled to a common maximum before the sum, which is the correction that
-  Chapter 20 derives.
+So how do those kernels avoid it? metal-flash-attention splits its backward
+pass into two kernels, one that produces dQ and one that produces dK and dV. Each
+output element then has one owning threadgroup: the dQ kernel owns tiles of query
+rows and walks the keys, the dK and dV kernel owns tiles of key rows and walks the
+queries, at the price of recomputing the scores in both. No element is ever
+accumulated by two threadgroups. Chapter 21 reads that kernel.
 
-Integer atomics are native and usable. The problem is limited to 32-bit float
-atomics. When a port from CUDA contains `atomicAdd` on floats in a hot path, that
+Reduction-shaped problems use partial results and a combine step instead. The
+decode attention kernel of Chapter 22 is the example: llama.cpp splits the
+key-value cache across simdgroups and across threadgroups, merges the
+simdgroups' partials inside the first kernel through threadgroup memory, and
+merges the threadgroups' partials in a second kernel. Two partial softmaxes
+cannot be summed directly. Each carries its own maximum and denominator and is
+rescaled to a common maximum before the sum, which is the correction that
+Chapter 20 derives.
+
+Integer atomics are native and usable; the problem is limited to 32-bit float
+atomics. When your port from CUDA contains `atomicAdd` on floats in a hot path, that
 is the first thing to redesign, and there are two directions to take it.
 
 1. **Split and combine.** Give each threadgroup its own slice of the output, write
@@ -96,15 +97,15 @@ says which direction to try first; a measurement says which one wins.
 
 ## Why these two belong together
 
-Both are facts about the arithmetic units that the budgets of Chapters 2 to 4
-do not capture, and both show up in the attention kernels of Part 6. The exponent
+Why put an exponent trick and an atomic next to each other? Both are facts about
+the arithmetic units that the budgets of Chapters 2 to 4 do not capture, and both show up in the attention kernels of Part 6. The exponent
 fold is the one arithmetic trick every attention kernel on the platform shares.
 The slow float atomic removes the easy way to combine results across
 threadgroups, and each of the three workarounds has a price: owner-computes
 recomputes the scores, split-and-combine writes and rereads the partials and
 adds a dispatch, and `simd_sum` stays in registers only when the whole sum fits
-in one simdgroup. Which price is smallest is a byte count, Chapter 3's
-arithmetic, and then a measurement.
+in one simdgroup. Which price is smallest is a byte count. You do Chapter 3's arithmetic, and then
+you measure.
 
 That is Part 1. You now have the vocabulary of the two hierarchies, the budgets
 inside a core, the law that says most kernels are bandwidth bound and the ridge
@@ -140,6 +141,6 @@ and the two instruction-level asymmetries. Later chapters cite these by number.
    and slow on this hardware.
 
 Part 2 leaves the hardware and asks what the least amount of Metal is that you
-need in order to compile a kernel, launch it, and time it.
+need to compile a kernel, launch it, and time it.
 
 Next: [From source to pipeline state](06-from-source-to-pipeline-state.md)

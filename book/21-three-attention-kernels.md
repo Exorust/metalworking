@@ -2,19 +2,22 @@
 
 ## Where we are
 
-Chapter 20 derived online softmax and the flash-attention shape. Three production
-kernels on the platform implement it. The algorithm is the same in all three, so
-it is the least interesting thing about them. Reading them together shows where
-they disagree on engineering: how each one gets its specialization, how each one
-spends registers, and what each one is shaped by.
-This chapter reads MLX's kernel in the most detail, because it is the most
-readable and the one the running example runs on, then metal-flash-attention and
-llama.cpp for their differences, and ends with the gate that decides whether
-your attention runs on any of them.
+You left Chapter 20 with online softmax derived and the flash-attention shape
+drawn. Three production kernels on the platform implement it, and you already know
+their algorithm, because it is the same in all three. That makes it the least
+interesting thing about them. Read them together and you see where they disagree
+on engineering: how each one gets its specialization, how each one spends
+registers, and what each one is shaped by.
+
+MLX's kernel gets the most detail, because it is the most readable and the one the
+running example runs on. metal-flash-attention and llama.cpp follow, read for their
+differences. The last question is the gate that decides whether your attention
+runs on any of them.
 
 ## MLX: steel attention
 
-`steel_attention.h`, about 476 lines, is the complete flash-attention forward
+What does the derivation of Chapter 20 look like once it is real code with masks,
+ragged edges and grouped heads around it? `steel_attention.h`, about 476 lines, is the complete flash-attention forward
 built from the steel vocabulary of Chapter 18, and having done Chapter 20 first
 is what makes it readable. The file opens with specialization: the function-constant
 set that compiles masking and raggedness out of pipelines that do not need them.
@@ -71,13 +74,16 @@ Two notes on the excerpt: it omits the line just before it that seeds `new_max`
 with the running maximum, so the row reduction is over the running maximum and
 the tile; and the comment's sign is backwards, the code computes `exp2(m_old -
 m_new)`, at most 1.
+
 If Chapter 20 landed, this file holds no surprises, which is the point of
 reading it second. A few other details are worth carrying. Causal handling is a loop
 bound plus a mask: `kb_lim` at lines 239 to 247 means tiles wholly above the
 diagonal are never visited, and the tiles the diagonal crosses are masked
 elementwise (line 305). K loads transposed through a differently
 parameterized `BlockLoader`. Grouped-query attention is a stride trick,
-`kv_head_idx = tid.y / gqa_factor`. This kernel serves `mx.fast.scaled_dot_product_attention` for query lengths
+`kv_head_idx = tid.y / gqa_factor`.
+
+This kernel serves `mx.fast.scaled_dot_product_attention` for query lengths
 above 8 with a head dimension its gate accepts; shorter queries, including
 short prefills, go to the vector path, Chapter 22, whose head-dimension list
 differs (80 is on the full list only), and MLX's fused attention has no Metal
@@ -85,7 +91,8 @@ backward at this commit, Chapter 20.
 
 ## metal-flash-attention: the codegen school
 
-philipturner's metal-flash-attention reached 83 percent arithmetic-unit
+MLX compiles a fixed set of templates and switches features off with constants.
+What happens if you instead write a new kernel for every shape? philipturner's metal-flash-attention reached 83 percent arithmetic-unit
 utilization on an M1 Max, and its structural bet shows in one fact: there
 are no `.metal` files in the repository. Every kernel is assembled as a Swift
 string for the exact problem shape, then compiled at run time through the path
@@ -115,6 +122,7 @@ Source: [`AttentionKernel+Source.swift:23-54`](https://github.com/philipturner/m
 Where MLX uses templates and llama.cpp enumerates, metal-flash-attention writes a
 bespoke kernel: head dimension, precision, transpose state, even loop bounds
 become literals. The result is maximum specialization with no shipped binary.
+
 Three positions distinguish the project. First, it spills on purpose: it adds a
 third blocking dimension along the head dimension, with tile shapes sometimes
 chosen to spill predictably, on the thesis that a mapped spill of the right
@@ -122,7 +130,9 @@ operand beats a smaller tile. Given Chapter 2's warning, this is the boldest
 register-pressure stance of any kernel in this book. Second, it has a backward
 pass, the only open-source one on the platform,
 split into dQ and dK, dV kernels because of the emulated float atomics of
-Chapter 5. Third, its tile staging is built on the dead copy intrinsics of Chapter
+Chapter 5.
+
+Third, its tile staging is built on the dead copy intrinsics of Chapter
 14, with the comment documenting the M1-era hang. The repository is pre-Metal 4
 and unmaintained since 2024, but its production descendant, MFA 2.0 in C++
 inside the Draw Things application, ships int8 and sparse-indexed attention to
@@ -132,7 +142,8 @@ comments, is the best line-by-line account anywhere.
 
 ## llama.cpp: the enumeration school
 
-One shader file of 11,603 lines, `ggml-metal.metal`, serves every model
+The third answer to the specialization question is to write the shapes down by
+hand. One shader file of 11,603 lines, `ggml-metal.metal`, serves every model
 architecture and quantization format llama.cpp runs on Apple hardware. Its flash
 attention is a family around one shared implementation, specialized by explicit
 enumeration: an instantiation per head-dimension and data-type combination the
@@ -159,7 +170,8 @@ wins in Part 7 were made inside it.
 
 ## The disagreements, named
 
-The three implementations share one algorithm and differ on three axes.
+Set side by side, where exactly do the three part ways? They share one algorithm
+and differ on three axes.
 
 | Axis | MLX | metal-flash-attention | llama.cpp |
 |---|---|---|---|
@@ -176,7 +188,8 @@ measurements in Part 7 bear on them only indirectly.
 
 ## The gate: why is my attention not fused?
 
-`mx.fast` is MLX's set of fused operations, attention, normalizations and
+None of these kernels helps you if your model never reaches one. On MLX, the
+question is answered by a few lines of host code. `mx.fast` is MLX's set of fused operations, attention, normalizations and
 rotary embedding as one kernel each, or two for the decode attention that
 combines partial results in a second dispatch, plus `mx.fast.metal_kernel` for
 writing your own. Its attention entry runs steel attention for prefill and

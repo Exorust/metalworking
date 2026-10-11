@@ -2,10 +2,10 @@
 
 ## Where we are
 
-Chapter 13 finished reading the kernel: 13.5 TFLOPS at 4096 by 4096, at the
-practical compute ceiling. This chapter asks the next question a CUDA engineer
-asks of any tiled loop: the load of the next slab and the multiply of the current
-one are independent, so why not overlap them? The answer on this platform comes in
+You finished reading the kernel in Chapter 13: 13.5 TFLOPS at 4096 by 4096, at
+the practical compute ceiling. Coming from CUDA, you ask the next question of any
+tiled loop: the load of the next slab and the multiply of the current one are
+independent, so why not overlap them? The answer on this platform comes in
 two parts. There is a double-buffered version of the kernel, and it wins at some
 sizes and loses at others, which is the cleanest measured demonstration in this
 book that there is no single fastest kernel. The hardware copy engine that a
@@ -14,8 +14,8 @@ can no longer be reached; the shape of every current kernel follows from that.
 
 ## Double buffering: overlap through ILP, not DMA
 
-Double buffering allocates two staging buffers so that the loop can load slab
-`l + 1` while computing on slab `l`. In CUDA the same structure is usually fed by
+You want the loop to load slab `l + 1` while it computes on slab `l`. Double
+buffering allocates two staging buffers so that it can. In CUDA the same structure is usually fed by
 `cp.async` or TMA, asynchronous copies that proceed while the threads compute.
 Here the copy engine is not reachable, so the prefetch is ordinary loads and
 stores issued by the same threads that do the math. What makes it work anyway is
@@ -84,8 +84,8 @@ was short of.
 
 ## Three regimes, three winners
 
-The author measured the single-buffered kernel, the double-buffered kernel and
-MPS at four sizes on an M5 Max, 32-bit, best of 3 runs each averaging 5 trials.
+So which one was this kernel short of? The author measured the single-buffered
+kernel, the double-buffered kernel and MPS at four sizes on an M5 Max, 32-bit, best of 3 runs each averaging 5 trials.
 
 | Size | sync_copy | sync_copy_db | MPS |
 |---:|---:|---:|---:|
@@ -123,8 +123,8 @@ ecosystem should follow.
 
 ## The copy engine that died
 
-A CUDA engineer reading the double-buffered loop would ask where `cp.async` is,
-and the answer is a short history. Apple's hardware has a copy engine that moves
+Reading the double-buffered loop, you would ask where `cp.async` is. The answer
+is a short history. Apple's hardware has a copy engine that moves
 tiles from device memory to threadgroup memory while the arithmetic units work,
 with completion signaled by events: the same idea as `cp.async` and TMA. Apple
 never exposed it in the Metal Shading Language. The compiler exposed it anyway,
@@ -192,7 +192,7 @@ failed attempts to resurrect it. Hence the two successor kernels you have read:
 cooperative loads for the staging, Chapter 11, and double buffering to win back
 some of the overlap through instruction-level parallelism, above.
 
-There are two reasons to keep the dead code in mind. The concept outlives the interface: an
+You have two reasons to keep the dead code in mind. The concept outlives the interface: an
 asynchronous copy with a completion you wait on is the idea behind `cp.async`
 groups and TMA's transaction barriers, how
 metal-flash-attention's generated kernels staged tiles, and plausibly how a future

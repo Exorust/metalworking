@@ -2,14 +2,13 @@
 
 ## Where we are
 
-Part 3 ended with a chart: MPS at 11.7 TFLOPS, about 87 percent of a 13.5 TFLOPS
-practical, measured ceiling, for a 4096 by 4096 matrix multiply in 32-bit on an M5 Max. Part 4 writes
-the 144-line kernel that reaches the ceiling, one technique at a time, and reads
-the real kernel's code as it goes. The kernel is `sync_copy.metal` from
+You left Part 3 looking at a chart: MPS at 11.7 TFLOPS, about 87 percent of a 13.5 TFLOPS
+practical, measured ceiling, for a 4096 by 4096 matrix multiply in 32-bit on an M5 Max. In Part 4 you build
+the 144-line kernel that reaches the ceiling, one technique at a time, and read
+the real kernel's code as you go. The kernel is `sync_copy.metal` from
 yaroslavvb/m5-gemm, BSD-3-Clause, and every excerpt is quoted from the pinned
-commit with a link to its lines. This chapter covers the first two techniques:
-how the problem is cut into tiles, and how a tile gets from device memory into
-the core.
+commit with a link to its lines. Two techniques come before any multiply: how the problem is cut into tiles, and
+how a tile gets from device memory into the core.
 
 ## Tiling: the reuse pyramid
 
@@ -48,7 +47,7 @@ time, `BK` = 2 × 8. The 8 in every product is the edge of the 8 by 8 fragment t
 Chapter 12 introduces. Those are the three levels of the pyramid for this kernel:
 threadgroup tile, simdgroup patch, fragment.
 
-Three of the calibrations differ from CUDA habits.
+Three of the calibrations differ from your CUDA habits.
 
 **The middle level is thin.** Threadgroup memory caps tiles at 32 KB, so typical
 shapes are 64 by 64 outputs with a shared-dimension slab 16 to 32 deep, smaller
@@ -132,7 +131,7 @@ micro-optimizations of Chapters 4 and 6: the trip count is a compile-time
 constant, so the loop can fully unroll, and the tile-local index arithmetic runs
 in 16-bit while the device address, `uint(r) * stride4 + c`, stays 32-bit.
 
-The rules of thumb are all familiar from CUDA. Map consecutive threads to
+You already know the rules of thumb from CUDA. Map consecutive threads to
 consecutive addresses in both directions, since coalescing matters on the
 device-memory read and bank-friendliness on the threadgroup-memory write, Chapter
 2. Vectorize to `float4`, or an aligned aggregate of eight halves as steel does,
@@ -146,7 +145,7 @@ from template parameters at compile time; it expresses the vector width as an
 bounds-checked `load_safe` twin for ragged edges, selected per pipeline by function
 constants so that aligned dispatches never pay for the checks.
 
-Older code looks different for a historical reason. Before Metal 4, a
+If you read older code, it looks different, and the reason is historical. Before Metal 4, a
 single simdgroup could issue one copy for the whole threadgroup through an
 undocumented intrinsic, and the hardware copy engine did the moving. That was
 faster than any cooperative load, and it no longer compiles. Chapter 14 covers

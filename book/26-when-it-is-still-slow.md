@@ -2,37 +2,35 @@
 
 ## Where we are
 
-The methodology of Chapter 9 had four steps. Timestamps and arithmetic,
+You have a kernel that the roofline of Chapter 10 says should be fast, and it is
+not. The methodology of Chapter 9 had four steps. Timestamps and arithmetic,
 differential benchmarking, and the hygiene rules carry most kernels to an
-answer. This chapter is the remaining step, the third in Chapter 9's list,
-disassembly when the arithmetic says impossible. When the roofline of Chapter 10 says a
-kernel should be fast and it is not, and changing one thing at a time has not
-found the lever, the last resort is reading what the compiler emitted. Apple
-ships no tool for that. You do it with the reverse-engineered applegpu
+answer. Yours did not. Changing one thing at a time has not found the lever either. What
+remains is the third step in Chapter 9's list, disassembly when the arithmetic
+says impossible, and it is the last resort: reading what the compiler emitted.
+Apple ships no tool for that. You do it with the reverse-engineered applegpu
 toolchain, which is also how the community learned most of what Part 1 reported.
 
 ## What you have, compared with CUDA
 
-On NVIDIA, `cuobjdump` and `nvdisasm` read SASS, the vendor documents the tool,
+On NVIDIA, you read SASS with `cuobjdump` and `nvdisasm`, the vendor documents the tool,
 and about half of the instruction set is documented. Here the instruction set of
 the Apple G13 family, the M1 generation, with coverage of later generations
-growing, was reverse engineered by the community. The on-device final compile
-of Chapter 6 also means that the binary you inspect was built on your own
+growing, was reverse engineered by the community, and the on-device final
+compile of Chapter 6 means that the binary you inspect was built on your own
 machine, for your chip, from your source.
 
-The toolchain, at the pinned commit of dougallj/applegpu:
+The toolchain lives at the pinned commit of dougallj/applegpu, and you start with
+`compiler_explorer.py`, which takes Metal Shading Language and prints
+instructions; it is the scriptable equivalent of a compiler explorer and the
+entry point for the whole workflow. `disassemble.py` is a 56-line script that you
+point at extracted GPU machine code, and the repository's knowledge lives in
+`applegpu.py`, 6,081 lines of instruction encodings, operand descriptors and
+register formats. Around those three, `assemble.py` goes the other direction,
+`hwtestbed.py` runs encodings on real hardware, and `docs.html` is the browsable
+instruction reference.
 
-- `compiler_explorer.py`: takes Metal Shading Language and prints
-  instructions. It is the scriptable equivalent of a compiler explorer and the
-  entry point for the workflow this chapter describes.
-- `disassemble.py`: a 56-line script that you point at extracted GPU machine
-  code.
-- `applegpu.py`: 6,081 lines of instruction encodings, operand descriptors and
-  register formats. This file is where the repository's knowledge lives.
-- `assemble.py` goes the other direction; `hwtestbed.py` runs encodings on real
-  hardware; `docs.html` is the browsable instruction reference.
-
-The workflow goes beyond reading. Patch instruction bytes
+Reading is only half of it. Patch instruction bytes
 into a compiled shader, run it on the hardware test bed, and diff the GPU's
 behavior against the emulator's. That loop answers "what does this undocumented
 instruction actually do" by experiment, even though no documentation for it
@@ -40,28 +38,31 @@ exists anywhere. It is also how the community established much of what Part 1 re
 
 ## When to reach for it, and what you find
 
-Reach for it in the order Chapter 9 set: after the timestamps and the roofline
-say the kernel should be fast and it is not, and after differential benchmarking
-has not found the lever. The usual finds, in order of frequency:
+When does it pay? Reach for it
+in the order Chapter 9 set: after the timestamps and the roofline say the kernel
+should be fast and it is not, and after differential benchmarking has not found
+the lever.
 
-1. **Register spills you did not know you had.** The cliff of Chapter 2 shows up
-   here as loads and stores wrapped around arithmetic that should have been
-   register-only. This is the single most common finding, and it is why the
-   attribute of Chapter 12 and the 16-bit rule of Chapter 4 exist.
-2. **Loops that did not unroll the way the source suggests.** The matrix
-   multiply of Part 4 asks for its fragment loop and its load loop to become
-   straight-line code: the bounds are compile-time constants and the loops carry
-   a full-unroll pragma. A compiler can still decline, or unroll partially and
-   leave a remainder loop, and when it does the kernel pays loop overhead and
-   loses some of the scheduling freedom of Chapter 4. The disassembly is the only
-   place you can see which happened.
-3. **Instruction-selection surprises.** Expect one surprise every time you
-   look; the disassembly is where you look.
+The first find is register spills you did not know you had. The cliff of
+Chapter 2 shows up here as loads and stores wrapped around arithmetic that should
+have been register-only. It is the single most common finding.
+It is why the attribute of Chapter 12 and the 16-bit rule of Chapter 4 exist.
+
+Next in frequency come loops that did not unroll the way the source suggests. The
+matrix multiply of Part 4 asks for its fragment loop and its load loop to become
+straight-line code: the bounds are compile-time constants and the loops carry a
+full-unroll pragma. A compiler can still decline, or unroll partially and leave a
+remainder loop, and when it does the kernel pays loop overhead and loses some of
+the scheduling freedom of Chapter 4. The disassembly is the only place you can
+see which happened.
+
+Last come instruction-selection surprises. Expect one every time you look.
+The disassembly is where you look.
 
 For the kernel of Part 4, expect the following: the inner loop should be a short
 straight-line sequence of fragment loads and multiply-accumulates with no
 memory operations on the accumulators between them. A store inside that
-sequence is a suspect, not a verdict: check where it goes and whether the same
+sequence is a suspect, not a verdict. Check where it goes and whether the same
 value is loaded back later in the loop. An intended output or staging write goes
 to a buffer and is never reloaded; a spill goes to compiler-managed backing
 storage and comes back. If it is a spill, the levers are the tile size and the
@@ -81,9 +82,9 @@ the output after the first unknown encoding as unreliable.
 
 ## Two caveats
 
-First, coverage tracks the reverse-engineering effort, not Apple's release
-schedule. The newest instructions, the tensor paths of the M5 neural
-accelerators in Chapter 29 especially, lag until someone maps them, so a kernel
+The toolchain has two limits. First, coverage tracks the reverse-engineering effort, not Apple's release
+schedule, so the newest instructions, the tensor paths of the M5 neural
+accelerators in Chapter 29 especially, lag until someone maps them, and a kernel
 built on the newest hardware may disassemble into unknown encodings.
 
 Second, everything here is unsupported surface. It is the same platform-risk
@@ -93,8 +94,8 @@ product that depends on it.
 
 ## The methodology, complete
 
-With this chapter the measurement method of Part 3 is complete. It is stated
-here in one place because on this platform it replaces the profiler.
+You now have every step of the measurement method of Part 3, and since on this
+platform it replaces the profiler, here it is in one place.
 
 1. Time with command-buffer timestamps, Chapter 9, after the pipeline is built
    and the first runs are discarded, over several trials.
@@ -118,7 +119,7 @@ here in one place because on this platform it replaces the profiler.
    than 10 percent each. What does the chapter say to do, and what are you
    looking for first?
 2. Why can the binary you disassemble on your machine differ from the one
-   another engineer sees on theirs?
+   someone else sees on theirs?
 3. Why does the chapter say not to build a product on the applegpu toolchain,
    even though it is the usual way to read the machine code?
 
@@ -136,7 +137,7 @@ here in one place because on this platform it replaces the profiler.
    lags the hardware, the same risk class as the dead copy intrinsic of Chapter
    14; it is for reading, and a product built on it can break with any release.
 
-One machine's ceilings are now fully described; the next chapter is about what
-happens when the model does not fit in one machine.
+Everything so far has assumed the model fits in one machine, and the next chapter
+drops that assumption.
 
 Next: [Scaling out across machines](27-scaling-out.md)

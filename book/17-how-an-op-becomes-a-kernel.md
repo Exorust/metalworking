@@ -2,19 +2,20 @@
 
 ## Where we are
 
-Chapter 16 left the matrix multiply as a graph node that the scheduler hands to
-its primitive at evaluation time. Between that node and a `simdgroup_matrix`
-instruction sits one C++ hop: the primitive's `eval_gpu`, which picks a kernel
+You left Chapter 16 with the matrix multiply as a graph node that the scheduler
+hands to its primitive at evaluation time. Between that node and a
+`simdgroup_matrix` instruction you will find one C++ hop: the primitive's `eval_gpu`, which picks a kernel
 family, picks tile sizes, binds function constants, and encodes the dispatch.
 In CUDA this is the dispatcher layer between PyTorch and cuBLAS's heuristics,
 except that here the code is open, small and readable. Once you know where these
 decisions live, you can turn "my model is slow" into "my shapes fall off the fast
-path". The second of the three questions of Chapter 24, unlock an existing fast
-path, is answered by reading exactly these files.
+path". The second of the three questions of Chapter 24, how to reach an existing
+fast path, is answered by reading exactly these files.
 
 ## The chain, for a matmul
 
-The lazy graph hands `Matmul` to the scheduler. `Matmul::eval_gpu`, in
+What does that one hop do? The lazy graph hands `Matmul` to the scheduler.
+`Matmul::eval_gpu`, in
 `mlx/backend/metal/matmul.cpp`, first normalizes each operand: if neither stride
 is 1 it encodes a copy to a contiguous layout before the multiply, and it
 collapses batch dimensions where it can. Then it routes, in this order.
@@ -107,33 +108,32 @@ the steel fast path; the green spine is the path Chapter 18 reads.*
 ## The branches before steel
 
 Several branches come before the macro, and a shape that falls into the wrong
-one runs slower without any warning.
+one runs slower without any warning. Matrix-vector shapes route to `gemv` when
+M or N is 1, and 16-bit transposed-B multiplies with up to 15 rows route to
+`gemv_wide` on M3-class chips and later, because a few rows cannot fill a tile
+(Chapter 22). Small outputs with a large shared dimension take a split-K kernel:
+the plain one under the conditions above when NAX is off, and a NAX one when K is
+at least three times max(M, N), or more than twice it below 1,024.
 
-- **Matrix-vector shapes** route to `gemv` when M or N is 1, and 16-bit
-  transposed-B multiplies with up to 15 rows route to `gemv_wide` on M3-class
-  chips and later, because a few rows cannot fill a tile (Chapter 22).
-- **Small outputs with a large shared dimension** take a split-K kernel: the
-  plain one under the conditions above when NAX is off, and a NAX one when K is
-  at least three times max(M, N), or more than twice it below 1,024.
-- **The hardware gate** sends every eligible multiply on an M5-class GPU to the
-  NAX fork, including 32-bit multiplies unless TF32 is disabled.
-- **Quantized weights** are a separate primitive with a different kernel family
-  (Chapter 23), whose fast path is shape-sensitive in its own ways.
-- **`mx.fast.scaled_dot_product_attention`** is likewise its own primitive, with
-  its own gate deciding between the fused kernel and a fallback graph (Chapter
-  21).
+The hardware gate sends every eligible multiply on an M5-class GPU to the NAX
+fork, including 32-bit multiplies unless TF32 is disabled. Quantized weights are
+a separate primitive with a different kernel family (Chapter 23), whose fast path
+is shape-sensitive in its own ways. `mx.fast.scaled_dot_product_attention` is
+likewise its own primitive, with its own gate deciding between the fused kernel
+and a fallback graph (Chapter 21).
 
 The measured example of the trap is the MTPLX case of Chapter 24: 2.24 times
 end-to-end from about 10 lines, which came from noticing that multi-token decode,
 3 to 6 rows at a time, stalled the quantized matrix-vector kernel of Chapter 23,
 which is tuned for one row, while the quantized tiled kernel is tuned for many.
-The kernel existed, but its tuning grid had a hole. The same reading applies to
+The kernel existed, but its tuning grid had a hole. You can apply the same reading to
 every family: find the branch your shape takes, then the condition that sent it
 there.
 
 ## What this means for the kernel writer
 
-Because the dispatcher is readable, three habits follow.
+What do you do differently once you can read the dispatcher? Three habits
+follow.
 
 First, before writing anything, read the branch your shape takes. The question
 "why is this slow" often has the answer "because it took the branch for a

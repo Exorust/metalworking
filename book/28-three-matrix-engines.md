@@ -2,14 +2,14 @@
 
 ## Where we are
 
-Every kernel this book read in Parts 4 to 6 uses `simdgroup_matrix`, which runs
+Every kernel you read in Parts 4 to 6 uses `simdgroup_matrix`, which runs
 on the GPU's regular arithmetic pipes, and until the M5 generation that is all
 the GPU had: Chapter 12 said `simdgroup_matrix` is the API of a Tensor Core on
 hardware that had none. The benchmarks ran on an M5 Max, and Chapter 17 showed
 MLX's own dispatcher already taking the other route there; what you read was the
 portable path. The last part of this book
 is about the hardware that changed that, and the programming model that reaches
-it. This chapter starts one level up, with the three matrix engines that share
+it. Before the new unit, step one level up to the three matrix engines that share
 one Apple die, because two of them affect GPU work whether or not you ever
 program them, and the third is the new one.
 
@@ -25,14 +25,16 @@ not part of the GPU, but it is the other half of Apple's matrix-multiply
 performance, and it explains small-matrix CPU throughput that NEON alone could
 not deliver. There is
 no CUDA counterpart; the closest analogies are Intel's AMX and ARM's SME, toward
-which Apple's AMX has been evolving. The point for a GPU engineer is negative:
+which Apple's AMX has been evolving. The point for you is negative:
 when you benchmark Apple's Accelerate, BNNS or MPS small-matrix performance and
 the numbers look too good for a CPU, you are not looking at the CPU's NEON units.
 You are looking at a dedicated multiply-accumulate grid hanging off the CPU
 cluster, fed by its own register pools, executing an outer product per
-instruction. Apple has never documented the instruction set. The definitive
+instruction.
+
+Apple has never documented the instruction set. The definitive
 reference is corsix/amx (MIT licensed), which has per-instruction documentation, an executable
-emulator that serves as the specification, and per-generation deltas: M2 adds bf16, M3 adds
+emulator that is itself the specification, and per-generation deltas: M2 adds bf16, M3 adds
 new load and integer modes, M4-era hardware moves toward standard SME. Using AMX
 directly means issuing undocumented instructions. Accelerate and BNNS are the
 sanctioned interface, and corsix's documentation is where you find out what
@@ -72,10 +74,9 @@ Chapter 3. Decode stays bandwidth bound, so it moves with the memory spec
 instead (Chapter 22). The two numbers follow the compute-bound versus
 bandwidth-bound split that the rest of the book uses.
 
-What you should carry over from CUDA, and what not to:
-
-- **The fragment shape moves from 8 by 8 to 16 by 16.** MLX's NAX steel is built
-  on a 16 by 16 fragment held across the 32 threads of a simdgroup.
+So what should you carry over from CUDA, and what not? Start with the fragment
+shape, which moves from 8 by 8 to 16 by 16. MLX's NAX steel is built on a 16 by
+16 fragment held across the 32 threads of a simdgroup.
 
 ```cpp
 struct BaseNAXFrag {
@@ -86,23 +87,24 @@ struct BaseNAXFrag {
 ```
 Source: [MLX `steel/gemm/nax.h:27-31`](https://github.com/ml-explore/mlx/blob/47bbfe8fa473d6d19037a8d97f1f7d30514e4cf6/mlx/backend/metal/kernels/steel/gemm/nax.h#L27-L31)
 
-  The file includes `<MetalPerformancePrimitives/MetalPerformancePrimitives.h>`
-  at the top: the new hardware arrives through a library, not through new
-  intrinsics. Each thread holds 16 × 16 / 32 = 8 elements of a fragment, against
-  2 for an 8 by 8 fragment. The fragment is MLX's storage unit; the operation it
-  hands to the library is wider. The same file builds a
-  `matmul2d_descriptor(16, 32, 16, ...)`, one A fragment against two B fragments
-  side by side, and the tile loops Chapter 29 reads combine those operations.
-- **The formats are block-scaled floats.** The `mxfp4`, `nvfp4` and `mxfp8`
-  modes of Chapter 23 arrived with this unit and have NAX kernels, but in the
-  pinned MLX those kernels dequantize the codes to 16-bit values before loading
-  tiles, Chapter 23, so that code does not show the hardware taking the packed
-  formats directly. The "fp8 is emulated" caveat of Chapter 4 is an M4-era
-  fact.
-- **It is not programmed like a Tensor Core.** There is no `mma.sync` to descend
-  to. You describe a matrix multiply with a descriptor and cooperative tensors,
-  and the compiler and the hardware choose the datapath. Chapter 29 covers the
-  model and reads real code.
+The file includes `<MetalPerformancePrimitives/MetalPerformancePrimitives.h>`
+at the top: the new hardware arrives through a library, not through new
+intrinsics. Each thread holds 16 × 16 / 32 = 8 elements of a fragment, against
+2 for an 8 by 8 fragment. The fragment is MLX's storage unit; the operation it
+hands to the library is wider. The same file builds a
+`matmul2d_descriptor(16, 32, 16, ...)`, one A fragment against two B fragments
+side by side, and the tile loops Chapter 29 reads combine those operations.
+
+The formats are block-scaled floats. The `mxfp4`, `nvfp4` and `mxfp8` modes of
+Chapter 23 arrived with this unit and have NAX kernels, but in the pinned MLX
+those kernels dequantize the codes to 16-bit values before loading tiles,
+Chapter 23, so that code does not show the hardware taking the packed formats
+directly. The "fp8 is emulated" caveat of Chapter 4 is an M4-era fact.
+
+And it is not programmed like a Tensor Core. There is no `mma.sync` to descend
+to. You describe a matrix multiply with a descriptor and cooperative tensors,
+and the compiler and the hardware choose the datapath. Chapter 29 covers the
+model and reads real code.
 
 Software support is early. MLX ships a parallel steel fork for it (`gemm/nax.h`,
 `attn/nax.h`, `quantized_nax` and `fp_quantized_nax`), llama.cpp has a tensor-API

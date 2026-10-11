@@ -2,25 +2,27 @@
 
 ## Where we are
 
-Chapter 6 compiled one kernel into one pipeline state, and Chapter 7 launched it.
-In production, what looks like one kernel is several. One general matrix multiply can handle both
+You compiled one kernel into one pipeline state in Chapter 6, and you launched it
+in Chapter 7. In production, what looks like one kernel is several. One general matrix multiply can handle both
 the case where the matrix divides evenly by the tile and the ragged edge, but it
 pays for the checks on every tile; a specialized variant per case does not. The
 same holds for an attention kernel with and without a mask, and for a quantized
 kernel per weight format. In CUDA you produce the variants ahead of time or at run
-time. Metal has a third option, and it follows from Chapter 6: the backend
+time. Metal gives you a third option, and it follows from Chapter 6: the backend
 compile normally runs on the user's device, with the host's knowledge available.
 
 ## The problem, and CUDA's two answers
 
-Specialization means producing a kernel that contains only the code one
-configuration needs, so that no branch on the configuration survives into the hot
-loop. The two common CUDA routes are template instantiation ahead of time, where
+How do you get a kernel that contains only the code one configuration needs, so
+that no branch on the configuration survives into the hot loop? That is
+specialization. The two common CUDA routes are template instantiation ahead of time, where
 the fatbin holds one instance per configuration, and NVRTC, which compiles source
 at run time for the configuration at hand. In both, each variant goes through the
 compiler as its own kernel.
 
-Metal's backend compile normally runs on the device, inside the call that makes
+Metal does not force that choice on you.
+
+Its backend compile normally runs on the device, inside the call that makes
 the pipeline state. That allows a middle route: ship one function in AIR, the
 portable intermediate representation, with declared constant slots; bind values to
 the slots when you build the pipeline state; and let the backend compiler fold
@@ -34,8 +36,9 @@ specialized function.
 
 ## What they look like
 
-MLX's fused matrix-multiply kernel, which Part 5 reads in full, declares these
-function constants.
+What does a function constant look like in a kernel you might read? MLX's fused
+matrix-multiply kernel, which Part 5 reads in full, declares these function
+constants.
 
 ```cpp
 constant bool has_batch [[function_constant(10)]];
@@ -76,8 +79,9 @@ the usual way (Chapter 1).
 
 ## The three channels, and which to use
 
-Configuration reaches a Metal kernel through three channels, fixed at three
-different times. Which one a value belongs in depends on what the value affects.
+When you have a configuration value in hand, where should it go? It reaches a
+Metal kernel through one of three channels, fixed at three different times, and
+the right one depends on what the value affects.
 
 | Channel | Fixed when | Use it for |
 |---|---|---|
@@ -103,7 +107,8 @@ meet is a cost to watch. Chapter 17 shows how MLX keys and caches its pipelines.
 
 ## The attribute that belongs with them
 
-The kernel attribute `max_total_threads_per_threadgroup`, which Chapters 1, 2 and
+You have already met a second promise to the compiler. The kernel attribute
+`max_total_threads_per_threadgroup`, which Chapters 1, 2 and
 7 have each pointed at, is a separate mechanism that works on the same idea. It
 tells the compiler an upper bound the run time promises to respect, so that the
 register allocator can plan for that many threads instead of the hardware maximum.
@@ -133,8 +138,8 @@ Part 3 uses exactly this much to measure a kernel before anyone optimizes it.
    single function; the two pipelines are built on the device, the aligned one
    with only the unchecked path and the ragged one with the checks and the
    unchecked path for interior tiles.
-2. A template parameter or a `-D` define, because the source needs the value to
-   declare the array and instantiate the loader; a function constant's value is
+2. A template parameter or a `-D` define. The source needs the value to
+   declare the array and instantiate the loader. A function constant's value is
    bound only after the source has been compiled to AIR.
 3. A backend compile when the pipeline state is built, unless a cached pipeline
    exists. The framework caches each pipeline keyed by the function and the

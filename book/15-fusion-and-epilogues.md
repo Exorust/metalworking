@@ -2,20 +2,21 @@
 
 ## Where we are
 
-Chapter 14 settled the loop. The matrix multiply reaches the practical,
+You left Chapter 14 with the loop settled. The matrix multiply reaches the practical,
 measured ceiling at 4096 by 4096, and the techniques this book covers inside it
 are used up. What remains is everything around it. In a typical transformer
 block a matrix multiply is often followed by a bias and an activation, with a
-normalization nearby, and it is preceded by whatever produced its input. Each of those, run as its own kernel, costs a full pass over memory. On
-the platform of Chapter 3, most kernels sit on the bandwidth side of the ridge,
+normalization nearby, and it is preceded by whatever produced its input. Each of those, run as its own kernel, costs a full pass
+over memory. On the platform of Chapter 3, most kernels sit on the bandwidth side of the ridge,
 so fusion is the most profitable technique in this book. The matrix multiply's
 epilogue in Chapter 13 was the first example of it.
 
 ## Why fusion is a first principle here
 
-Fusion means computing a chain of operations in one kernel so that the
-intermediate arrays are never written to device memory and read back. CUDA has the same concept. What differs
-here is how much it matters. An unfused elementwise chain pays the full round
+You know fusion from CUDA, so the question is why it needs a chapter of its own
+here. Fusion means computing a chain of operations in one kernel so that the
+intermediate arrays are never written to device memory and read back. What
+differs here is how much it matters. An unfused elementwise chain pays the full round
 trip of device memory traffic for every operation, plus the dispatch overhead of
 Chapter 7 for every kernel. Elementwise operations have an arithmetic intensity
 near zero, about 0.1 FLOPs per byte for an add (Chapter 3), so that traffic buys
@@ -26,7 +27,8 @@ Every layer of the local stack uses fusion, in four forms.
 
 ## Epilogue fusion: the mechanical form
 
-A matrix multiply's ending (alpha × A × B + beta × C, a bias, an activation) is
+Where can you put an operation so that it costs no extra pass? At the end of
+the multiply. A matrix multiply's ending (alpha × A × B + beta × C, a bias, an activation) is
 applied to the results while they are still in registers, before their single
 memory write on the unsplit path; steel's split-K variant writes partial
 products and reduces them in a later pass, so a nonlinear ending there must
@@ -69,7 +71,8 @@ Chapter 20 derives the algorithm that makes that possible.
 
 ## Automatic fusion
 
-`mx.compile` (Chapter 19) fuses elementwise chains mechanically. It traces the
+You do not have to write every fusion by hand. `mx.compile` (Chapter 19) fuses
+elementwise chains mechanically. It traces the
 graph once per input shape and data type, turns runs of elementwise operations
 into generated kernels, and replays them. Luminal takes the same idea further with search: it uses one
 command buffer per forward pass, and it rediscovered flash attention by searching

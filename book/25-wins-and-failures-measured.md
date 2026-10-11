@@ -2,8 +2,8 @@
 
 ## Where we are
 
-Chapter 24 gave the three questions and named the cases behind them. This
-chapter is the evidence: one win read in full, because it teaches more per line
+Chapter 24 gave you the three questions and named the cases behind them. Here
+is the evidence: one win read in full, because it teaches more per line
 than anything else on the platform; three published failures, because the loss
 modes are predictable once you have seen them; the one project that measured the
 mechanism; and three near-zero-code wins that belong in every practitioner's kit
@@ -42,23 +42,25 @@ same family gave 28 percent at 4K, rising with context. The entire change:
 It goes in the accumulate loop of llama.cpp's attention kernel, Chapter 21, and
 is live in the author's fork at `ggml-metal.metal:8926`, with an ablation
 write-up in the companion repository; both are among the pinned repositories
-under `code/`. Three properties of the change explain why it is worth studying.
+under `code/`. Three properties make it worth studying.
 
-- **The skip is visible only from inside the fused kernel.** An exact graph
-  optimizer may not introduce it, because it is an approximation; a kernel
-  author can, because flash attention's ordering, weights before V, exposes the
-  weights in time to use them, and the pay-per-use dequantization of Chapter 23
-  makes the skipped work worth something. The optimization came from
-  understanding the kernel.
-- **It deletes loads, dequantization and multiply-adds together.** The author's
-  profile attributes the win to the dequantization cost; on this machine the
-  bytes and the lookups it removes are what matter, Chapter 3.
-- **It is threshold-gated and measured, not proved.** The test is on the
-  unnormalized weight `exp(s - M)` against `1e-6`, the output accumulates in
-  32-bit, and a weight that small times a large V value is not exactly nothing.
-  The claim is empirical: perplexity numerically identical across the paper's
-  corpora and context lengths, and retrieval unchanged or better, the
-  methodology most of the failures below skipped.
+The skip is visible only from inside the fused kernel. An exact graph optimizer
+may not introduce it, because it is an approximation; a kernel author can,
+because flash attention's ordering, weights before V, exposes the weights in
+time to use them, and the pay-per-use dequantization of Chapter 23 makes the
+skipped work worth something. The optimization came from understanding the
+kernel.
+
+It also deletes loads, dequantization and multiply-adds together. The author's
+profile attributes the win to the dequantization cost. On this machine the bytes
+and the lookups it removes are what matter, Chapter 3.
+
+And it is threshold-gated and measured, not proved. The test is on the
+unnormalized weight `exp(s - M)` against `1e-6`, the output accumulates in
+32-bit, and a weight that small times a large V value is not exactly nothing.
+The claim is empirical: perplexity numerically identical across the paper's
+corpora and context lengths, and retrieval unchanged or better, the methodology
+most of the failures below skipped.
 
 The same author's TurboQuant key-value cache compression, a Walsh-Hadamard
 rotation plus quantization of the cache, is the project the skip lives in. Its
@@ -69,11 +71,11 @@ optimized dequantization, Chapter 15.
 
 ## The failures, and the prior they establish
 
-The most instructive documents on the platform are the published negative
+What happens when you skip the questions? The most instructive documents on the platform are the published negative
 results. They share one lesson: your custom kernel will probably lose to stock, and
 the loss modes are predictable.
 
-**DFlash's reverted kernels.** The speculative-decoding port of Chapter 24
+Start with DFlash's reverted kernels. The speculative-decoding port of Chapter 24
 reached 3.34 times with bit-identical output, and its repository deliberately
 contains no `.metal` files. Every hand-written kernel tried along the way, a
 batched matrix-vector multiply, a fused SiLU, a custom attention, benchmarked at
@@ -82,7 +84,7 @@ question-2 and question-3 moves: the head-dimension patch onto the fused
 attention path and one `mx.eval` per step. Several independent projects report
 the same 0.5 to 0.8 times experience. Treat it as the prior.
 
-**OpenEvolve's evolved kernel.** This project ran a language-model-driven
+Next is OpenEvolve's evolved kernel. This project ran a language-model-driven
 evolutionary search over Metal source for a grouped-query attention kernel. Its
 own analysis file, titled "Why Optimization Failed", reports the best evolved
 kernel at 3.2 percent slower than the MLX baseline. The search improved from 11.5
@@ -91,13 +93,14 @@ methodology study: a search can climb a hill efficiently and still be on the wro
 when the baseline is a hand-tuned library and the search cannot touch the
 dispatch layer above it, Chapter 17.
 
-**"I beat MLX's attention, then discovered it was useless."** A hand-rolled
+The third is titled "I beat MLX's attention, then
+discovered it was useless." A hand-rolled
 flash-attention kernel showed 1.2 to 1.3 times on synthetic benchmarks and zero
 percent end to end, because the kernel's share of real run time was too small for
 its speedup to register. The hygiene rules of Chapter 10 exist because of this
 failure mode, and it is the most common one in public benchmark claims.
 
-**The mechanism, measured.** The MTPLX project ported every kernel from a Metal
+Only one project measured the mechanism. MTPLX ported every kernel from a Metal
 optimization challenge onto a new model's geometry and published the full
 ledger, Apache-2.0: 14 kernels, each checked against stock output and timed in
 isolation. The ledger scores 2 isolation wins, 11 losses or neutral results and
@@ -118,19 +121,15 @@ The checklist for reading, or making, an "X percent faster on Apple Silicon"
 claim:
 
 1. Synthetic or end to end? Amdahl's law eats kernels, Chapter 10.
-2. Which of the three questions did it answer? "None, I wrote a better kernel"
-   predicts reversion.
-3. What is the baseline: stock steel or llama.cpp at the right shapes, or a
-   straw man?
-4. Prefill or decode? A phase-specific win shows only in that phase's metric,
-   Chapter 22.
-5. Were thermals controlled? Sustained throughput differs from the first
-   second, as the next section shows.
+2. Which of the three questions did it answer? "None, I wrote a better kernel" predicts reversion.
+3. What is the baseline: stock steel or llama.cpp at the right shapes, or a straw man?
+4. Prefill or decode? A phase-specific win shows only in that phase's metric, Chapter 22.
+5. Were thermals controlled? Sustained throughput differs from the first second, as the next section shows.
 
 ## Cheap tricks, with their risk
 
-The three wins below are measured and need little or no code. Each also carries
-the risk typical of this platform.
+What can you get for almost no code? Three measured wins, each with the risk
+typical of this platform.
 
 **Raise the GPU wired-memory ceiling.** By default macOS caps how much of unified
 memory the GPU may wire; `sudo sysctl iogpu.wired_limit_mb=N` raises it. A 192

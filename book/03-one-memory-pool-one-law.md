@@ -2,17 +2,16 @@
 
 ## Where we are
 
-Chapter 2 opened the core and found a large register file next to a small scratch
-memory. Below the core sits the memory that every threadgroup reads its inputs from
+In Chapter 2 you opened the core and found a large register file next to a small
+scratch memory. Below the core sits the memory that every threadgroup reads its inputs from
 and writes its results to. On a discrete NVIDIA card that memory is on the card,
 and the host's memory is on the other side of a bus. On Apple Silicon there is one
-pool, and it is shared with the CPU. This chapter measures what that buys and what
-it costs, and the cost turns out to be the number that decides most kernel designs
-on this platform.
+pool, and it is shared with the CPU. What that buys is easy to see. What it costs
+turns out to be the number that decides most kernel designs on this platform.
 
 ## One pool
 
-Apple Silicon has one physical memory, the same LPDDR chips at the same physical
+What does one pool mean? Apple Silicon has one physical memory, the same LPDDR chips at the same physical
 addresses, used by the CPU and the GPU alike. There is no device memory and no host
 memory, so there is no transfer between them. A `MTLBuffer` and a NumPy array can
 be views of the same bytes; Chapter 6 shows how a buffer is made.
@@ -21,29 +20,31 @@ CUDA has something called unified memory, `cudaMallocManaged`, and on a discrete
 card it is not this. There it is a software illusion over the bus, with pages
 migrating back and forth. Here it is the hardware, and that has three consequences.
 
-- **Capacity.** A Mac Studio configuration holds hundreds of gigabytes that the
-  GPU can address, so models that need several cards in CUDA run on one Apple
-  chip, which is the main reason people who run language models locally care
-  about this platform. The usable budget is smaller than the installed RAM:
-  macOS caps how much the GPU may wire, a `sysctl` raises the cap (Chapter 25),
-  and GPU allocations compete with everything else running.
-- **No transfer engineering.** There is no `cudaMemcpy`, no pinned host memory,
-  and no arrangement of streams to overlap copies with compute. That class of
-  CUDA optimization does not apply.
-- **Cheap cooperation between CPU and GPU, with a cost that stays.** Data is free
-  to share, but synchronizing is not. When the CPU waits for a result and has
-  queued nothing behind it, the GPU sits idle while the CPU wakes, reads, and
-  encodes the next batch of work. This is why the framework in Part 5 records
-  operations and runs them only when something forces evaluation, and why
-  halving the number of forced waits per step is a measured win in Part 7.
+The first is capacity. A Mac Studio configuration holds hundreds of gigabytes that
+the GPU can address, so models that need several cards in CUDA run on one Apple
+chip, which is the main reason people who run language models locally care about
+this platform. The usable budget is smaller than the installed RAM: macOS caps how
+much the GPU may wire, a `sysctl` raises the cap (Chapter 25), and GPU allocations
+compete with everything else running.
+
+The second is that transfer engineering disappears. There is no `cudaMemcpy`, no
+pinned host memory, and no arrangement of streams to overlap copies with compute.
+That class of CUDA optimization does not apply.
+
+The third is cheap cooperation between CPU and GPU, with a cost that stays. Data is
+free to share, but synchronizing is not. When the CPU waits for a result and has
+queued nothing behind it, the GPU sits idle while the CPU wakes, reads, and encodes
+the next batch of work. This is why the framework in Part 5 records operations and
+runs them only when something forces evaluation, and why halving the number of
+forced waits per step is a measured win in Part 7.
 
 ## What it costs
 
-What Apple's chips give up for this design is bandwidth. A base M5 moves about
+What do Apple's chips give up for this design? Bandwidth. A base M5 moves about
 153 GB/s and an M5 Max about 614 GB/s. A datacenter GPU pairs its arithmetic with
 HBM at several terabytes per second. The achievable rate is lower than the
 spec: a STREAM-style probe on an M5 Max measured about 516 GB/s
-for a copy, which counts the bytes read and the bytes written, about 84 percent of
+for a copy, which counts bytes read and written, about 84 percent of
 the spec, and about 495 GB/s for a read-only sweep. Use the measured figure as the roof when you report a percentage of peak.
 
 Combined with the modest clocks from Chapter 1, this gives the closest thing this
@@ -57,7 +58,7 @@ so read the bandwidth line of the spec sheet before you profile anything.
 
 ## The number that decides: arithmetic intensity
 
-A kernel's number is its arithmetic intensity, floating point operations per
+Which ceiling are you under? Two numbers answer it. A kernel's number is its arithmetic intensity, floating point operations per
 byte of memory traffic; the machine's is its ridge point, the intensity at which
 the bandwidth and compute ceilings cross. Below the ridge the bandwidth ceiling
 is the tighter bound, above it the compute ceiling. The ridge says which ceiling applies, not whether the kernel reaches it; a
@@ -71,7 +72,7 @@ for this path, and the spec bandwidth is 614 GB/s.
     13.5 TFLOPS / 614 GB/s = about 22 FLOPs per byte
 
 Use the measured 516 GB/s instead of the spec and the ridge moves to about 26
-FLOPs per byte. The first uses the spec bandwidth and the second the measured one; both use the
+FLOPs per byte. Both use the
 same measured compute figure, and both apply to this precision and path; other
 precisions have their own ceilings (Chapter 10). The magnitude matters more than
 the exact value. A kernel needs more than about twenty-two to twenty-six
@@ -95,14 +96,17 @@ implementation moves.
 intensity is n/6 FLOPs per byte (n/8 for the kernel this book follows, which
 also reads C): about 683 or 512 at n = 4096, more than twenty times either
 ridge. Large matrix multiply is the rare workload here that is not inherently
-bandwidth bound. But no
-kernel touches each value once. A kernel with no tiling issues n loads for every
+bandwidth bound.
+
+But no kernel touches each value once. A kernel with no tiling issues n loads for every
 input value: two operations per pair of 4-byte loads, 0.25 FLOPs per byte. The
 tiled kernel this book follows computes a 64 by 64 output patch per threadgroup,
 so each threadgroup loads a 64-row strip of A and a 64-column strip of B: 2 × 64 ×
 64 × n operations against 2 × 64 × n × 4 bytes requested, which is 16 FLOPs per
 byte requested, still below the ridge. Tiling raises the requested intensity from
-0.25 to a quarter of the tile edge. Requested is not compulsory: each value of A
+0.25 to a quarter of the tile edge.
+
+Requested is not compulsory: each value of A
 and B needs to come from memory once and C once each way, so the compulsory
 traffic at 4096 by 4096 is 192 MiB in about 10 ms (256 MiB for the kernel here,
 which also reads C), about 20 to 26 GB/s, roughly 25 times below the measured
@@ -145,8 +149,8 @@ ceiling. Chapter 10 turns this into a chart.
    bandwidth?
 2. The tiled matrix multiply reaches 13.5 TFLOPS at 4096 by 4096. Why does the
    ideal count n/6 not establish that on its own, and what does?
-3. How does the M5 Max ridge compare with an H100's, and why does the chapter
-   still say that moving fewer bytes is the lever that pays most often here?
+3. How does the M5 Max ridge compare with an H100's, and why is moving
+   fewer bytes still the lever that pays most often here?
 
 ### Answers
 

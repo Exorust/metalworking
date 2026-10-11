@@ -2,23 +2,25 @@
 
 ## Where we are
 
-Part 4 wrote a matrix multiply by hand and timed it through a Python harness that
-spoke to Metal directly. Almost nobody runs a model that way. On Apple Silicon you
+In Part 4 you wrote a matrix multiply by hand and timed it through a Python
+harness that spoke to Metal directly. Almost nobody runs a model that way. On Apple Silicon you
 usually optimize through MLX, Apple's open-source array framework, and its
 architecture decides what is fast before any kernel runs. Part 5 follows the same
 matrix multiply into MLX: what the framework does with `mx.matmul(a, b)` before,
-during and after the kernel. This chapter covers the before. At that stage MLX
-does no GPU work at all, and the chapter explains why that design matters.
+during and after the kernel. You start here with the before. At that stage MLX
+does no GPU work at all, and why that design matters is the subject of what
+follows.
 
 ## What MLX is, for a CUDA-stack reader
 
-MLX is a NumPy-shaped array API with automatic differentiation, built natively on
+Coming from the CUDA stack, you first need a place to put MLX. It is a
+NumPy-shaped array API with automatic differentiation, built natively on
 the unified memory of Chapter 3, whose Metal backend's matrix and attention
 kernels are the steel library that Chapter 18 reads. In CUDA terms it is the whole stack of PyTorch, cuBLAS and
 cuDNN, and bits of Triton, collapsed into one codebase, which is why this book
 gives it a part rather than a chapter.
 
-Four CUDA expectations need recalibrating.
+Four of your CUDA expectations need recalibrating.
 
 **Arrays have no device.** An `mx.array` lives in unified memory. There is no
 `.to("gpu")` and no host-to-device copy anywhere in user code. Operations have a
@@ -59,7 +61,7 @@ work happens if you want to touch the stack this book teaches.
 
 ## Operations record; evaluation runs
 
-`mx.matmul(a, b)` does not compute. It checks shapes and types, picks a stream,
+When you call `mx.matmul(a, b)`, it does not compute. It checks shapes and types, picks a stream,
 appends a graph node and returns, and the GPU work happens when something
 forces evaluation. That deferral is what lets MLX
 batch an entire model into few command buffers.
@@ -121,7 +123,7 @@ synchronization boundary: commit, wait, the CPU wakes, re-encode. Evaluating
 an array that is already computed costs nothing. The DFlash case of Chapter 25 measured a real
 speedup from consolidating two evaluations per decode step into one. The classic
 accidental version is a Python `if` on a logit value in the middle of the loop,
-which forces a pipeline drain per token. Structure loops so that the host reads no value mid-step unless the algorithm
+which forces a pipeline drain per token. Structure your loops so that the host reads no value mid-step unless the algorithm
 needs it, and exactly one evaluation happens per iteration, at the end.
 
 Streams are where operations run. `mx.gpu` and `mx.cpu` are devices; each has a

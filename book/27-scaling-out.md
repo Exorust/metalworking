@@ -2,53 +2,55 @@
 
 ## Where we are
 
-Chapter 6 said there is one GPU per Apple Silicon machine, no NVLink and no
-second card, and Chapter 3 said the way to scale inside a machine is to buy more
-unified memory. This chapter covers the other direction: when a model does not
-fit in one machine, `mx.distributed` runs it across several. With macOS 26.3 and
-Thunderbolt 5 the connection between them is remote direct memory access at
-microsecond latencies, so the lack of NVLink no longer ends the scaling story.
-Chapter 22 already built the performance intuition this chapter leans on.
+Every kernel you have timed so far ran inside one machine. Chapter 6 said there
+is one GPU per Apple Silicon machine, no NVLink and no second card, and Chapter 3
+said the way to scale inside a machine is to buy more unified memory. When your
+model does not fit in one machine, you go the other direction: `mx.distributed`
+runs it across several. With macOS 26.3 and Thunderbolt 5 the connection between
+them is remote direct memory access at microsecond latencies, so the lack of
+NVLink no longer ends the scaling story. The performance intuition you need was
+already built in Chapter 22.
 
 ## What it is, against NCCL
 
-The CUDA counterpart is NCCL plus the fabric underneath it. The comparison in
-numbers: NVLink moves hundreds of gigabytes per second between GPUs in one
+If you have used NCCL, your first question is how the link compares. The CUDA
+counterpart is NCCL plus the fabric underneath it, and in numbers: NVLink moves hundreds of gigabytes per second between GPUs in one
 chassis; Thunderbolt 5 RDMA moves tens of gigabytes per second between chassis.
-The Apple version is still worth having because of the memory arithmetic. Each
+The Apple version is still worth having because of the memory arithmetic: each
 node brings up to 512 GB of unified memory, so two Mac Studios hold a
 trillion-parameter model resident in GPU-addressable memory, which no single
 consumer NVIDIA card can do; a machine with such a card can still run the model
 by paging weights through host memory, slowly. The public existence proof is Kimi K2, a trillion-parameter model,
 running across two M3 Ultra machines through `mx.distributed`.
 
-The pieces, from the MLX distributed documentation and session 233 of WWDC 2026:
+The pieces come from the MLX distributed documentation and session 233 of WWDC
+2026, and the first one you choose is the backend. `ring` runs over TCP on any
+network, works everywhere, and is slow. JACCL does RDMA over Thunderbolt 5, needs
+macOS 26.3 or later, and sits in the class of about 3 microseconds of latency.
+MLX's release notes track it as a fast-moving component: a standalone library,
+multi-ring refactors, and bandwidth improvements tied to macOS point releases.
 
-- **Backends.** `ring` runs over TCP on any network, works everywhere, and is
-  slow. JACCL does RDMA over Thunderbolt 5, needs macOS 26.3 or later, and sits
-  in the class of about 3 microseconds of latency. MLX's release notes track it
-  as a fast-moving component: a standalone library, multi-ring refactors, and
-  bandwidth improvements tied to macOS point releases.
-- **The API is collective-shaped.** It provides `mx.distributed.init()`, `all_sum`,
-  `all_gather`, `send` and `recv`, and you launch it with `mlx.launch --hosts`. The lazy
-  model of Chapter 16 carries over: communication operations are graph nodes,
-  scheduled and overlapped with the rest of the graph. They are not Metal
-  kernels, though. In the pinned MLX, every distributed primitive's GPU
-  evaluator throws "has no GPU implementation", so the collectives run on the
-  CPU stream and the overlap you get is between that stream and the GPU's.
-- **Sharding strategies.** Pipeline parallelism splits the layers across nodes,
-  with one activation crossing per boundary per token, and suits decode's
-  serial nature. Tensor parallelism splits the matrix multiplies across nodes,
-  with collectives per layer; it runs over TCP, but it is only worth running
-  over the RDMA path. Mixture-of-experts models shard naturally by expert
-  placement, which is the placement question of Chapter 24. llama.cpp reached
-  the same place independently: `--split-mode layer` and `--split-mode tensor`,
-  with `--tensor-split` setting the proportions, across the devices one process
-  can see.
+The API is collective-shaped. It provides `mx.distributed.init()`, `all_sum`,
+`all_gather`, `send` and `recv`, and you launch it with `mlx.launch --hosts`. The
+lazy model of Chapter 16 carries over: communication operations are graph nodes,
+scheduled and overlapped with the rest of the graph. They are not Metal kernels,
+though. In the pinned MLX, every distributed primitive's GPU evaluator throws
+"has no GPU implementation", so the collectives run on the CPU stream and the
+overlap you get is between that stream and the GPU's.
+
+The sharding strategies are the ones you know. Pipeline parallelism splits the
+layers across nodes, with one activation crossing per boundary per token, and
+suits decode's serial nature. Tensor parallelism splits the matrix multiplies
+across nodes, with collectives per layer; it runs over TCP, but it is only worth
+running over the RDMA path. Mixture-of-experts models shard naturally by expert
+placement, which is the placement question of Chapter 24. llama.cpp reached the
+same place independently: `--split-mode layer` and `--split-mode tensor`, with
+`--tensor-split` setting the proportions, across the devices one process can
+see.
 
 ## The performance intuition, from Chapter 22
 
-Decode is latency dominated, one token at a time, so every message on the
+Which strategy should you pick? Decode is latency dominated, one token at a time, so every message on the
 token's critical path adds to the time per token. That is pipeline
 parallelism's advantage: one activation crossing per boundary, plus the sampled
 token travelling back to the first stage to start the next step. Prefill is
@@ -137,7 +139,7 @@ in the book's sources.
    and does not fit. So either the average width was below 8 bits, or the
    metadata was cheaper than that example; the proof alone does not say which.
 
-Part 7 is done, and the last part is about the M5 generation's real matrix
+With Part 7 behind you, the last part turns to the M5 generation's real matrix
 unit in every GPU core and the programming model that reaches it.
 
 Next: [Three matrix engines on one die](28-three-matrix-engines.md)

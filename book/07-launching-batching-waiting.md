@@ -2,11 +2,11 @@
 
 ## Where we are
 
-Chapter 6 ended with a pipeline state: a compiled kernel, ready to run. This
-chapter runs it. Three things happen between a pipeline state and a result: you
+You left Chapter 6 holding a pipeline state: a compiled kernel, ready to run.
+Now you run it. Three things happen between a pipeline state and a result: you
 describe the grid, you put the dispatch into a command buffer and hand it to the
-GPU, and at some point you wait. Describing the grid has two traps for CUDA
-programmers. Batching is one of the platform's biggest levers that needs no kernel code, and
+GPU, and at some point you wait. Describing the grid has two traps if you come
+from CUDA. Batching is one of the platform's biggest levers that needs no kernel code, and
 waiting is where the time goes when a port from CUDA is
 mysteriously slow.
 
@@ -68,7 +68,9 @@ the GPU, which executes it asynchronously. `waitUntilCompleted` blocks until it
 is done; a completion handler is a notification instead. Until one of the two
 has fired, the CPU must not overwrite the batch's inputs or read its outputs,
 though a later command buffer on the same queue may consume them with no CPU
-wait. The queue orders work the way a CUDA stream does. In CUDA you think in
+wait.
+
+The queue orders work the way a CUDA stream does. In CUDA you think in
 launches, the stream preserves their order, and CUDA Graphs record a batch for
 resubmission. In Metal the batch, the command buffer, is the only submission
 path, you build it yourself, and how you batch is one of the biggest

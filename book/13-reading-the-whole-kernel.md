@@ -2,15 +2,17 @@
 
 ## Where we are
 
-Chapters 11 and 12 explained the pieces of `sync_copy.metal`: the tile constants,
-the cooperative load, the fragment multiply, the accumulator grid, the attribute,
-and the loop. This chapter reads the file from the first line to the last, 144
-lines, in order, so that every line is explained. The only part not yet
-explained is the ending, where the kernel folds the full BLAS form of the
+You met the pieces of `sync_copy.metal` one at a time in Chapter 11 and Chapter 12:
+the tile constants, the cooperative load, the fragment multiply, the accumulator
+grid, the attribute, and the loop. Now you read the file from the first line to the
+last, 144 lines, in order, so that every line is explained. The only part you have
+not yet seen explained is the ending, where the kernel folds the full BLAS form of the
 operation into its single store. Every excerpt is quoted verbatim from the pinned
 commit of yaroslavvb/m5-gemm, BSD-3-Clause.
 
 ## Lines 1 to 20: the header and the constants
+
+Before any code, the file tells you where it came from.
 
 ```metal
 // Tiled fp32 GEMM via 8x8 simdgroup matrices ("tensor cores").
@@ -38,7 +40,8 @@ threadgroup, 16 deep per step.
 
 ## Lines 22 to 36: the fragment loop
 
-This is the function Chapter 12 quoted, now with its signature.
+What does the multiply look like once you see the whole function? This is the
+one Chapter 12 quoted, now with its signature.
 
 ```metal
 template <ushort DIM>
@@ -73,7 +76,7 @@ the distinct fragments.
 ## Lines 38 to 82: the cooperative load, and its fallback
 
 Chapter 11 read the vectorized path of `load_tile`, lines 56 to 71. What it did
-not show is the preceding comment and the fallback path after it.
+not show you is the preceding comment and the fallback path after it.
 
 ```metal
   constexpr ushort total = rows * cols;
@@ -90,7 +93,7 @@ Source: [`sync_copy.metal:73-81`](https://github.com/yaroslavvb/m5-gemm/blob/294
 
 The vectorized path is guarded at line 56 by a compile-time condition: the tile's
 column count must be a multiple of 4 and each thread's share must be a multiple
-of 4. Both hold for the default tiles, so the scalar fallback above is compiled
+of 4. Both hold for the default tiles. The scalar fallback above is therefore compiled
 out of this configuration and exists for other tile shapes. It is the same loop
 one float at a time. The comment at lines 38 to 45 states the contract: `cols`
 and `rows * cols / nthreads` must divide cleanly. That is about dividing the
@@ -147,6 +150,9 @@ simdgroup's position in the threadgroup, `t_tg_pos.y` and `t_tg_pos.z`, scaled b
 
 ## Lines 130 to 143: the epilogue
 
+When the loop ends, the answer sits in the accumulator grid. How does it
+reach C?
+
 ```metal
   ushort2 simd_origin = ushort2(t_tg_pos.y, t_tg_pos.z) * (8 * SIMD_TILE);
   uint c_row0 = tg_row + simd_origin.y;
@@ -172,7 +178,7 @@ scaling uses matrix multiplies: `simdgroup_float8x8(beta)` constructs a diagonal
 matrix with `beta` on the diagonal, so `c_simd × diag(beta)` scales every
 element, and the multiply-accumulate computes `acc × diag(alpha) + c_simd`. The whole
 BLAS form is applied while the result is still in registers, on its way to its
-one store. The kernel makes no second pass over C to scale it and launches no
+one store, and the kernel makes no second pass over C to scale it and launches no
 separate kernel to add it. This is fusion on a small scale, and steel generalizes
 the same spot into a plug-in epilogue (Chapter 18). The guard at line 133 checks
 only that the simdgroup's origin is inside the matrix, which is always true when
@@ -215,9 +221,9 @@ maps to a chapter.
 
 ### Answers
 
-1. Because the staged tiles have different widths: the A tile is 16 columns wide,
-   `DIM * 8`, and the B tile is 64 columns wide, `BN`, and `simdgroup_load` needs
-   the row stride of the memory it reads from.
+1. Because the staged tiles have different
+   widths. The A tile is 16 columns wide, `DIM * 8`, and the B tile is 64 columns
+   wide, `BN`. `simdgroup_load` needs the row stride of the memory it reads from.
 2. The compile-time condition at line 56 selects the vectorized path when the
    column count and each thread's share are multiples of 4, which holds for 64 by
    16 and 16 by 64 tiles with 128 threads. The fallback would run for a tile

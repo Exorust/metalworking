@@ -2,34 +2,33 @@
 
 ## Where we are
 
-Part 2 gave you the least Metal needed to run a kernel. Part 3 is about measuring
-it before anyone optimizes it, which on this platform is harder than on NVIDIA
-because the profiler you are used to does not exist. This chapter settles two
-things first: the number a custom kernel has to beat, and the way this book
-times it. It also starts the running example. From here to the end of Part 6, one
+Part 2 gave you the least Metal needed to run a kernel. In Part 3 you measure
+it before anyone optimizes it, and on this platform that is harder than on NVIDIA,
+because the profiler you are used to does not exist. Two things need settling
+first: the number a custom kernel has to beat, and the way this book times it.
+The running example starts here too. From here to the end of Part 6, one
 matrix multiply, 4096 by 4096 in 32-bit floats on a 40-core M5 Max, carries a
 number from chapter to chapter.
 
 ## The baseline: MPS
 
-Metal Performance Shaders, MPS, is Apple's library of pre-built GPU kernels:
+What does a custom kernel have to beat? Metal Performance Shaders, MPS, is Apple's library of pre-built GPU kernels:
 matrix multiply, convolution, image operations. Its role is the closest thing
 Metal has to cuBLAS and cuDNN, but it does not have their standing. On NVIDIA,
 beating cuBLAS at dense matrix multiply is a research result, because the library
 has decades of tuning and hardware co-design behind it. MPS is good, and the machine-learning ecosystem on
 Apple Silicon has repeatedly matched or beaten it with open kernels.
 
-- The hand-written m5-gemm kernel that Part 4 reads reaches 13.5 TFLOPS in 32-bit
-  at 4096 by 4096 on an M5 Max, against 11.7 for MPS. MPS takes the lead back at
-  8192 by 8192, 13.5 against 13.0, where the kernels converge on the same limit;
-  Chapter 14 shows the whole table.
-- llama.cpp deleted its MPS path in 2023, pull request 2615, in favor of its own
-  simdgroup kernels. The pull request reports about 88 percent arithmetic-unit
-  utilization on a 4096 by 4096 matrix multiply, with the caveat that the
-  end-to-end gain was about 40 percent, because the operations that are not
-  matrix multiplies dominate the rest.
-- MLX uses its own kernel library, steel, Part 5, rather than MPS for its core
-  operations.
+The evidence comes from three directions. The hand-written m5-gemm kernel that
+Part 4 reads reaches 13.5 TFLOPS in 32-bit at 4096 by 4096 on an M5 Max, against
+11.7 for MPS. MPS takes the lead back at 8192 by 8192, 13.5 against 13.0, where
+the kernels converge on the same limit; Chapter 14 shows the whole table.
+llama.cpp deleted its MPS path in 2023, pull request 2615, in favor of its own
+simdgroup kernels. The pull request reports about 88 percent arithmetic-unit
+utilization on a 4096 by 4096 matrix multiply, with the caveat that the
+end-to-end gain was about 40 percent, because the operations that are not
+matrix multiplies dominate the rest. And MLX uses its own kernel library, steel,
+Part 5, rather than MPS for its core operations.
 
 MPS is beatable because its kernels are general and opaque. There is no
 function-constant specialization for your shapes, Chapter 8; no fusion with your own
@@ -39,7 +38,7 @@ lean on MPS are where its coverage is hard to replicate: convolution variants,
 some reductions, and small-matrix cases where the CPU's own matrix unit and
 MPS-tuned dispatch beat a naive GPU kernel.
 
-For the kernel writer, MPS is mainly the benchmark floor.
+For you, writing kernels, MPS is mainly the benchmark floor.
 `MPSMatrixMultiplication` is a small setup, a matrix descriptor per operand plus
 the operation, and it gives GPU-time numbers through the same command-buffer
 timestamps as everything else; the m5-gemm harness has a compact PyObjC example
@@ -48,7 +47,7 @@ Chapter 24: if your custom kernel does not beat MPS at your shapes, ship MPS.
 
 ## The stopwatch: command-buffer timestamps
 
-Metal has no Nsight Compute, and that gap shapes how you do performance work
+How do you time a kernel when Metal has no Nsight Compute? That gap shapes how you do performance work
 on it. Of the tools you do have, the most useful is cheap, programmatic and
 reliable: `GPUStartTime` and `GPUEndTime` on a completed command buffer, in
 wall-clock seconds of GPU time. Every benchmark harness in this book uses them.
@@ -79,7 +78,7 @@ floating point operations, so 4096 by 4096 is 2 × 4096³ = 137.4 GFLOP, and
 
 ## What else exists, and why it is not the feedback loop
 
-Xcode's GPU capture, the Metal Debugger, is the closest thing to a real profiler:
+Is there no profiler at all, then? Xcode's GPU capture, the Metal Debugger, is the closest thing to a real profiler:
 per-encoder timings, an occupancy estimate, memory-bandwidth counters, shader
 profiling. It has two structural limits. Capture can be started from code, which the
 m5-gemm harness does through `MTLCaptureManager`, but reading its counters is a
@@ -104,24 +103,28 @@ methodology below.
 
 ## The methodology
 
+With timestamps as the only scriptable signal, what does the working loop look like?
 The projects whose results fill Part 7 converged on the same four habits
 independently.
 
-1. **Timestamps plus arithmetic.** Compute achieved GFLOPS and GB/s from the
-   problem size and the measured time, and compare them with ceilings you
-   measured yourself. Chapter 10 builds the chart.
-2. **Differential benchmarking.** When you cannot see stall reasons, change one
-   thing and measure again. The m5-gemm README's section "things that did not
-   help" records what this method found, and Chapter 14 reads it.
-3. **Disassembly when the arithmetic says impossible.** The reverse-engineered
-   applegpu tools show what the compiler emitted. They are the tool of last
-   resort for hunting spills, Chapter 26.
-4. **Hygiene, because no tool will catch you.** Decide how you handle clocks: in one
-   measured case, locking the fans changed the long-run throughput decay from 50
-   percent to 6.7 percent, Chapter 25. Report end-to-end numbers next to kernel
-   numbers, because a synthetic win that vanishes end to end is the common
-   failure that Chapter 25 describes. And state the matrix sizes, because the winner flips
-   with size, Chapter 14.
+The first is timestamps plus arithmetic. You compute achieved GFLOPS and GB/s
+from the problem size and the measured time, and compare them with ceilings you
+measured yourself. Chapter 10 builds the chart.
+
+The second is differential benchmarking. When you cannot see stall reasons, you
+change one thing and measure again. The m5-gemm README's section "things that did
+not help" records what this method found, and Chapter 14 reads it.
+
+The third is disassembly when the arithmetic says impossible. The
+reverse-engineered applegpu tools show what the compiler emitted. They are the
+tool of last resort for hunting spills, Chapter 26.
+
+The fourth is hygiene, because no tool will catch you. Decide how you handle
+clocks: in one measured case, locking the fans changed the long-run throughput
+decay from 50 percent to 6.7 percent, Chapter 25. Report end-to-end numbers next
+to kernel numbers, because a synthetic win that vanishes end to end is the common
+failure that Chapter 25 describes. And state the matrix sizes, because the winner
+flips with size, Chapter 14.
 
 ## Where the matmul stands
 
@@ -147,7 +150,7 @@ TFLOPS at 4096 by 4096.
    rather than CPU wait time. The harness must isolate the dispatch in its own
    command buffer, build its pipelines before timing and discard the first
    runs, and take several trials.
-2. Yes: MPS is 11.7, so 12 beats the baseline at that shape. At 11 it does not,
+2. Yes. MPS is 11.7, so 12 beats the baseline at that shape. At 11 it does not,
    and the rule is to ship MPS.
 3. Because its counters can only be read in the GUI, even though a capture can
    be started from code, and because capturing a large machine-learning

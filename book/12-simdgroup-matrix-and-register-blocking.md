@@ -2,8 +2,8 @@
 
 ## Where we are
 
-Chapter 11 staged a 64 by 16 tile of A and a 16 by 64 tile of B in threadgroup
-memory, 8 KB per step, and left them there. This chapter multiplies them. The
+Chapter 11 left you with a 64 by 16 tile of A and a 16 by 64 tile of B staged in
+threadgroup memory, 8 KB per step. Now you multiply them. The
 multiply runs through Metal's matrix primitive, which looks like NVIDIA's
 warp-level matrix API but does not run on the same kind of hardware. The results
 stay in registers across all 256 steps of the shared dimension. That is register
@@ -12,7 +12,8 @@ chapter the kernel has its number.
 
 ## simdgroup_matrix: the API of a Tensor Core, on the regular pipes
 
-`simdgroup_matrix<T, 8, 8>` is Metal's matrix-multiply primitive: an 8 by 8 matrix
+The staged tiles need a multiply, and on Metal you reach for
+`simdgroup_matrix<T, 8, 8>`, the matrix-multiply primitive: an 8 by 8 matrix
 held collectively in one simdgroup's registers, with a single call that multiplies
 and accumulates. As an API it is warp-level matrix multiply-accumulate, the `wmma`
 fragments or `mma.sync` of CUDA. As hardware the analogy is looser. Apple GPUs
@@ -21,9 +22,9 @@ as well-arranged work on the regular 32-bit pipes. The reverse-engineered Rigel 
 confirms that even Metal 4.1's newer `matmul2d` tensor API has no dedicated matrix
 datapath on M4-class hardware. So the performance story differs from NVIDIA's. You
 use `simdgroup_matrix` for its register layout and issue efficiency, not for a
-tenfold throughput unlock, and a well-written kernel built on it still reaches the
+tenfold throughput gain, and a well-written kernel built on it still reaches the
 compute ceiling of Chapter 10. M5 is different: it adds a real per-core matrix
-unit, reached through Metal 4 tensor operations, which Part 8 covers.
+unit, reached through Metal 4 tensor operations, which Part 8 covers, while
 `simdgroup_matrix` remains the portable primitive that runs on every M-series chip
 and that most shipped kernels use.
 
@@ -44,19 +45,21 @@ Load a fragment of A and a fragment of B from threadgroup memory, multiply and
 accumulate into `acc`, advance 8 along the shared dimension, repeat. Three rules
 of use follow, and all of them match what you expect from `wmma`.
 
-- **Fragments are opaque.** A `simdgroup_float8x8` holds 64 elements distributed
-  across the 32 threads in an undocumented layout. `thread_elements()` gives each
-  thread its own two, and steel uses it (Chapter 18), but which matrix coordinate
-  a lane holds is not something to rely on.
-  `simdgroup_load` and `simdgroup_store` move whole tiles between a fragment and
-  threadgroup or device memory.
-- **Fragments are registers, and they add up.** A 4 by 4 grid of accumulators is
-  16 fragments of 64 floats, 1,024 floats per simdgroup (Chapter 2). The
-  accumulator budget decides the tile size.
-- **Types.** `simdgroup_float8x8`, `simdgroup_half8x8`, `simdgroup_bfloat8x8`. 16-bit
-  fragments halve the register cost, and the kernels of Parts 5 and 6 take 16-bit
-  inputs and accumulate in 32-bit (Chapter 4). This kernel is a 32-bit benchmark
-  and uses `float` throughout.
+First, fragments are opaque. A `simdgroup_float8x8` holds 64 elements distributed
+across the 32 threads in an undocumented layout. `thread_elements()` gives each
+thread its own two, and steel uses it (Chapter 18), but which matrix coordinate
+a lane holds is not something you can rely on. `simdgroup_load` and
+`simdgroup_store` move whole tiles between a fragment and threadgroup or device
+memory.
+
+Second, fragments are registers, and they add up. A 4 by 4 grid of accumulators is
+16 fragments of 64 floats, 1,024 floats per simdgroup (Chapter 2). The
+accumulator budget decides the tile size.
+
+Third, the type sets the cost. The choices are `simdgroup_float8x8`,
+`simdgroup_half8x8` and `simdgroup_bfloat8x8`. 16-bit fragments halve the register
+cost, and the kernels of Parts 5 and 6 take 16-bit inputs and accumulate in 32-bit
+(Chapter 4). This kernel is a 32-bit benchmark and uses `float` throughout.
 
 Everything built above `simdgroup_matrix` composes these fragments. Steel's
 `BlockMMA` (Chapter 18) tiles them into a simdgroup-level register block; the
@@ -66,7 +69,8 @@ kernels abandon `simdgroup_matrix` entirely. Chapter 22 covers that split.
 
 ## Register blocking: the output never leaves the register file
 
-Register blocking keeps each simdgroup's patch of the output resident in
+Where should the output live while every step of the shared dimension passes
+through? Register blocking keeps each simdgroup's patch of the output resident in
 registers for the kernel's entire lifetime: accumulate across every step of the
 shared dimension, write to memory exactly once. The idea is the same as the
 accumulator fragments of any warp-tiled CUDA matrix multiply. What differs is the
@@ -108,7 +112,7 @@ The "too big" cliff is the one Chapter 2 introduced. The author tried `SIMD_TILE
 = 8, an 8 by 8 grid, 64 fragments, a 64 by 64 patch per simdgroup, and the kernel
 ran 10 times slower (not 10 percent slower) because the accumulators spilled.
 Once an accumulator is spilled, the multiply-accumulate that updates it is wrapped
-in a load and a store, and the loop is no longer arithmetic. The cliff is sharp
+in a load and a store. The loop is no longer arithmetic. The cliff is sharp
 because the payload crosses the per-thread budget the compiler set (Chapter 2).
 The sources show that 4 by 4 fits and 8 by 8 spills; where the boundary between
 them lies is not measured. Two register-pressure levers from Chapter 2 apply:
@@ -130,7 +134,7 @@ With `SW` = 2 the bound is 128 threads. Chapters 1, 7 and 8 said what it does:
 the compiler allocates registers when it builds the pipeline, and without the
 bound it must plan for the hardware maximum and give each thread fewer. With it,
 the allocator commits to a budget for 128 threads, and the author calls the
-result the kernel's single biggest practical win. Note what the attribute does
+result the kernel's single biggest practical win. You also need to know what the attribute does
 not do: the 10 times slower spill of Chapter 2 happened with this line already
 in the file, so the attribute sets the budget; it does not remove the cliff.
 The change is one line.
@@ -201,7 +205,7 @@ The next chapter covers the epilogue and reads the full file.
    way; the reuse is in the distinct fragments.
 2. For its register layout and issue efficiency: the fragment is held across the
    32 threads in a layout the hardware multiplies efficiently, and the loop is a
-   handful of calls per step. The gain is not a tenfold throughput unlock, and the
+   handful of calls per step. The point is not a tenfold throughput gain, and the
    kernel still reaches the compute ceiling.
 3. It allocates registers for 128 threads instead of the hardware maximum, so each
    thread gets a larger budget; the author calls that the single biggest practical

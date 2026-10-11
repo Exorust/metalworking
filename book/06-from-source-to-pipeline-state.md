@@ -2,18 +2,18 @@
 
 ## Where we are
 
-Part 1 described the chip. Part 2 is about the least amount of Metal you need
-to compile a kernel, launch it, and time it, which is what Part 3 and Part 4
-then do. This chapter covers the first half of that path: what Metal is, what the
-kernel language looks like to a CUDA programmer, and how source becomes something
-the GPU can run. The vocabulary is new; the shape is mostly familiar, with one
+You come out of Part 1 knowing the chip. Part 2 gives you the least amount of
+Metal you need to compile a kernel, launch it, and time it, which is what Part 3
+and Part 4 then do. Here you take the first half of that path: what Metal is, what
+the kernel language looks like when you read it as CUDA C++, and how source
+becomes something the GPU can run. The vocabulary is new; the shape is mostly familiar, with one
 difference that every later chapter depends on.
 
 ## Metal, the one API
 
-Metal is Apple's single graphics-and-compute API. It owns devices, queues, memory,
-and kernel execution, and it occupies the ground that CUDA splits between the
-driver API, the runtime API, and half of the toolkit. Here is the orientation
+On the CUDA side you reach the GPU through the driver API, the runtime API, and
+half of the toolkit. Metal, Apple's single graphics-and-compute API, occupies all
+of that ground: it owns devices, queues, memory, and kernel execution. Here is the orientation
 table, with the chapter that covers each row.
 
 | CUDA | Metal | Where |
@@ -29,22 +29,22 @@ table, with the chapter that covers each row.
 | cuBLAS, cuDNN | MPS, with caveats | Chapter 9 |
 | Nsight Compute | nothing comparable | Chapter 9 |
 
-Three of the differences are in shape, not vocabulary.
-
-**Everything is explicit and command-buffer shaped.** CUDA lets you pretend that
+Three of the differences are in shape, not vocabulary. The first is that
+everything is explicit and command-buffer shaped. CUDA lets you pretend that
 `kernel<<<grid, block>>>(args)` is a function call. Metal never does: you create a
 command buffer, encode one or more dispatches into it with an encoder, commit it,
 and optionally wait. This is verbose, and it is also the optimization surface,
 because batching many dispatches into one command buffer amortizes the
 per-buffer cost. Chapter 7 is about that, and about where batching stops paying.
 
-**Compute and graphics are one API.** There is no compute edition of Metal; the
-`MTLDevice` you encode a matrix multiply on is the one games render with. For an
-ML engineer this means that the documentation, the tooling, and half the API
+The second is that compute and graphics are one API. There is no compute edition
+of Metal; the `MTLDevice` you encode a matrix multiply on is the one games render
+with. If you work on ML, this means that the documentation, the tooling, and half the API
 surface (render passes and textures) are about someone else's problems, and the
 compute story is comparatively under-documented. That gap is why this book exists.
 
-**One device per machine, on Apple Silicon.** The API can enumerate several
+The third is that there is one device per machine, on Apple Silicon. The API can
+enumerate several
 devices and expose peer groups, but an Apple Silicon Mac has one GPU: no NVLink,
 no second card, no peer access. Scaling inside a box means buying more unified
 memory, Chapter 3; scaling across boxes is Chapter 27.
@@ -61,9 +61,10 @@ and views the output buffer after the command buffer completes.
 
 ## The language: CUDA C++ with an accent
 
-MSL is the C++ dialect that Metal kernels are written in: C++14 with GPU
-address spaces, kernel attributes, and a SIMD standard library. If you can read CUDA C++
-you can read it. Here is the signature of the kernel this book follows.
+How far is the kernel language from the CUDA C++ you already write? MSL is the
+C++ dialect that Metal kernels are written in: C++14 with GPU address spaces,
+kernel attributes, and a SIMD standard library. If you can read CUDA C++ you can
+read it. Here is the signature of the kernel this book follows.
 
 ```metal
 kernel void __attribute__((max_total_threads_per_threadgroup(SW * SW * 32)))
@@ -133,7 +134,8 @@ sums to a matrix multiply, each checked against a reference from Python.
 
 ## From source to a pipeline state
 
-Here is the compilation path, stage by stage against CUDA.
+In CUDA, machine code ships with the program, or the driver finishes it from
+PTX. Where does Metal make it? Here is the compilation path, stage by stage against CUDA.
 
 | CUDA | Metal | Note |
 |---|---|---|
@@ -206,9 +208,9 @@ it.
 
 ### Answers
 
-1. A metallib holding AIR, the portable intermediate representation. The machine
-   code is made on the user's device when the pipeline state is created, on the
-   normal path; a binary archive can cache that device's build between runs.
+1. A metallib holding AIR, the portable intermediate representation. On the
+   normal path, the machine code is made on the user's device when the pipeline
+   state is created. A binary archive can cache that device's build between runs.
 2. In the host-side call that creates the pipeline state, before any dispatch.
    The GPU timestamps bracket GPU execution of one command buffer, so they
    exclude it by construction; the harness also creates its pipelines before the

@@ -2,16 +2,18 @@
 
 ## Where we are
 
-Chapter 1 named the levels. A threadgroup runs on one GPU core, and the core holds
-two memories that a kernel addresses directly, a register file and a scratch memory
-that Metal calls threadgroup memory, plus caches that the hardware manages on the
-kernel's behalf. This chapter measures them and explains how they shape the
-matrix multiply this book follows: on this chip the output lives in registers, and
-input tiles pass through the scratch memory without staying there.
+You left Chapter 1 with the levels named and one rule in hand: a threadgroup runs
+on one GPU core. Now you need to know what that core holds. It has two memories that
+a kernel addresses directly, a register file and a scratch memory that Metal calls
+threadgroup memory, plus caches that the hardware manages on the kernel's behalf.
+Measure them and you can see why the matrix multiply this book follows has the
+shape it has. On this chip the output lives in registers, and input tiles pass
+through the scratch memory without staying there.
 
 ## Three memories, measured
 
-None of the numbers below come from Apple. The community measured them, chiefly in
+Before you build on the numbers below, know where they come from: none of them
+come from Apple. The community measured them, chiefly in
 philipturner's metal-benchmarks, on M1- and M2-class chips (Apple GPU families 7
 and 8). The glossary and this book use them as the design budget for every M-series
 chip. That is an assumption: on M3 and later, a feature Apple calls Dynamic Caching
@@ -30,29 +32,29 @@ per threadgroup it is capped at 32 KB with no carveout setting to raise it. Seve
 resident threadgroups share the core's 60 KB (seven of the 8 KB kernel below;
 two at the 32 KB cap would not fit), so the per-threadgroup cap and the per-core
 capacity are different limits, and Chapter 4 uses both. The cache row says
-the caches will not rescue a kernel that does not plan its reuse: 8 KB of L1 is
+the caches will not rescue you if the kernel does not plan its reuse. 8 KB of L1 is
 small, and there is no 40 MB L2 behind it.
 
 ## What the ratio does to the matrix multiply
 
-On NVIDIA, a matrix-multiply kernel can stage a large input tile in shared memory
-because there is a lot of it. Here the scratch memory is the scarcer resource, so
+On NVIDIA, you can stage a large input tile of a matrix multiply in shared memory,
+because there is a lot of it. What do you do when there is not? Here the scratch memory is the scarcer resource, so
 the input slab staged per iteration is thin, and the data that must stay resident
 for the whole kernel, the output, stays in registers. Count the bytes for the
 kernel this book follows. One threadgroup of four simdgroups computes a 64 by 64
 patch of the output, and each simdgroup owns a 32 by 32 quarter of it.
 
-- A 32 by 32 patch of 32-bit floats is 1,024 values, which is 4 KB. Spread over the
-  32 threads of the simdgroup, that is 32 floats per thread, 128 bytes of register
-  payload per thread, held for the whole life of the kernel.
-- Four simdgroups hold 16 KB of accumulators between them. This never touches the
-  scratch memory. It is the accumulator payload only: input fragments, addresses,
-  loop counters and epilogue temporaries also live in registers, and the compiler
-  decides the total.
-- The scratch memory holds the current slab of inputs. The kernel consumes the
-  shared dimension 16 values at a time, so it stages a 64 by 16 tile of A and a
-  16 by 64 tile of B: 1,024 floats each, 4 KB each, 8 KB in all, out of the 32 KB
-  allowed.
+A 32 by 32 patch of 32-bit floats is 1,024 values, which is 4 KB. Spread over the
+32 threads of the simdgroup, that is 32 floats per thread, 128 bytes of register
+payload per thread, held for the whole life of the kernel. Four simdgroups hold
+16 KB of accumulators between them, and none of it ever touches the scratch memory.
+That figure is the accumulator payload only. Input fragments, addresses, loop
+counters and epilogue temporaries also live in registers, and the compiler decides
+the total.
+
+The scratch memory holds the current slab of inputs. The kernel consumes the shared
+dimension 16 values at a time, so it stages a 64 by 16 tile of A and a 16 by 64
+tile of B: 1,024 floats each, 4 KB each, 8 KB in all, out of the 32 KB allowed.
 
 So the scratch memory carries 8 KB of inputs that are replaced every iteration, and
 the registers carry 16 KB of results that are written to device memory exactly once.
@@ -60,8 +62,9 @@ A kernel written for this chip has roughly these proportions.
 
 ## The house pattern
 
-The matrix multiply moves data the same way on every iteration, and MLX's
-attention kernel in Part 6 moves its key and value tiles the same way.
+How do those inputs get from device memory into registers? The matrix
+multiply moves them the same way on every iteration, and MLX's attention kernel in
+Part 6 moves its key and value tiles the same way.
 
 1. The threadgroup cooperatively copies a slab from device memory into threadgroup
    memory. The copy is coalesced and vectorized, and every thread carries an
@@ -87,22 +90,23 @@ staged, consumed and replaced on every iteration.
 Two behaviors of the scratch memory keep kernels in this shape. Scattered access to
 it is comparatively expensive, and the fast pattern is straight-line, contiguous,
 vectorized access. The sources give no bank mapping, so treat this as a rule of
-thumb and measure. The barrier instruction itself is nearly free on this hardware,
+thumb and measure it yourself. The barrier instruction itself is nearly free on this hardware,
 so the two barriers per iteration cost almost nothing beyond the time spent waiting
 for the slowest simdgroup; Chapter 7 gives the measured instruction cost. Kernels
 therefore stage with simple coalesced copies, put a barrier at every hazard, and
 avoid scattered access.
 
-When a working set will not fit in 32 KB, there is no setting that gives a
-threadgroup more. The two responses are to shrink the slab, consuming the shared
-dimension in smaller steps, or to move values into registers, which works when each
+When your working set will not fit in 32 KB, no setting gives a threadgroup more.
+You have two responses. Shrink the slab, consuming the shared dimension in smaller
+steps, or move values into registers, which works when each
 value is read by only one simdgroup, because a register value can be shared
 within a simdgroup through shuffles (Chapter 1) but never across simdgroups.
 
 ## Spilling, the first cliff
 
-Because the register file holds so much of the kernel's state, its failure mode
-is the first one to learn to recognize. The compiler decides each thread's register budget when it
+With so much of the kernel's state in the register file, the question is what
+happens when it runs out. That failure mode is the first one you need to recognize.
+The compiler decides each thread's register budget when it
 builds the pipeline, and the budget depends on how many threads it must plan for:
 without the `max_total_threads_per_threadgroup` attribute from Chapter 1, it plans
 for the largest threadgroup the hardware allows and gives each thread less. When a

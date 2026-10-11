@@ -2,30 +2,34 @@
 
 ## Where we are
 
-Parts 4 to 6 built and read the kernels. Part 7 is about what happens when
-people try to make real models faster with them, and the record shows that most
-of the measured wins on this platform did not come from writing a better kernel.
-They came from deleting work, from moving a model onto a fast path that already
-existed, and from cutting the overhead between kernels. This chapter states that
-record as three questions to ask, in order, before writing any custom kernel.
-Every measured win in the next chapter answers one of them, and nearly every
-measured failure skipped them.
+You have spent Parts 4 to 6 building and reading the kernels. Now you want a
+real model to run faster, and Part 7 is about what happens when people try. The
+record shows that most of the measured wins on this platform did not come from
+writing a better kernel. They came from deleting work, from moving a model onto a
+fast path that already existed, and from cutting the overhead between kernels.
+
+That record fits into three questions, asked in order, before you write any
+custom kernel. Every measured win in the next chapter answers one of them, and
+nearly every measured failure skipped them.
 
 ## The questions
 
-1. **Can I delete work?**
-2. **Can I unlock an existing fast path?**
-3. **Can I cut dispatch and synchronization overhead?**
+When a model is slow, what do you try before writing a kernel? In order:
+
+1. Can you delete work?
+2. Can you move onto an existing fast path?
+3. Can you cut dispatch and synchronization overhead?
 
 A custom kernel has decent odds only if all three come up empty. The default
 kernels, steel and llama.cpp's, are good, and the repeated experimental result of Chapter 25 is that hand-written replacements come back
-slower, at 0.5 to 0.8 times the stock kernel. The order matters: each question is
+slower, at 0.5 to 0.8 times the stock kernel. The order matters. Each question is
 cheaper to answer than the next, and in the measured cases below their wins were
 larger than the kernel rewrites tried alongside them.
 
 ## Question 1: delete work
 
-The clearest example is the sparse-V dequantization skip of Chapter 25: 22.8
+What does deleting work look like when the model is fixed? The clearest example
+is the sparse-V dequantization skip of Chapter 25: 22.8
 percent faster decode at a 32K context from three lines that skip positions
 whose attention weight is below a threshold, an approximation checked against
 perplexity. The same family includes steel attention's causal
@@ -33,32 +37,34 @@ handling, Chapter 21, which never visits the tiles above the diagonal rather tha
 masking them, and vocabulary compaction, which trims the output matrix multiply
 when decoding is constrained to a subset of tokens.
 
-The test for a question-1 win is the law of Chapter 3 in its simplest form: did
+You test a question-1 win with the law of Chapter 3 in its simplest form: did
 the change move fewer bytes? Deleting arithmetic on a bandwidth-bound kernel
-buys little; deleting the bytes the arithmetic would have needed buys up to the
+buys little. Deleting the bytes the arithmetic would have needed buys up to the
 time those bytes took, if the achieved bandwidth holds and the skip itself is
 cheap. The skip of Chapter 25 deletes bandwidth, which is the kind of
 deletion that saves time on a bandwidth-bound kernel.
 
-## Question 2: unlock a fast path
+## Question 2: move onto an existing fast path
 
-The stack is full of dispatch gates: the head-dimension list of Chapter 21, the
+Your model may already have a fast kernel and never reach it. The stack is full
+of dispatch gates: the head-dimension list of Chapter 21, the
 sequence-length thresholds of the same gate, the tile-size lookup table of
 Chapter 17. Falling off a fast path is silent, or was at the pinned commits, and
 the fix is often a few lines, at the dispatch or inside a kernel's tuning rather
-than a new kernel. The measured wins are these:
+than a new kernel. Two measured wins show the pattern.
 
-- **DFlash**, a port of speculative decoding, reached 3.34 times end to end with
-  output identical to the greedy baseline. Every hand-written custom kernel tried along the way
-  lost to stock MLX and was reverted; the real kernel-level win was a
-  head-dimension patch that moved the model inside the fused attention gate.
-- **MTPLX**, a multi-token prediction project, reached 2.24 times, 28 to 63 tokens
-  per second as rounded in its report. Stock quantized matrix-vector multiply, Chapter 23, stalls at the
-  3 to 6 row shapes that speculative decode produces, between the single-row
-  tuning and the tile sizes of the matrix path. About 10 lines of Metal fixed it with
-  wider simdgroup tiles (a simdgroup is still 32 lanes) plus unrolling, and the
-  output stayed bit-exact. This is a
-  typical question-2 result: the kernel existed, but its tuning grid had a hole.
+DFlash, a port of speculative decoding, reached 3.34 times end to end with output
+identical to the greedy baseline. Every hand-written custom kernel tried along
+the way lost to stock MLX and was reverted; the real kernel-level win was a
+head-dimension patch that moved the model inside the fused attention gate.
+
+MTPLX, a multi-token prediction project, reached 2.24 times, 28 to 63 tokens per
+second as rounded in its report. Stock quantized matrix-vector multiply, Chapter
+23, stalls at the 3 to 6 row shapes that speculative decode produces, between the
+single-row tuning and the tile sizes of the matrix path. About 10 lines of Metal
+fixed it with wider simdgroup tiles (a simdgroup is still 32 lanes) plus
+unrolling, and the output stayed bit-exact. This is a typical question-2 result.
+The kernel existed, but its tuning grid had a hole.
 
 The method for a question-2 win is reading, and the files to read are the ones
 Chapters 17 and 21 showed: the branch your shape takes, and the condition that
@@ -66,6 +72,7 @@ sent it there.
 
 ## Question 3: cut dispatch and synchronization overhead
 
+If the kernels are already the right ones, the time can still go between them.
 The platform tax of Chapter 7 is real, but the fixes are cheap. DFlash halved
 its GPU-to-CPU synchronizations with a single `mx.eval()` per step, Chapter 16.
 flash-moe, a mixture-of-experts runner that serves a 209 GB model at 20 tokens
@@ -75,17 +82,17 @@ compute, on the observation that about 27 percent of experts recur from one
 token to the next. Its development thread lists 28 failed experiments alongside
 the 8 that worked, a realistic ratio.
 
-The test for a question-3 win starts with a count, command buffers per step,
-dispatches per step and waits per step, before and after, and ends with a
-measurement of exposed encoding time and GPU idle time, since counts alone are
+You test a question-3 win by starting with a count, command buffers per step,
+dispatches per step and waits per step, before and after. You end with a
+measurement of exposed encoding time and GPU idle time. Counts alone are
 not a result.
 
 ## The discipline the questions encode
 
-The profitable surface on this platform is mostly above the kernel: in dispatch
-gates, in graph structure, and in deleted work. A CUDA engineer's instinct is to
-write the kernel, because custom kernels routinely win on NVIDIA away from the
-shapes the library tuned for; here the library kernels have held up against
+Why put the kernel last? The profitable surface on this platform is mostly above
+the kernel: in dispatch gates, in graph structure, and in deleted work. Your
+instinct from CUDA is to write the kernel, because custom kernels routinely win on
+NVIDIA away from the shapes the library tuned for. Here the library kernels have held up against
 hand-written replacements, and the surrounding dispatch code is thin and
 readable, so the profitable moves sit above the kernel more often than that
 instinct expects. Chapter 25 is what happens when
@@ -100,7 +107,7 @@ a feedback loop.
 
 ## Check yourself
 
-1. A kernel engineer proposes rewriting the attention kernel because the model's
+1. A colleague proposes rewriting the attention kernel because the model's
    head dimension is 112 and attention is slow. Which question applies first, and
    what is the likely fix?
 2. Speculative decoding sends 4 draft tokens per step and decode throughput drops

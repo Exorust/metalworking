@@ -2,21 +2,21 @@
 
 ## Where we are
 
-Chapter 17 ended with the dispatcher choosing `steel_gemm_fused` and its tile
+You left Chapter 17 with the dispatcher choosing `steel_gemm_fused` and its tile
 sizes for the running example on the plain path, the one every chip before M5
 takes and an M5 takes for 32-bit with TF32 off. Steel is MLX's kernel library, and it does for Apple
 Silicon what CUTLASS does for CUDA: it decomposes matrix multiply and attention
-into composable C++ templates that one wiring kernel assembles per shape. This
-chapter reads the three components and the kernel that wires them. You have
-already seen all three in hand-written form in Part 4, so the task here is to
-recognize them. Steel is the same cooperative load, the same register-blocked multiply
+into composable C++ templates that one wiring kernel assembles per shape. Ahead
+are the three components and the kernel that wires them. You have already seen
+all three in hand-written form in Part 4, so your task is to recognize them. Steel is the same cooperative load, the same register-blocked multiply
 and the same fused epilogue, recomputed from template parameters for each tile
 shape MLX precompiles, six per type, with the problem dimensions as run-time
 arguments.
 
 ## The library in one picture
 
-Steel lives in `mlx/backend/metal/kernels/steel/`. If you have read CUTLASS's
+Where in the MLX tree is steel, and how is it laid out? It lives in
+`mlx/backend/metal/kernels/steel/`. If you have read CUTLASS's
 `Gemm` hierarchy, steel reads like a shorter version of it, adapted to
 `simdgroup_matrix` fragments and 32 KB of threadgroup memory.
 
@@ -26,27 +26,31 @@ Steel lives in `mlx/backend/metal/kernels/steel/`. If you have read CUTLASS's
 reuses the same green boxes; the attention fork on the right is the one place
 where the geometry itself had to change.*
 
-- `BlockLoader`, in `gemm/loader.h`: the cooperative load of Chapter 11 as a
-  template, with an unchecked vectorized variant and a bounds-checked,
-  zero-filling variant that function constants select between.
-- `BlockMMA`, in `gemm/mma.h`: the register-blocked multiply of Chapter 12, a
-  grid of 8 by 8 fragments per simdgroup marched along the shared dimension.
-- Epilogues, in `gemm/transforms.h`: the ending as a plug-in type, Chapter 15.
-- The wiring kernels, in `gemm/kernels/`: `steel_gemm_fused.h`, and siblings that
-  reuse the same components for other shapes, `steel_gemm_splitk.h` for huge
-  shared dimensions, `steel_gemm_masked.h` for block-sparse, `steel_gemm_gather.h`
-  for mixture-of-experts gathers, `steel_gemm_segmented.h`.
-- The attention fork, in `attn/`: flash attention needs its middle matrix
-  transformed in place between two multiplies, so `attn/` carries its own
-  `mma.h` and `loader.h` with a different fragment layout, Chapter 21.
-- The NAX fork: a parallel steel that targets the M5 neural accelerators through
-  Metal 4 tensor operations, Chapter 29. Diffing a `_nax` kernel against its
-  plain sibling shows what the new hardware changes: the multiply layer first,
-  and with it the loading, the staging and the epilogue.
+Three components carry the work. `BlockLoader`, in `gemm/loader.h`, is the
+cooperative load of Chapter 11 as a template, with an unchecked vectorized
+variant and a bounds-checked, zero-filling variant that function constants
+select between. `BlockMMA`, in `gemm/mma.h`, is the register-blocked multiply of
+Chapter 12, a grid of 8 by 8 fragments per simdgroup marched along the shared
+dimension. The epilogues, in `gemm/transforms.h`, make the ending a plug-in
+type, Chapter 15.
+
+Everything else is wiring or a fork. The wiring kernels live in
+`gemm/kernels/`: `steel_gemm_fused.h`, and siblings that reuse the same
+components for other shapes, `steel_gemm_splitk.h` for huge shared dimensions,
+`steel_gemm_masked.h` for block-sparse, `steel_gemm_gather.h` for
+mixture-of-experts gathers, `steel_gemm_segmented.h`. The attention fork sits in
+`attn/` because flash attention needs its middle matrix transformed in place
+between two multiplies, so `attn/` carries its own `mma.h` and `loader.h` with a
+different fragment layout, Chapter 21. The NAX fork is a parallel steel that
+targets the M5 neural accelerators through Metal 4 tensor operations,
+Chapter 29. Diffing a `_nax` kernel against its plain sibling shows you what the new
+hardware changes: the multiply layer first, and with it the loading, the
+staging and the epilogue.
 
 ## BlockLoader: the cooperative load, derived
 
-Most of the design is in the template head. Its defaulted parameters do the
+How does one template serve every tile shape? Most of the design is in the
+template head. Its defaulted parameters do the
 arithmetic that Chapter 11 did by hand.
 
 ```cpp
@@ -124,8 +128,8 @@ scales and biases in their constructors.
 
 ## BlockMMA: register blocking, named
 
-The layout constants turn the hand-written kernel's structure into named
-parameters.
+Where did the hand-written kernel's fixed tile structure go? The layout
+constants turn it into named parameters.
 
 ```cpp
 struct BlockMMA {
@@ -194,7 +198,8 @@ formulas are the same. Chapter 21 reads the other one.
 
 ## The wiring kernel: what is left
 
-`steel_gemm_fused.h` is what remains of a matrix multiply once the loader, the
+What is left for the kernel itself to do? `steel_gemm_fused.h` is what remains
+of a matrix multiply once the loader, the
 multiply and the epilogue are factored out: about 350 lines of wiring, most of
 which is function-constant dispatch. Its head declares both specialization
 mechanisms at once, template parameters for shape and function constants for
@@ -234,7 +239,7 @@ wiring. That reuse is the argument for the decomposition. Two more facts set
 steel's place among the alternatives. First, it is the baseline to beat, and it
 usually wins: several independent projects report hand-written replacement
 kernels coming back at 0.5 to 0.8 times stock steel (Chapter 25), so the
-profitable moves are unlocking its fast paths rather than replacing it. Second,
+profitable moves are reaching its fast paths rather than replacing it. Second,
 unlike CUTLASS, steel has no packaged form outside MLX, so its ideas travel by
 reading, which is what this chapter was for.
 
@@ -251,8 +256,9 @@ one onto Chapters 11, 12 and 13.
 
 1. For a 64 by 16 tile of 32-bit floats and a threadgroup of 128 threads, what
    are `n_reads`, `TCOLS` and `TROWS`, and what do they mean?
-2. The m5-gemm kernel has no `load_safe`. Why does steel need one, and why does an
-   aligned dispatch not pay for it?
+2. The m5-gemm
+   kernel has no `load_safe`. Why does steel need one, and why does an aligned
+   dispatch not pay for it?
 3. The `mma` loop contains three `simdgroup_barrier` calls with `mem_none`. What
    do they guard?
 
@@ -270,7 +276,7 @@ one onto Chapters 11, 12 and 13.
    simdgroup's fragment loads batched for the scheduler, which the source
    shows as intent, not as a measured effect.
 
-The matrix multiply is in production, and the next chapter covers the one
-framework feature that fuses the operations around it automatically.
+The matrix multiply is in production; around it sit the operations that one
+framework feature, the subject of the next chapter, fuses automatically.
 
 Next: [mx.compile: fusing the long tail](19-mx-compile.md)

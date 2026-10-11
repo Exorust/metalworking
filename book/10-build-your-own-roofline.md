@@ -6,19 +6,19 @@ Chapter 9 gave you a time and a rate: MPS at 11.7 TFLOPS for the running example
 A rate on its own says nothing about how good it is. The roofline is the model
 that turns a measured rate into a verdict: how far the kernel is from the physical
 limit, and which limit. Nsight Compute draws this chart for you on NVIDIA. Here
-no tool draws it, so you assemble it yourself from two measurements. This chapter
-gives the procedure.
+no tool draws it, so you assemble it yourself from two measurements, and the
+procedure is short.
 
 ## The two ceilings
 
-A roofline has two ceilings. The bandwidth ceiling is a slope: at a given
+What limits a kernel's rate? A roofline answers with two ceilings. The bandwidth ceiling is a slope: at a given
 arithmetic intensity (Chapter 3), a kernel that streams at the machine's full
 bandwidth achieves intensity times bandwidth, and no more. The compute ceiling is
 flat: the arithmetic units can do so many operations per second regardless of
 intensity. The two cross at the ridge point, and a kernel's measured rate is a
 point under one of them.
 
-**The bandwidth ceiling: measure, do not trust the spec.** A STREAM-style probe
+Measure the bandwidth ceiling; do not trust the spec. A STREAM-style probe
 (large buffer copies and reads swept past the cache sizes) gives achievable memory
 bandwidth. The m5-gemm harness has one, `bandwidth.metal` with `bandwidth.py`, and
 it measured about 516 GB/s for a copy on an M5 Max, about 84 percent of the 614
@@ -27,8 +27,8 @@ measured figure is your roof. Against the spec, every kernel looks farther from
 the roof than it is, since 516 / 614 is 84 percent, and a kernel that has reached
 the achievable limit looks as if it still had headroom.
 
-**The compute ceiling: from the reverse-engineered tables, or a shortcut.** The
-instruction-throughput tables in metal-benchmarks give per-operation ceilings per
+The compute ceiling comes from the reverse-engineered tables, or from a shortcut.
+The instruction-throughput tables in metal-benchmarks give per-operation ceilings per
 core; scale by the core count and the clock for the chip in front of you. For
 matrix multiply there is a shortcut: the best measured matrix multiply on your
 chip class is a practical ceiling. On a 40-core M5 Max that is 13.5 TFLOPS in
@@ -44,7 +44,8 @@ workloads.*
 
 ## The two-line interrogation
 
-With the ceilings in hand, every benchmark result gets the same two questions,
+Once you have the ceilings, what do you ask of a benchmark result? Every result
+gets the same two questions,
 in the same units: operations per second against the compute roof, bytes per
 second against the bandwidth roof.
 
@@ -54,7 +55,9 @@ second against the bandwidth roof.
 The higher ratio names the tighter of the two modeled bounds, which is the ridge
 comparison of Chapter 3 in another form, since the time cancels out of the
 division. It does not prove the kernel has reached that bound; a ratio near 1
-does. Run it on the running example at 4096 by 4096. The benchmark computes
+does.
+
+Run it on the running example at 4096 by 4096. The benchmark computes
 alpha × A × B + beta × C, so it reads C as well as writing it: the compulsory
 traffic is 4 × 4096² × 4 bytes, 256 MiB, which in 10.2 milliseconds is about 26
 GB/s, and 26 / 516 is about 5 percent of the bandwidth roof. The compute ratio is
@@ -76,15 +79,16 @@ what the compiler emitted (Chapter 26).
 
 ## Platform hygiene, learned the hard way
 
-The three rules below come from measured failures in Part 7. Each of those
-failures turned a kernel number into a wrong claim.
+A correct chart can still carry a wrong claim. The three rules below come from
+measured failures in Part 7, and each of those failures turned a kernel number
+into a wrong claim.
 
-**Thermals are part of the model.** Fanless and laptop chips can lose clock speed
+Thermals are part of the model. Fanless and laptop chips can lose clock speed
 under sustained load when they hit their thermal or power limits. One project
 measured its long-run throughput decay dropping from 50 percent to 6.7 percent
 by locking the fans at maximum, and Chapter 25 has the command. Report sustained numbers, not first-second numbers.
 
-**The winner moves with problem size.** The ceilings of a machine do not change
+The winner also moves with problem size. The ceilings of a machine do not change
 with the matrix size, but which kernel is nearest them does: the matrix multiply
 ladder of Chapter 14 has a different winner at three sizes, and its author's
 explanations (launch latency at small sizes, unroll quality in the middle,
@@ -92,7 +96,7 @@ convergence at large sizes) are hypotheses from differential benchmarking rather
 than isolated measurements. Without a size sweep, a roofline claim is a guess.
 That is why the running example always states its size.
 
-**Report end to end as well as per kernel.** A kernel at 90 percent of its
+And you report end to end as well as per kernel. A kernel at 90 percent of its
 roofline that is 3 percent of the run time buys almost nothing: Amdahl's law says
 the whole program's speedup is limited by the share of time the improved part
 takes, so lifting that kernel to 100 percent gives 1 / (0.97 + 0.03 × 0.9), about

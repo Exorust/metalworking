@@ -2,21 +2,23 @@
 
 ## Where we are
 
-Part 5 put the matrix multiply into production. The other kernel that dominates a
-language model is attention, and on this platform it is where the law of Chapter
+You finished Part 5 with the matrix multiply in production. The other kernel that
+dominates a language model is attention, and on this platform it is where the law of Chapter
 3 matters most. Naive attention computes a matrix of scores between every query
 and every key, writes it to memory, normalizes it, and reads it back. At a
 context of 32,768 tokens that intermediate is 32,768 squared, about a billion
 values, per head per layer. On a machine with laptop-class bandwidth, that
-round trip alone costs about 8 milliseconds per head per layer. Flash attention
-never writes that matrix, and the algorithm that makes that legal is six lines
-long. This chapter derives the six lines, then shows the kernel shape they
-produce. The running example changes
-here from a matrix multiply to attention.
+round trip alone costs about 8 milliseconds per head per layer.
+
+Flash attention never writes that matrix. The algorithm that makes that legal is
+six lines long, and you can derive all six from one identity before you look at
+the kernel shape they produce. From here on, the running example is attention,
+not a matrix multiply.
 
 ## The problem: softmax needs two facts about the whole row
 
-Safe softmax of a row of scores x is `exp(x_i - m) / sum_j exp(x_j - m)`, where
+Why can't you just stream the scores through a softmax the way you stream tiles
+through a matrix multiply? Look at the formula. Safe softmax of a row of scores x is `exp(x_i - m) / sum_j exp(x_j - m)`, where
 `m` is the row maximum, subtracted so that the exponents cannot overflow. Both
 `m` and the sum are facts about the whole row, and a kernel that streams the row
 one tile at a time does not have them when it starts. The kernel cannot
@@ -25,7 +27,8 @@ whole obstacle.
 
 ## The resolution: one identity
 
-For any old maximum `m_old` and new maximum `m_new`:
+What you need is a way to repair work that was done against a maximum that later
+turned out to be too small. One identity supplies it. For any old maximum `m_old` and new maximum `m_new`:
 
     exp(x - m_old) = exp(x - m_new) * exp(m_new - m_old)
 
@@ -51,7 +54,7 @@ same factor when the reference maximum moves. Nothing about the row's length
 enters the state; the kernel keeps one maximum, one sum and one output row per
 query, whatever the context length.
 
-Two platform notes from Part 1 attach to these lines. The exponent is computed
+You also carry two platform notes from Part 1 into these lines. The exponent is computed
 in base 2, with `log2(e)` folded into the scale once, so that the hot loop calls
 `fast::exp2`, Chapter 5; the running maximum lives in the scaled units and the
 correction becomes `exp2(m2_old - m2_new)`, a dimensionless factor. And the row reductions inside `rowmax` and `rowsum` are simdgroup
@@ -102,7 +105,8 @@ Chapter 5.
 
 ## Flash attention: the kernel shape
 
-With online softmax in hand, flash attention computes `softmax(Q * K^T / sqrt(d))
+You now have a softmax that can stream. What does a kernel built around it look
+like? With online softmax in hand, flash attention computes `softmax(Q * K^T / sqrt(d))
 * V` without ever materializing the score matrix: stream K and V in tiles, hold
 each tile's scores in registers, fold its contribution into the running output.
 The algorithm is the same as on NVIDIA. What differs here is how much it
@@ -146,7 +150,8 @@ Q and the output, another 2 L d; each query tile also streams K and V again,
 about 2 L d × (L / Bq) requested values for a query tile of Bq rows, and whether
 those repeated reads reach DRAM depends on the caches of Chapter 2, the same
 requested-versus-compulsory distinction Chapter 10 drew for the matrix multiply.
-At L = 32,768 and d = 128, the deleted round trip is about 2.1 billion values
+
+Now put numbers in. At L = 32,768 and d = 128, the deleted round trip is about 2.1 billion values
 against a compulsory K and V count of about 8.4 million: the eliminated
 intermediate is L / d = 256 times the compulsory input traffic. In 16-bit at
 the measured 516 GB/s of Chapter 3, that round trip alone would cost 2 ×
@@ -155,11 +160,14 @@ across every head and layer, that cost is the reason the technique exists.
 
 ## Two boundaries on this platform
 
-**Decode is a different problem.** One query row cannot fill an 8 by 8 tile, so
+The kernel shape above covers the forward pass over many queries. You will hit its
+edges in two places.
+
+Decode is a different problem. One query row cannot fill an 8 by 8 tile, so
 MLX and llama.cpp ship separate vector kernels for generation, Chapter 22;
 metal-flash-attention, aimed at training and image models, does not.
 
-**The backward pass is unfinished business.** MLX's fused attention has no Metal
+The backward pass is unfinished business. MLX's fused attention has no Metal
 backward; the GPU implementation, quoted exactly but for its closing brace:
 
 ```cpp

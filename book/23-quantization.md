@@ -2,20 +2,22 @@
 
 ## Where we are
 
-Chapter 22 ended with decode as a byte-streaming problem: for a dense model at
-batch size one, every token reads the cache and every weight. The cache is a few
+You left Chapter 22 with decode as a byte-streaming problem: for a dense model at
+batch size one, every token reads the cache and every weight. You have already
+seen what the cache costs. The cache is a few
 gigabytes at long context; the weights of a 70-billion parameter model in 16-bit
 are 70 × 10^9 × 2 bytes = 140 GB, which does not fit the memory of most laptops
 and, if it did, would take 140 / 495 = 0.28 seconds per token to stream.
 Quantization stores the weights in fewer bits and multiplies against them without
 ever materializing the expanded matrix. On a CUDA machine it saves memory and
 bandwidth alike; on this platform the bandwidth half is the one that sets decode
-speed. This chapter explains why, and
-shows what the kernels that do it look like.
+speed. To see why, you need the arithmetic of Chapter 3 and a look at the kernels
+that do the work.
 
 ## What MLX quantizes, and how
 
-MLX's workhorse quantization is group-wise affine. Each group of 32, 64 or 128
+If you have shipped weight-only quantization on CUDA, your first question is what
+MLX actually stores. Its workhorse quantization is group-wise affine. Each group of 32, 64 or 128
 values along a row of a weight matrix stores one scale, one bias and the group's
 values as codes of 2, 3, 4, 5, 6 or 8 bits, and a dedicated kernel family multiplies against
 the packed form without materializing the dequantized matrix. Since 2026 it is one
@@ -26,7 +28,7 @@ AWQ and GPTQ. The motivation is the same, and the arithmetic of Chapter 3 makes 
 stronger on this platform. A matrix-vector product is about 1 FLOP per byte of
 weights in 16-bit, far below the ridge, so its time is the time to stream the
 weights. Weights at 4 bits are about 4 times fewer bytes per multiply.
-Quantization here is a bandwidth optimization that also saves memory, and it is
+So quantization here is a bandwidth optimization that also saves memory. It is
 the reason a 70-billion parameter model decodes acceptably on a laptop.
 
 In code, `mx.quantize(w, group_size=64, bits=4)` produces packed codes plus
@@ -39,8 +41,9 @@ simplicity and speed.
 
 ## The kernel family, split like attention
 
-The kernels live in `kernels/quantized.h`, and the family is split the same way
-as the attention kernels of Chapter 22.
+One quantized multiply cannot serve both decode and prefill well, for the same
+reason one attention kernel could not. The kernels live in `kernels/quantized.h`,
+and the family is split the same way as the attention kernels of Chapter 22.
 
 - **QMV**, quantized matrix times vector, is the decode workhorse. It multiplies
   one activation row against a quantized weight matrix, dequantizing in
@@ -59,13 +62,16 @@ applies: QMV also serves a few rows, and on an M5 eligible QMM calls go to the
 NAX fork. Shape sensitivity is the running theme of Part 7. Stock QMV is tuned for
 one row, and the MTPLX project found that 3 to 6 rows, the shape speculative
 decoding produces, stalled it. About 10 lines of wider-simdgroup unrolling fixed
-it, a factor of 2.24 end to end (Chapter 24). The sparse-V case of Chapter 25
-applies the same idea one level deeper. Dequantization cost is paid when packed values are loaded, so
+it, a factor of 2.24 end to end (Chapter 24).
+
+The sparse-V case of Chapter 25 applies the same idea one level deeper.
+Dequantization cost is paid when packed values are loaded, so
 work whose contribution falls below a threshold (positions with near-zero
 attention weight) is dequantization you can skip, an approximation the sparse-V
 case checked against perplexity.
 
-Count the bytes for the decode case that the whole chapter is about. A 4096 by
+How much does all this buy you? Count the bytes for the decode case that the
+whole chapter is about. A 4096 by
 4096 weight matrix is 16.8 million values. In 16-bit that is 32 MiB per
 matrix-vector product; at 4 bits with a 64-value group, each group of 64 values
 costs 64 × 4 bits plus a scale and a bias in the weight's own type, 16 bits each
@@ -78,34 +84,39 @@ such matrices per layer, times tens of layers, per token.
 
 ## The newer modes: block-scaled floats
 
-The three modes added alongside affine are block-scaled floating point, not
-affine integers: `mxfp4`, `nvfp4` and `mxfp8`, with group sizes 32, 16 and 32,
+Affine is not the only format you will meet in the pinned MLX. The three modes
+added alongside it are block-scaled floating point, not affine integers: `mxfp4`, `nvfp4` and `mxfp8`, with group sizes 32, 16 and 32,
 backed by `fp4.h` and `fp8.h` kernels, plus `quantize_input=True` for quantizing
 activations as well as weights in the nvfp4 and mxfp8 modes. These are the
 block-scaled formats that arrived with the M5 neural accelerators (Chapter 28);
 in the pinned MLX, the fp4 and fp8 NAX kernels dequantize the codes to 16-bit
-values before loading them into the matrix unit's tiles. This chapter still teaches with the affine mode, but the
-affine description at its start does not cover every mode.
+values before loading them into the matrix unit's tiles. The examples here stay
+with the affine mode. Remember that the affine description at the start does not
+cover every mode.
 
 ## One trap for intuition
 
-Quantized kernels dequantize whenever they load packed weights. There is no
+Where does the unpacked matrix live? Nowhere: quantized kernels dequantize
+whenever they load packed weights. There is no
 cached 16-bit copy of the matrix in memory, which would defeat the purpose,
 though a kernel reuses what it unpacked inside a tile: the wide QMV dequantizes
 a block once and applies it to every activation vector in flight, and QMM
-reuses a dequantized tile across rows. So arithmetic per byte rises. Whether
-the kernel stays bandwidth bound then depends on that unpacking arithmetic
-staying under the memory time, which the decode measurements of Chapter 25 say
-it does for the stock kernels; and across chip tiers the memory-bandwidth spec
-predicts decode speed almost linearly, which is Chapter 25's buying rule.
+reuses a dequantized tile across rows. So arithmetic per byte rises.
+
+Whether the kernel stays bandwidth bound then depends on that unpacking
+arithmetic staying under the memory time. The decode measurements of Chapter 25
+say it does for the stock kernels, and across chip tiers the memory-bandwidth
+spec predicts decode speed almost linearly, which is Chapter 25's buying rule.
 
 ## Where the matmul stands
 
 The decode example now streams about 3.5 times fewer weight bytes per token at 4
 bits. The weights still set the floor (about 80 milliseconds per token for a
 70-billion parameter model), and on top of them sit the cache of Chapter 22, the
-dequantization inside the kernels, and the forced waits of Chapter 16. Part 6 is done. It covered the matrix multiply, attention, the cache
-and the weights, each with its number. Part 7 asks where the measured wins on
+dequantization inside the kernels, and the forced waits of Chapter 16.
+
+That finishes Part 6. You now have a number for each of the matrix multiply,
+attention, the cache and the weights. Part 7 asks where the measured wins on
 real models came from.
 
 ## Check yourself
@@ -121,9 +132,9 @@ real models came from.
 ### Answers
 
 1. 70 billion × 4.5 bits is 315 billion bits, 39.4 GB; at 495 GB/s that is a
-   lower bound of 39.4 / 495 = 80 milliseconds per token, so at most about 12.6
-   tokens per second from the weights alone, for dense batch-one decode that
-   streams every weight once per token.
+   lower bound of 39.4 / 495 = 80 milliseconds per token. So you get at most
+   about 12.6 tokens per second from the weights alone, for dense batch-one
+   decode that streams every weight once per token.
 2. Decode has one row, so a matrix tile would be mostly padding, and MLX gives
    it a reduction kernel that dequantizes in registers, while prefill has many
    rows and wants the tiled matrix-multiply path with dequantization in the

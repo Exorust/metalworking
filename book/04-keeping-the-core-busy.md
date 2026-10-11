@@ -2,8 +2,8 @@
 
 ## Where we are
 
-Chapter 3 gave the law: most kernels on this chip wait for memory, not for
-arithmetic. That decides which ceiling limits a kernel. It does not decide whether
+You have the law from Chapter 3: most kernels on this chip wait for memory, not for
+arithmetic. That tells you which ceiling limits a kernel. It does not decide whether
 the arithmetic units are busy while the kernel runs, which is a separate
 requirement with its own numbers. On NVIDIA you chase residency, thousands of
 threads per SM, so that the scheduler always has something to issue while other
@@ -14,9 +14,9 @@ the local default, for a reason that has nothing to do with peak throughput.
 
 ## Occupancy: same word, moved constants
 
-Occupancy here means the number of simdgroups resident on a core at once: the pool
-of independent work the scheduler hides latency with. CUDA usually expresses
-occupancy as a fraction of the maximum residency; this book uses the absolute
+You already tune for occupancy, but this book counts it differently. Here it means
+the number of simdgroups resident on a core at once: the pool of independent work
+the scheduler hides latency with. CUDA usually expresses it as a fraction of the maximum residency; this book uses the absolute
 count, because the measurements are reported that way. The limiters are the same
 as in CUDA. Register use per thread and threadgroup memory per threadgroup divide
 the core's resources among the threadgroups that want to be resident, and when the
@@ -30,12 +30,12 @@ tells you to chase. In threadgroups of 128 threads, the working size from
 Chapter 1, 24 / (128 / 32) = 6 resident threadgroups reach that point. Moderate
 occupancy is enough to fill this machine.
 
-The same measurement also bears on register pressure. Twenty-four simdgroups is also the lowest occupancy that over-allocating
+The same measurement bears on register pressure. Twenty-four simdgroups is also the lowest occupancy that over-allocating
 registers can produce on those chips: a kernel can use so many registers per
 thread that only 24 simdgroups fit, but not fewer. So register pressure alone does
 not push a core below the saturation point. Scratch can: a threadgroup at the
 32 KB cap is the only one that fits in a core's 60 KB, which is 4 resident
-simdgroups, and the double-buffered estimate at the end of this chapter lands at
+simdgroups, and the double-buffered estimate for the kernel this book follows lands at
 12. So can a lack of work: a grid too small to fill the cores, or a kernel whose
 threadgroups are nearly done. Those are the cases where the stall numbers below
 matter.
@@ -68,7 +68,7 @@ measuring. Part 3 covers the measuring.
 
 ## The stall side: why precision matters here
 
-Occupancy buys latency hiding, and the latency these measurements isolate is the
+When occupancy is low, what does a stall cost? Occupancy buys latency hiding, and the latency these measurements isolate is the
 simplest kind: the gap between a dependent pair of arithmetic instructions. The
 numbers come from the ALU Bottlenecks section of metal-benchmarks, measured on
 M1- and M2-class chips with a shader setup its author calls sub-optimal. A later
@@ -90,20 +90,17 @@ ratio is 1.99 / 1.56, about 1.3. The 16-bit advantage is largest when the
 core has the least parallelism to hide stalls with. The same table shows the
 other way out: at 4 simdgroups, giving each thread four independent chains instead
 of one brings the 32-bit figure from 11.3 to about 2.75 cycles. Independent work
-inside a simdgroup hides most of the latency that other simdgroups would. The last section
-of this chapter returns to this point.
+inside a simdgroup hides most of the latency that other simdgroups would.
 
 So the reason to prefer 16-bit values on this chip differs from the headline reason
-on NVIDIA. There, fp16 and bf16 unlock Tensor Core throughput, a peak-FLOPs
+on NVIDIA. There, fp16 and bf16 buy Tensor Core throughput, a peak-FLOPs
 argument, on top of the storage saving every platform shares. Here the arithmetic
-throughput tables show F16 and F32 tied, and the argument has three parts.
-
-1. **Shorter stalls** when the computation is in 16-bit registers, as the table above shows.
-2. **Half the register payload** for every value held in 16 bits, which can mean
-   more resident simdgroups when registers are the binding limit, and more headroom
-   before the spilling cliff of Chapter 2.
-3. **Half the memory traffic**, which under the law of Chapter 3 is often the
-   whole result.
+throughput tables show F16 and F32 tied, and the argument has three parts. The
+first is shorter stalls when the computation is in 16-bit registers, as the table
+above shows. The second is half the register payload for every value held in
+16 bits, which can mean more resident simdgroups when registers are the binding
+limit, and more headroom before the spilling cliff of Chapter 2. The third is half
+the memory traffic, which under the law of Chapter 3 is often the whole result.
 
 That is why "use F16 everywhere you can tolerate it" is the usual advice on this chip even where
 the throughput tables say the two precisions are equal.
@@ -121,25 +118,27 @@ and payload advantages apply to the 16-bit operands, not to the accumulation
 chain. The 32-bit matrix multiply of Part 4 is 32-bit throughout by design, because
 it is a 32-bit benchmark against the library.
 
-Three related facts about precision on this platform:
+Which half-precision formats does the rule cover? bf16 is supported, and the storage and
+traffic advantages apply to it. Whether its arithmetic takes a 16-bit path depends
+on the generation: on M1- and M2-class chips, metal-flash-attention widens bf16
+operands to 32-bit in registers and its author describes the emulation cost.
 
-- bf16 is supported, and the storage and traffic advantages apply to it. Whether
-  its arithmetic takes a 16-bit path depends on the generation: on M1- and
-  M2-class chips, metal-flash-attention widens bf16 operands to 32-bit in
-  registers and its author describes the emulation cost.
-- fp8 had no native execution path on M4-class hardware. Reverse engineering of
-  Metal 4.1's tensor API, tested on an M4 Max, found fp8 emulated in software at
-  about 0.94 times fp16 throughput: it halved the bytes without any speedup. On
-  M5 the neural accelerators change this, and block-scaled fp8 and fp4 paths ship
-  with macOS 27's Metal; Chapter 28 covers them.
-- 16-bit integers get the same stall advantage over 32-bit integers. Index
-  arithmetic in `ushort` is a standing micro-optimization in production kernels,
-  valid when the index provably fits in 16 bits, and you will see `ushort` loop
-  counters throughout the kernel in Part 4.
+fp8 had no native execution path on
+M4-class hardware. Reverse engineering of Metal 4.1's tensor API, tested on an
+M4 Max, found fp8 emulated in software at about 0.94 times fp16 throughput: it
+halved the bytes without any speedup. On M5 the neural accelerators change this,
+and block-scaled fp8 and fp4 paths ship with macOS 27's Metal; Chapter 28 covers
+them.
+
+16-bit integers get the same stall advantage over
+32-bit integers. Index arithmetic in `ushort` is a standing micro-optimization in
+production kernels, valid when the index provably fits in 16 bits, and you will
+see `ushort` loop counters throughout the kernel in Part 4.
 
 ## Occupancy is a currency
 
-Treat occupancy as something you spend rather than something you maximize. The table above showed the second channel for
+If moderate occupancy already fills the core, what is the rest of it for? Treat
+occupancy as something you spend rather than something you maximize. The table above showed the second channel for
 hiding latency: independent instructions inside one simdgroup's own stream, which
 the hardware reorders freely. A kernel that issues two loads that do not depend on
 each other, or a load and an unrelated multiply, hides latency without any help
