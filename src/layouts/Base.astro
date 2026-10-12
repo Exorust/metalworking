@@ -17,15 +17,19 @@ function item(r, label, extra, activeRoute) {
 function section(key, heading, items) {
   return `<div class="toc-section" data-sec="${key}"><div class="toc-head"><span>${heading}</span><button class="fold" aria-label="${heading}" aria-expanded="true">&minus;</button></div><ul>${items}</ul></div>`;
 }
+// The index link sits directly under the drawer title, without a section heading of its own.
+function plain(items) {
+  return `<div class="toc-section"><ul>${items}</ul></div>`;
+}
 function glossarySidebar(activeRoute) {
-  const head = section("glossary-home", "Glossary", item("/glossary/", "All entries", "", activeRoute));
+  const head = plain(item("/glossary/", "All entries", "", activeRoute));
   return head + SECTIONS.map((s) =>
     section(s.dir, s.title, s.pages.map(([slug, t, chip]) =>
       item(`/glossary/${s.dir}/${slug}/`, t + (chip ? ` <span class="chip">${chip}</span>` : ""), "", activeRoute)).join(""))
   ).join("");
 }
 function bookSidebar(activeRoute) {
-  const head = section("book-home", "Book", item("/book/", "Contents", "", activeRoute));
+  const head = plain(item("/book/", "Contents", '<span class="num"></span>', activeRoute));
   return head + BOOK.map((p) =>
     section(`part-${p.n}`, `Part ${p.n}. ${p.title}`, p.chapters.map(([file, t]) =>
       item(`/book/${file}/`, t, `<span class="num">${file.slice(0, 2)}</span>`, activeRoute)).join(""))

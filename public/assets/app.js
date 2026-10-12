@@ -76,6 +76,7 @@
     var hasActive = !!sec.querySelector("a.active");
     if (folds[key] && !hasActive) sec.classList.add("folded");
     var btn = sec.querySelector(".fold");
+    if (!btn) return;                      // the index link has no heading to fold
     function paint() {
       var folded = sec.classList.contains("folded");
       btn.innerHTML = folded ? "+" : "&minus;";

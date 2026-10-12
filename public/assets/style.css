@@ -241,7 +241,7 @@ html[data-theme="violet"] #theme-current::after { content: "Violet Midnight"; }
   padding: 0.45rem 0.7rem; cursor: pointer; min-width: 12rem;
 }
 .searchbox:hover { border-color: var(--fg); color: var(--fg); }
-.searchbox kbd { margin-left: auto; border: 1px solid var(--dash); padding: 0 0.3rem; font-size: 0.75rem; }
+.searchbox kbd { margin-left: auto; border: 1px solid var(--dash); padding: 0 0.3rem; font-size: 0.75rem; white-space: nowrap; }
 .gh-btn {
   color: var(--fg); text-decoration: none; font-size: 0.9rem; display: inline-flex; align-items: center;
   border: 1px solid var(--line); padding: 0.45rem 0.9rem; border-radius: 3px;
@@ -288,7 +288,7 @@ html[data-theme="violet"] #theme-current::after { content: "Violet Midnight"; }
 .toc-section { margin-top: 0.35rem; }
 .toc-head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0.35rem 1.5rem; cursor: pointer;
+  padding: 0.35rem 1.5rem; cursor: pointer; margin-right: 0.5rem;
 }
 .toc-head span {
   font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase;
@@ -304,9 +304,10 @@ html[data-theme="violet"] #theme-current::after { content: "Violet Midnight"; }
 .toc-section > ul { list-style: none; margin: 0; padding: 0; }
 .toc-section.folded > ul { display: none; }
 .toc-section a {
-  display: flex; align-items: center; gap: 0.6rem;
+  display: flex; align-items: flex-start; gap: 0.6rem;
   color: var(--fg); text-decoration: none; font-size: 0.95rem;
   padding: 0.34rem 1.1rem 0.34rem 2.5rem; line-height: 1.4;
+  margin-right: 0.5rem;   /* hover and active blocks stop short of the dashed divider */
 }
 .toc-section a:hover { background: var(--hover); }
 .toc-section a.active { background: var(--sel-bg); color: var(--sel-fg); }
@@ -320,7 +321,7 @@ html[data-theme="violet"] #theme-current::after { content: "Violet Midnight"; }
   padding: 0.05rem 0.4rem; border-radius: 3px; white-space: nowrap;
 }
 .toc-section a.active .chip { color: var(--sel-fg); border-color: var(--sel-fg); }
-.toc-section a .num { color: var(--muted); font-size: 0.8rem; min-width: 1.4em; }
+.toc-section a .num { color: var(--muted); font-size: 0.8rem; min-width: 1.4em; padding-top: 0.12rem; }  /* sits on the first line of a wrapped title */
 .toc-section a.active .num { color: var(--sel-fg); }
 
 /* ---- content ---- */
