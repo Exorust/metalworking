@@ -326,7 +326,6 @@ html[data-theme="violet"] #theme-current::after { content: "Violet Midnight"; }
 /* ---- content ---- */
 .content { flex: 1; min-width: 0; padding: 1.8rem 3.4rem 3.5rem; max-width: 1150px; margin: 0 auto; overflow-wrap: break-word; }
 /* prose is capped at about 75 characters; code, tables and diagrams keep the full column */
-.content p, .content li, .content h1, .content h2, .content h3, .content blockquote, .question, .def { max-width: 75ch; }
 .crumb { color: var(--muted); font-size: 0.9rem; margin-bottom: 0.5rem; }
 .content h1 { font-size: 1.75rem; margin: 0.3rem 0 1.5rem; font-weight: 400; color: var(--head); }
 .content h2 { font-size: 1.25rem; margin-top: 2.4rem; font-weight: 500; color: var(--head); }
@@ -344,7 +343,10 @@ html[data-theme="violet"] #theme-current::after { content: "Violet Midnight"; }
 }
 .content a.term:hover { background: var(--sel-bg); color: var(--sel-fg); text-decoration-color: var(--sel-fg); }
 .content a:not(.term):not(.cta):not(.pager):hover { color: var(--accent-fg, var(--accent)); }
-.ext { font-size: 0.9em; margin-left: 0.15em; color: var(--accent-fg, var(--accent)); }
+.ext { font-size: 1em; margin-left: 0.15em; color: var(--accent-fg, var(--accent)); }
+/* the top-bar GitHub link uses the site's pixel arrow, turned to point out of the page */
+.ext-px { display: inline-flex; margin-left: 0.4em; }
+.ext-px .arr { width: 0.95em; height: auto; transform: rotate(-45deg); }
 .content img { max-width: 100%; height: auto; border: 1px solid var(--dash); }
 .content svg.diagram { width: 100%; height: auto; border: 1px solid var(--dash); border-radius: 6px; cursor: zoom-in; }
 .content svg.diagram:focus-visible { outline-offset: 3px; }
