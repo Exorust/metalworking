@@ -19,6 +19,7 @@ Everything the track draws from, plus the feeds for staying current. All URLs ve
 - [dougallj/applegpu](https://github.com/dougallj/applegpu) - Apple G13 ISA disassembler/emulator; patch instruction bytes into compiled shaders and diff GPU vs emulator to see what the compiler actually emitted.
 - [tinygrad](https://github.com/tinygrad/tinygrad) + [mesozoic-egg/tinygrad-notes](https://github.com/mesozoic-egg/tinygrad-notes) - the autotuning school: BEAM search over tiling/unroll/local-size candidates, benchmarked on real hardware.
 - [abeleinin/Metal-Puzzles](https://github.com/abeleinin/Metal-Puzzles) - best on-ramp; 14 progressive MSL puzzles via MLX custom kernels.
+- [jundot/omlx](https://github.com/jundot/omlx) - production MLX inference server (Apache-2.0): continuous batching with a measured prefill/decode time-debt rule, chained-hash KV blocks on RAM and SSD, ~30k lines of mlx-lm patches and five nanobind kernel extensions; GLM-5.2 fused DSA prefill 845 vs ~29 tok/s on M3 Ultra; pinned here at 3f99250d.
 - [corsix/amx](https://github.com/corsix/amx) - definitive doc of Apple's undocumented AMX matrix coprocessor (32x32 compute grid). Also [philipturner/amx-benchmarks](https://github.com/philipturner/amx-benchmarks).
 - Skip: candle/mistral.rs/whisper.cpp kernels (ggml/MLX-derived); llama.cpp PR #13941's "1140%" claim (never merged, numbers don't hold).
 

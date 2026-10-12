@@ -109,6 +109,7 @@ referenced repo at its pinned commit for browsing beyond the excerpts.
 
 - [The Three Questions](glossary/war-stories/three-questions.md) - ask before writing any kernel
 - [Sparse-V](glossary/war-stories/sparse-v.md) - the canonical win: +22.8% from three lines
+- [oMLX](glossary/war-stories/omlx.md) - a production server's ledger: scheduler overlap, cache reuse, epilogue fusion, and a 30x fused prefill
 - [The Failures](glossary/war-stories/the-failures.md) - published negative results, and the checklist they teach
 - [Cheap Tricks](glossary/war-stories/cheap-tricks.md) - sysctls, spec sheets, and fans
 

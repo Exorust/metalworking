@@ -80,7 +80,13 @@ per second in 128 GB of RAM, in pure C, Objective-C and Metal, encodes command
 buffers before the GPU needs them and prefetches expert weights during GPU
 compute, on the observation that about 27 percent of experts recur from one
 token to the next. Its development thread lists 28 failed experiments alongside
-the 8 that worked, a realistic ratio.
+the 8 that worked, a realistic ratio. oMLX, an inference server built on MLX,
+measured the same tax at server scale: running decode in bursts of up to 64
+steps instead of handing every token back to the event loop took it from about
+74 to about 80 tokens per second, and because Metal cannot preempt a running
+kernel, it interleaves prefill with decode by bounding each prefill chunk's
+duration and making the chunk repay half that time in decode steps before the
+next one runs.
 
 You test a question-3 win by starting with a count, command buffers per step,
 dispatches per step and waits per step, before and after. You end with a

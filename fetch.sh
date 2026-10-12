@@ -56,3 +56,4 @@ get drawthings-mfa           https://github.com/liuliu/ccv                      
 rm -f code/drawthings-mfa/lib/nnc/mfa/kernels/*Precompiled.inc
 
 echo "done. start reading: track/stage-0-hardware.md"
+get omlx https://github.com/jundot/omlx 3f99250d6317eb2067662b453ac538e25ab19c60 omlx docs README.md pyproject.toml setup.py Makefile

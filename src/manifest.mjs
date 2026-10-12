@@ -71,6 +71,7 @@ export const SECTIONS = [
   { dir: "war-stories", title: "War Stories", pages: [
     ["three-questions", "The Three Questions", ""],
     ["sparse-v", "Sparse-V", ""],
+    ["omlx", "oMLX, a Server's Ledger", ""],
     ["the-failures", "The Failures", ""],
     ["cheap-tricks", "Cheap Tricks", ""],
   ]},

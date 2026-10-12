@@ -55,4 +55,4 @@ records prefill at 0.27× a q8_0 baseline at first and 0.98× after five changes
 dequant), two of which are
 [fusion](../techniques/fusion-and-epilogues.md).
 
-Next: [The failures](the-failures.md)
+Next: [oMLX, a server's ledger](omlx.md)
