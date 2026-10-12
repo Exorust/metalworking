@@ -346,7 +346,7 @@ html[data-theme="violet"] #theme-current::after { content: "Violet Midnight"; }
 .ext { font-size: 1em; margin-left: 0.15em; color: var(--accent-fg, var(--accent)); }
 /* the top-bar GitHub link uses the site's pixel arrow, turned to point out of the page */
 .ext-px { display: inline-flex; margin-left: 0.4em; }
-.ext-px .arr { width: 0.95em; height: auto; transform: rotate(-45deg); }
+.ext-px .arr { width: 1.3em; height: auto; transform: rotate(-45deg); }
 .content img { max-width: 100%; height: auto; border: 1px solid var(--dash); }
 .content svg.diagram { width: 100%; height: auto; border: 1px solid var(--dash); border-radius: 6px; cursor: zoom-in; }
 .content svg.diagram:focus-visible { outline-offset: 3px; }
