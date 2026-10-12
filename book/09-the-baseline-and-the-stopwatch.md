@@ -137,7 +137,7 @@ to beat. At 1024 by 1024, where launch costs matter more, MPS reaches only 2.9
 TFLOPS; at 8192 by 8192 it reaches 13.5. The kernel of Part 4 has to beat 11.7
 TFLOPS at 4096 by 4096.
 
-## Check yourself
+## Review the content
 
 1. A harness times one dispatch by wrapping `commit` and `waitUntilCompleted` with
    the CPU clock. What does the chapter say to use instead, and what must

@@ -117,7 +117,7 @@ inside a core, the law that says most kernels are bandwidth bound and the ridge
 point that quantifies it, the occupancy constants and the case for 16-bit values,
 and the two instruction-level asymmetries.
 
-## Check yourself
+## Review the content
 
 1. A CUDA softmax kernel computes `exp(s * scale - m)` for each score `s` with a
    running maximum `m`. Rewrite the computation the way the Metal attention

@@ -195,7 +195,7 @@ held in registers one tile at a time and never written. What you still have to
 see is how the three production kernels on the platform make the engineering
 choices the algorithm leaves open.
 
-## Check yourself
+## Review the content
 
 1. A kernel has accumulated `l` = 10 and `O` = 4 against a running maximum of 3,
    and the next tile's maximum is 5. What are `c`, and the rescaled `l` and `O`,

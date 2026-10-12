@@ -144,7 +144,7 @@ graph on the default GPU stream and has done no GPU work. When `mx.eval` runs, t
 matrix-multiply primitive, which picks the kernel and tile sizes in the next
 chapter.
 
-## Check yourself
+## Review the content
 
 1. A decode loop has a Python `if logits[0, i] > 0.5:` in the middle of each
    step, records more work after it, and calls `mx.eval` on that work at the

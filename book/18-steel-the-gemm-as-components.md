@@ -257,7 +257,7 @@ in every thread, whose distributed state forms each simdgroup's tile, and the
 aligned pipeline, since 4096 is a multiple of every tile dimension. Its three parts map one to
 one onto Chapters 11, 12 and 13.
 
-## Check yourself
+## Review the content
 
 1. For a 64 by 16 tile of 32-bit floats and a threadgroup of 128 threads, what
    are `n_reads`, `TCOLS` and `TROWS`, and what do they mean?

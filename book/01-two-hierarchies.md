@@ -150,7 +150,7 @@ hardware: the core, and the memories inside it. When a sentence in a Metal
 document says "core", ask which hierarchy it belongs to. On Apple, it is always the
 hardware one, and it is always the unit at the level of an SM.
 
-## Check yourself
+## Review the content
 
 1. A kernel is launched with a grid of 4096 threadgroups of 128 threads each, on a
    chip with 40 cores. How many simdgroups does one threadgroup contain, and what

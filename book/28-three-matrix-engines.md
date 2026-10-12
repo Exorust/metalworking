@@ -126,7 +126,7 @@ runs on a dedicated unit with 16 by 16 fragments. If you compare the two with
 multiplies in TF32, which changes the numerics, Chapter 17. The next
 chapter reads the code for the second route.
 
-## Check yourself
+## Review the content
 
 1. Accelerate beats your hand-written GPU matrix multiply at 256 by 256 but
    loses at 4096 by 4096. What does the chapter say is probably happening, and

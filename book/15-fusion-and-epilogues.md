@@ -111,7 +111,7 @@ does: steel's epilogue types for the matrix multiply's own ending, `mx.fast` for
 attention and normalization, and `mx.compile` for the elementwise chains between
 them. The example changes from a kernel to a framework in the next chapter.
 
-## Check yourself
+## Review the content
 
 1. A transformer block applies a bias and an activation after a matrix multiply,
    as two separate kernels on a 4096 by 4096 32-bit output. How many bytes of

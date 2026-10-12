@@ -162,7 +162,7 @@ dimension in 4096 / 16 = 256 steps of 16, staging a 64 by 16 tile of A and a 16 
 B per step with the cooperative load above, 8 KB per step. There is no number
 yet, because the multiply that consumes the staged tiles is in the next chapter.
 
-## Check yourself
+## Review the content
 
 1. With `SW` = 2, `SIMD_TILE` = 4 and `TILE_K` = 2, what are `BM`, `BN`, `BK` and
    the number of threads per threadgroup, and how many threadgroups does a 4096 by

@@ -34,11 +34,11 @@ def check(path):
     if not heads or heads[0][0] != "#":
         fails.append("no H1 title")
     names = [h[1].strip() for h in heads]
-    for req in ["Where we are", "Check yourself", "Answers"]:
+    for req in ["Where we are", "Review the content", "Answers"]:
         if req not in names:
             fails.append(f"missing block: {req}")
-    if "Check yourself" in names and "Answers" in names and names.index("Answers") < names.index("Check yourself"):
-        fails.append("Answers before Check yourself")
+    if "Review the content" in names and "Answers" in names and names.index("Answers") < names.index("Review the content"):
+        fails.append("Answers before Review the content")
     if 9 <= num <= 23 and "Where the matmul stands" not in names:
         fails.append("missing block: Where the matmul stands (Parts 3 to 6)")
     lines = md.rstrip().split("\n")

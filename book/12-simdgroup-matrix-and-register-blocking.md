@@ -187,7 +187,7 @@ got it there: tiling, the cooperative load, and register blocking on
 What remains is the epilogue, which stores the accumulated output, and the next
 chapter reads it with the rest of the file.
 
-## Check yourself
+## Review the content
 
 1. A simdgroup with a 4 by 4 accumulator grid steps 8 along the shared dimension.
    How many fragment loads and how many multiply-accumulates does the step cost,

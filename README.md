@@ -16,8 +16,7 @@ on what's *different* here. Concepts Modal already covers well are linked, not
 re-taught.
 
 **How to read it:** the [book](book/) is the track: every chapter opens with
-where you are, derives its numbers once, and ends with questions to check yourself
-against. The glossary below is the reference: every entry stands alone and links to
+where you are, derives its numbers once, and ends with questions to review what you read, with the answers covered until you hover over or tap them. The glossary below is the reference: every entry stands alone and links to
 what it assumes, and every entry ends with a `Next` link, so front to back also
 works there.
 

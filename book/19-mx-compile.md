@@ -96,7 +96,7 @@ epilogue inside steel, and the elementwise chain around it compiled into one
 kernel. The next part leaves matrix multiply for the other kernel that dominates
 a language model, attention, where the fused intermediate is a whole matrix.
 
-## Check yourself
+## Review the content
 
 1. Why does `mx.compile` not need graph breaks or guards the way `torch.compile`
    does?

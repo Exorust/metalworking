@@ -246,7 +246,7 @@ function constants that match its shape, its head dimension and mask type must
 pass the gate. One query row at a time, the generation case, takes a different
 kernel, and the next chapter is about why.
 
-## Check yourself
+## Review the content
 
 1. A model has a head dimension of 112 and runs on the pinned MLX commit. What
    happens to its attention, and how would you find out on current MLX?

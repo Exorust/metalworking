@@ -143,7 +143,7 @@ and the matrix multiply of Part 4 are compute bound. For decode, one token at a
 set by bandwidth: at about 495 GB/s, the cache alone is about 8.7 milliseconds
 per token. To speed decode from here, you delete bytes or delete waits.
 
-## Check yourself
+## Review the content
 
 1. A model has 40 layers, 8 key-value heads of dimension 128,
    stored in 16-bit. How many bytes of cache per token, and how large is the

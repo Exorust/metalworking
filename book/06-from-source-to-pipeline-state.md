@@ -196,7 +196,7 @@ equivalent, MSL in and instructions out, and it is the standard move when a
 kernel underperforms and you suspect spills or missed unrolling. Chapter 26 uses
 it.
 
-## Check yourself
+## Review the content
 
 1. A CUDA program ships a fatbin with a cubin for each target architecture. What
    does the Metal equivalent ship, and where is the machine code made?

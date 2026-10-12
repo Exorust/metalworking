@@ -123,7 +123,7 @@ That is the least Metal you need: a pipeline state from source, a dispatch in a
 command buffer, a wait, and the contracts that let one kernel serve many shapes.
 Part 3 uses exactly this much to measure a kernel before anyone optimizes it.
 
-## Check yourself
+## Review the content
 
 1. A CUDA kernel is a template instantiated for `ALIGNED = true` and `ALIGNED =
    false`, and both instances ship in the fatbin. What is the Metal equivalent,

@@ -112,7 +112,7 @@ measured, the compute roof is 13.5 TFLOPS, and the ridge is about 26 FLOPs per
 byte. MPS sits at 11.7 TFLOPS on the compute side of the ridge, and 11.7 / 13.5
 is about 87 percent of the compute ceiling. The target for Part 4 is the ceiling itself.
 
-## Check yourself
+## Review the content
 
 1. A kernel reports 95 percent of peak bandwidth using the 614 GB/s spec. What is
    its achieved bandwidth, and what percentage is that of the measured copy roof?

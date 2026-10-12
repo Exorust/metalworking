@@ -163,7 +163,7 @@ dispatched. A base or Pro chip, class `g`, would read the small-device branch
 instead. That
 kernel is the subject of the next chapter.
 
-## Check yourself
+## Review the content
 
 1. A model runs a 4096 by 4096 matrix multiply in 16-bit with K = 64 on an M2
    Ultra. Which branch of the excerpt does it take, and which tile shape does it

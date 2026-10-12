@@ -216,7 +216,7 @@ loop, 45 of cooperative load with its fallback, 13 of signature, 14 of setup, 16
 of loop, and 14 of epilogue, plus 12 more that are seven blank lines, two
 includes, two braces and `using namespace metal;`.
 
-## Check yourself
+## Review the content
 
 1. The two `simdgroup_load` calls in the fragment loop pass different strides,
    `DIM * 8` and `BN`. Why?

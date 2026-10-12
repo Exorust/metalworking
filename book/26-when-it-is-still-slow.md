@@ -112,7 +112,7 @@ here are all of its steps in one place.
 5. At every step, report sustained numbers at stated sizes, and report end to
    end next to the kernel number, Chapter 10.
 
-## Check yourself
+## Review the content
 
 1. A kernel's time is 4 times its roofline prediction, and changing the tile
    size, the threadgroup size and the precision one at a time moved it by less

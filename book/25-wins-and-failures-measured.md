@@ -166,7 +166,7 @@ workload is quantized convolution-shaped inference at low power, it may have a
 better home than the GPU, and Apple's own frameworks may route it there without
 telling you.
 
-## Check yourself
+## Review the content
 
 1. The sparse-V skip tests `attn_weight < 1e-6f`. Why is that threshold safe,
    and what evidence did the author give?

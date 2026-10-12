@@ -141,7 +141,7 @@ of double buffering, which allocates two staging buffers so that the same thread
 can issue the next slab's loads before the current slab's math is done. Chapter 4
 sets the balance point, and Chapter 14 measures the trade.
 
-## Check yourself
+## Review the content
 
 1. A simdgroup holds a 32 by 32 patch of 16-bit floats instead of 32-bit floats.
    How many bytes of register payload per thread does the patch take, and how does

@@ -112,7 +112,7 @@ For the cables, the Recovery step and the host file, follow the public write-up
 of clustering two Mac Studios for local inference, listed in the book's sources;
 it walks a real build end to end.
 
-## Check yourself
+## Review the content
 
 1. Two machines each hold half of a model's layers. For one generated token,
    what crosses the link under pipeline parallelism, and why is that a good fit

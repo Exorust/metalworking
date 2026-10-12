@@ -17,7 +17,12 @@ const { file, title, part } = Astro.props;
 const route = `/book/${file}/`;
 const md = bookMd(file) ?? `# ${title}\n\nThis chapter is not written yet.\n`;
 const i = BOOK_ORDER.findIndex((o) => o.route === route);
-const html = `<div class="kicker">Chapter ${Number(file.slice(0, 2))} · Part ${part.n}: ${part.title}</div>` + render(md, "book");
+let html = `<div class="kicker">Chapter ${Number(file.slice(0, 2))} · Part ${part.n}: ${part.title}</div>` + render(md, "book");
+// The answers stay covered until the reader hovers over or taps one. Each answer gets a
+// tabindex so a tap (focus) reveals it on touch screens, where there is no hover.
+html = html.replace(/(<h3>Answers<\/h3>\s*)<ol>([\s\S]*?)<\/ol>/, (m, h3, items) =>
+  `${h3}<p class="answers-hint">Hover over or tap an answer to reveal it.</p><ol class="answers">` +
+  items.replace(/<li>/g, '<li tabindex="0">') + "</ol>");
 const desc = firstProse(md).slice(0, 300);
 ---
 
@@ -25,3 +30,9 @@ const desc = firstProse(md).slice(0, 300);
       prev={BOOK_ORDER[i - 1] ?? null} next={BOOK_ORDER[i + 1] ?? null}>
   <Fragment set:html={html} />
 </Base>
+
+<style is:global>
+  .answers-hint { color: var(--muted); font-size: 0.85rem; margin: -0.6rem 0 0.6rem; }
+  .answers li { filter: blur(7px); cursor: pointer; user-select: none; transition: filter 0.15s; outline: none; }
+  .answers li:hover, .answers li:focus { filter: none; user-select: text; cursor: text; }
+</style>

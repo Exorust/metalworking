@@ -175,7 +175,7 @@ that. The CUDA debugging habit of sprinkling `cudaDeviceSynchronize` maps to
 `waitUntilCompleted` on each command buffer, with the same trap of making
 everything suddenly slow, made worse by the batching model above.
 
-## Check yourself
+## Review the content
 
 1. A kernel assumes every threadgroup has 128 threads and does a cooperative load
    across all of them. It is launched with `dispatchThreads` on a grid whose size

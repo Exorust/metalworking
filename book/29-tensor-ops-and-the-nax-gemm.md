@@ -148,7 +148,7 @@ flash-moe's. And the wins of Parts 4 to 6 came from moving fewer bytes, while th
 matrix unit's win is more arithmetic per second, the exception Chapter 3 made for
 large matrix multiply.
 
-## Check yourself
+## Review the content
 
 1. What does a `matmul2d_descriptor` replace from the hand-written kernel of
    Part 4, and what do you give up when you use it?

@@ -216,7 +216,7 @@ at 8192 by 8192 the library catches up at 13.5. The DMA-staged original no longe
 compiles. Inside the loop, you have used up the techniques this book covers; the
 remaining gains are in what surrounds it, which is the next chapter.
 
-## Check yourself
+## Review the content
 
 1. The double-buffered kernel uses one barrier per iteration where the
    single-buffered kernel uses two. Which two hazards does the one barrier cover,

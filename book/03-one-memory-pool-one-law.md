@@ -140,7 +140,7 @@ side, the techniques of Part 4, register blocking and double buffering, pay off.
 Then measure, because only a measurement says whether the kernel is near its
 ceiling. Chapter 10 turns this into a chart.
 
-## Check yourself
+## Review the content
 
 1. An fp16 matrix-vector product multiplies a 4096 by 4096 weight matrix by one
    vector. What is its ideal arithmetic intensity, which side of the M5 Max ridge

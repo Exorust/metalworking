@@ -157,7 +157,7 @@ the current slab's multiplies are still in flight. Which side of the trade wins 
 on problem size, and Chapter 14 has the measured table. For any change, ask what
 occupancy it costs and what independent work it buys.
 
-## Check yourself
+## Review the content
 
 1. A kernel uses threadgroups of 256 threads. In the metal-benchmarks model, how
    many must be resident to saturate a core's arithmetic units, and how many

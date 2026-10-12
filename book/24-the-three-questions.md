@@ -105,7 +105,7 @@ and question 3 is Chapter 7's count of buffers and waits. None of the three need
 profiler, which matters because Chapter 9 said the one that exists cannot run in
 a feedback loop.
 
-## Check yourself
+## Review the content
 
 1. A colleague proposes rewriting the attention kernel because the model's
    head dimension is 112 and attention is slow. Which question applies first, and

@@ -119,7 +119,7 @@ You now have a number for each of the matrix multiply,
 attention, the cache and the weights. Part 7 asks where the measured wins on
 real models came from.
 
-## Check yourself
+## Review the content
 
 1. A 70-billion parameter model is stored at 4 bits with 64-value groups and
    16-bit scale and bias. Roughly how many bytes do its weights take, and what
