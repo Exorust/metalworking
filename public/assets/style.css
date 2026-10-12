@@ -357,8 +357,9 @@ html[data-theme="violet"] #theme-current::after { content: "Violet Midnight"; }
 .lightbox[hidden] { display: none; }
 .lightbox-bar { display: flex; justify-content: flex-end; padding: 0.4rem 0.8rem; border-bottom: 1px solid var(--dash); }
 .lightbox-close { background: none; border: 1px solid var(--dash); color: var(--fg); font: inherit; min-width: 44px; min-height: 44px; cursor: pointer; }
-.lightbox-body { flex: 1; overflow: auto; padding: 0.8rem; }
-.lightbox-body svg { display: block; width: max(100%, 1380px); height: auto; }
+.lightbox-body { flex: 1; min-height: 0; overflow: auto; padding: 0.8rem; display: flex; }
+/* auto margins center the drawing both ways and collapse to zero when it is wider than the window, so it still scrolls */
+.lightbox-body svg { display: block; width: max(100%, 1380px); height: auto; max-height: 100%; margin: auto; }
 .content code {
   background: var(--code-bg); padding: 0.08em 0.35em; border-radius: 2px; font-size: 0.92em;
 }
