@@ -71,9 +71,17 @@ export const SECTIONS = [
   { dir: "war-stories", title: "War Stories", pages: [
     ["three-questions", "The Three Questions", ""],
     ["sparse-v", "Sparse-V", ""],
-    ["omlx", "oMLX, a Server's Ledger", ""],
     ["the-failures", "The Failures", ""],
     ["cheap-tricks", "Cheap Tricks", ""],
+  ]},
+  { dir: "engines", title: "Engines and Servers", pages: [
+    ["omlx", "oMLX", "vLLM"],
+    ["exo", "exo", "NCCL cluster"],
+    ["vllm-mlx", "vllm-mlx", "vLLM"],
+    ["vllm-metal", "vllm-metal", "vLLM plugin"],
+    ["magnitude", "Magnitude", "autotuner"],
+    ["cider", "Cider", "INT8 GEMM"],
+    ["rapid-mlx", "Rapid-MLX", "spec decode"],
   ]},
 ];
 

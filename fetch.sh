@@ -57,3 +57,9 @@ rm -f code/drawthings-mfa/lib/nnc/mfa/kernels/*Precompiled.inc
 
 echo "done. start reading: track/stage-0-hardware.md"
 get omlx https://github.com/jundot/omlx 3f99250d6317eb2067662b453ac538e25ab19c60 omlx docs README.md pyproject.toml setup.py Makefile
+get exo https://github.com/exo-explore/exo 21a54c5ea0230a3bec1e1a786d200126c7e34ec6
+get vllm-mlx https://github.com/waybarrios/vllm-mlx 078e94e97d5236c6607a853de9f56789d89135a5
+get vllm-metal https://github.com/vllm-project/vllm-metal 4499a43e3615b36e38df019cfac6844844aedecf
+get magnitude https://github.com/magnitudedev/magnitude c2399d415e8ce617b13c08d8daafbe84f37ec03d
+get cider https://github.com/Mininglamp-AI/cider 4d91fcee9439f7aea17ae6e965271d9536c604a0
+get rapid-mlx https://github.com/raullenchai/Rapid-MLX 6364ee8ac9ee102b16e271a5f6ab81de28892808

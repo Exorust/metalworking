@@ -41,5 +41,8 @@ For Metal work its main relevance is knowing that some workloads
 (quantized-conv-shaped inference at low power) have a better home than the GPU,
 and that Apple's own frameworks may route there without telling you.
 
-That's the glossary. [SOURCES.md](../../SOURCES.md) has the full annotated list
-of repos, writeups, and people worth following to stay current.
+That ends the reference entries. The last section reads whole inference engines
+for where their speed comes from; [SOURCES.md](../../SOURCES.md) has the full
+annotated list of repos, writeups, and people worth following to stay current.
+
+Next: [oMLX](../engines/omlx.md)

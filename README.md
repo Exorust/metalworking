@@ -109,9 +109,20 @@ referenced repo at its pinned commit for browsing beyond the excerpts.
 
 - [The Three Questions](glossary/war-stories/three-questions.md) - ask before writing any kernel
 - [Sparse-V](glossary/war-stories/sparse-v.md) - the canonical win: +22.8% from three lines
-- [oMLX](glossary/war-stories/omlx.md) - a production server's ledger: scheduler overlap, cache reuse, epilogue fusion, and a 30x fused prefill
 - [The Failures](glossary/war-stories/the-failures.md) - published negative results, and the checklist they teach
 - [Cheap Tricks](glossary/war-stories/cheap-tricks.md) - sysctls, spec sheets, and fans
+
+## Engines and Servers
+
+*Whole inference engines for Apple Silicon, read for where their speed comes from. Each one is pinned under `code/`.*
+
+- [oMLX](glossary/engines/omlx.md) - a production server's ledger: scheduler overlap, cache reuse, epilogue fusion, and a 30x fused prefill
+- [exo](glossary/engines/exo.md) - a Mac cluster that writes no kernels: tensor parallel over Thunderbolt 5 RDMA, and why collective latency sets the ceiling
+- [vllm-mlx](glossary/engines/vllm-mlx.md) - a vLLM-shaped server on mlx-lm; "paged" and "quantized" caches that the attention kernel never reads, and a paper held against its repo
+- [vllm-metal](glossary/engines/vllm-metal.md) - vLLM's scheduler unchanged, one paged attention primitive underneath: split-KV gated on core count, the same prefill on simdgroup_matrix and on NAX
+- [Magnitude](glossary/engines/magnitude.md) - kernels tuned on your device under a 60 s clock, with the GPU governor's numbers attached
+- [Cider](glossary/engines/cider.md) - INT8 tensor ops as an MLX primitive in 250 lines, and how much a headline depends on the baseline
+- [Rapid-MLX](glossary/engines/rapid-mlx.md) - speculative decoding priced by the 32-row quantized-matmul tile
 
 ## Hands-on
 

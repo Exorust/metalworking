@@ -69,7 +69,7 @@ launch; across 40 layers that is about 2 ms of a 9 ms decode step
 concatenated so one `gather_qmm` replaces two. The gated-delta verify prework,
 about ten small dispatches per layer per verify cycle, becomes one
 (`omlx/patches/qwen35_gdn_prework.py:7-12`). This is
-[question 3](three-questions.md) answered at scale.
+[question 3](../war-stories/three-questions.md) answered at scale.
 
 **5. M5 tensor units and INT8 on the prefill side.** On M5-class GPUs the oQ
 weight format is multiplied in an INT8 by INT8 to INT32 path on the
@@ -110,7 +110,7 @@ change numerics say so.
 
 ## What the ledger says
 
-Read against the [three questions](three-questions.md), oMLX is mostly
+Read against the [three questions](../war-stories/three-questions.md), oMLX is mostly
 questions 1 and 3: delete recomputation through the cache, delete dispatches
 through fusion, and keep the GPU busy through scheduling. The new-kernel wins
 are concentrated where the stock path materializes a quadratic intermediate
@@ -121,4 +121,4 @@ the expert offload doc is honest about its own limit: prefetching the next
 layer's experts covered 59 percent of misses and still made decode 2 to 15
 percent slower, so it was removed (`docs/experimental/MoE_Expert_Offload.md:73`).
 
-Next: [The failures](the-failures.md)
+Next: [exo](exo.md)
