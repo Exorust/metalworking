@@ -351,7 +351,12 @@ html[data-theme="violet"] #theme-current::after { content: "Violet Midnight"; }
 .content img { max-width: 100%; height: auto; border: 1px solid var(--dash); }
 .content svg.diagram { width: 100%; height: auto; border: 1px solid var(--dash); border-radius: 6px; cursor: zoom-in; }
 .content svg.diagram:focus-visible { outline-offset: 3px; }
-.diagram-hint { color: var(--muted); font-size: 0.8rem; margin: 0.3rem 0 0; }
+.figure { margin: 1.5rem 0 2rem; }
+.figure figcaption {
+  text-align: center; color: var(--muted); font-style: italic; font-size: 0.95rem; line-height: 1.5;
+  max-width: 66ch; margin: 0.6rem auto 0;
+}
+.diagram-hint { text-align: center; margin: 0.2rem 0 0; }
 /* enlarged diagram: fills the window at or near the drawing's native 1380-unit width */
 .lightbox { position: fixed; inset: 0; z-index: 45; background: var(--bg); display: flex; flex-direction: column; }
 .lightbox[hidden] { display: none; }
@@ -555,5 +560,6 @@ body.nav-open { overflow: hidden; }
   body { background: #fff; color: #000; }
 }
 
-.diagram-zoom { font: inherit; font-size: 0.8rem; background: none; border: 1px solid var(--dash); color: var(--fg); padding: 0.4rem 0.8rem; min-height: 44px; cursor: pointer; }
-.diagram-zoom:hover { background: var(--hover); }
+/* a quiet text button under the drawing; the padding keeps a 44px hit area */
+.diagram-zoom { font: inherit; font-size: 0.8rem; background: none; border: none; color: var(--muted); text-decoration: underline; text-underline-offset: 0.2em; padding: 0.7rem 0.8rem; min-height: 44px; cursor: pointer; white-space: nowrap; }
+.diagram-zoom:hover { color: var(--fg); }

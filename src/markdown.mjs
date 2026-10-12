@@ -68,6 +68,11 @@ export function render(md, fromDir) {
     return `<pre tabindex="0"><code>${body}</code></pre>\n`;
   };
   // Tables scroll sideways inside a focusable wrapper, so keyboard users can reach clipped columns.
+  // A diagram or image followed by an italic paragraph becomes a figure with that paragraph as its caption.
   return marked.parse(md, { renderer, tokenizer })
-    .replace(/<table>[\s\S]*?<\/table>/g, (t) => `<div class="table-wrap" tabindex="0">${t}</div>`);
+    .replace(/<table>[\s\S]*?<\/table>/g, (t) => `<div class="table-wrap" tabindex="0">${t}</div>`)
+    .replace(/<p>(<svg class="diagram"[\s\S]*?<\/svg>)\s*<\/p>\s*<p><em>([\s\S]*?)<\/em><\/p>/g,
+      (m, fig, cap) => `<figure class="figure">${fig}<figcaption>${cap}</figcaption></figure>`)
+    .replace(/<p>(<img [^>]*>)<\/p>\s*<p><em>([\s\S]*?)<\/em><\/p>/g,
+      (m, fig, cap) => `<figure class="figure">${fig}<figcaption>${cap}</figcaption></figure>`);
 }
