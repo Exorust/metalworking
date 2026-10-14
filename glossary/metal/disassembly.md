@@ -1,16 +1,19 @@
 # Disassembly
 
 **When arithmetic says a kernel's performance is impossible, the last resort
-is reading what the compiler actually emitted. Apple ships no tool for that;
-the reverse-engineered [applegpu](https://github.com/dougallj/applegpu)
-toolchain is how it's done.**
+is reading what the compiler actually emitted. Apple ships no disassembler
+(Xcode's [shader cost graph](https://developer.apple.com/documentation/xcode/analyzing-apple-gpu-performance-using-shader-cost-graph-a17-m3)
+shows per-line instruction counts and costs by type on M3 and later, not the
+instructions); the reverse-engineered
+[applegpu](https://github.com/dougallj/applegpu) toolchain is how it's done.**
 
 CUDA equivalent: `cuobjdump` / `nvdisasm` reading SASS, except there the
 vendor documents the tool and half the ISA. Here the ISA (Apple G13, the
 M1 family, with later-generation coverage growing) was reverse engineered by
 the community, and the [compilation pipeline](compilation-pipeline.md)'s
-on-device final compile means the binary you inspect was built on your own
-machine.
+on-device final compile means the binary you inspect is normally the one your
+own machine built at pipeline creation, though Apple's `metal-tt` and
+`metal-lipo -thin` can also produce per-generation GPU binaries offline.
 
 The toolchain, at the pinned commit
 ([applegpu @ `4c5bae61`](https://github.com/dougallj/applegpu/tree/4c5bae61086b8067231120c98b4756d7696d399c)):
@@ -34,8 +37,12 @@ the community established most of what the
 
 When to reach for it, per the [profiling methodology](profiling.md): after
 timestamps and the [roofline](../techniques/roofline.md) say the kernel
-should be fast and it isn't, and differential benchmarking hasn't found the
-lever. The usual finds, in order of frequency: [register
+should be fast and it isn't, differential benchmarking hasn't found the
+lever, and Apple's supported counters have had their turn (spilled values
+travel to device memory and back, so they show as unexplained Buffer read and
+Buffer write activity; on M3 and later the Occupancy Manager Target and L1
+Eviction Rate counters show the GPU cutting occupancy to keep registers and
+threadgroup data on chip). The usual finds, in order of frequency: [register
 spills](../machine/registers.md) you didn't know you had, loops that didn't
 unroll the way the source suggests, and instruction selection surprises
 (the [compilation-pipeline page](compilation-pipeline.md)'s "expect one

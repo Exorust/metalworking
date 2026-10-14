@@ -6,7 +6,7 @@ throughput seems impossible.**
 
 CUDA equivalent: none. The closest analogy is Intel's AMX or ARM's SME (into which
 Apple's AMX has been evolving), but the important point for a GPU person is
-negative: when you benchmark Apple's Accelerate/BNNS/MPS small-matrix performance
+negative: when you benchmark Apple's Accelerate/BNNS small-matrix performance
 and the numbers look too good for a CPU, you're not looking at the CPU's NEON
 units. You're looking at a dedicated 32×32 multiply-accumulate grid hanging off the
 CPU cluster, fed by its own X/Y register pools, executing an outer product per
@@ -26,8 +26,8 @@ Why it appears in a GPU glossary:
 
 ![One die, three matrix engines: the CPU cluster with AMX, the GPU cores, and the Neural Engine, sharing the unified memory fabric, each reachable through a different API](../../diagrams/three-engines.svg)
 
-*Where AMX sits. Three matrix engines share one bandwidth budget; Metal talks
-only to the middle one, and the API rows at the bottom are the only ways to
+*Where AMX sits. Three matrix engines share one bandwidth budget; Metal shaders
+run only on the middle one, and the API rows at the bottom are the only ways to
 reach each engine.*
 
 Apple has never documented the instruction set. The definitive reference is
@@ -40,8 +40,11 @@ the performance you observe through those libraries.
 
 The [ANE war story](../war-stories/the-failures.md) is the same genre one chip
 region over: the Neural Engine, also undocumented, reachable through Apple's
-model frameworks (Core ML, and Core AI for generative work) or private
-interfaces, at ~6.6 TFLOPS/watt. The GPU is one of *three* matrix engines
-on this die, and Metal only talks to one of them.
+model frameworks (Core ML, and since macOS 27 Core AI for neural networks) or
+private interfaces, at ~6.6 TFLOPS/watt. The GPU is one of *three* matrix
+engines on this die, and Metal shaders run on only one of them; a Metal 4
+[machine learning pass](https://developer.apple.com/documentation/metal/machine-learning-passes)
+can hand a whole converted model to the Neural Engine, but the system decides
+where it runs.
 
 Next: [Neural accelerators](neural-accelerators.md)

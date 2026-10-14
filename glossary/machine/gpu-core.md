@@ -41,10 +41,18 @@ dependent-instruction stalls than F32. Add the halved register pressure and you
 get the local wisdom, "use F16 everywhere". Matrix work runs
 through [`simdgroup_matrix`](../metal/simdgroup-matrix.md), an 8×8
 tile-multiply primitive closer to a fast wide-FMA arrangement than a separate
-tensor-core unit.
+tensor-core unit. Apple's current spec recommends tensors and Metal Performance
+Primitives over `simdgroup_matrix` for new matrix code; they run on M1 and later
+and reach the M5 neural accelerators (see
+[MTLTensor and MPP](../metal/mtltensor-and-mpp.md)).
 
-None of these numbers come from Apple. The microarchitecture was reverse engineered
-by the community, chiefly in
+The 32 KB per-threadgroup cap is Apple's published limit
+([Metal Feature Set Tables](https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf),
+the same from GPU family Apple4 through Apple10, which is M5; the family mapping
+is M1 = Apple7, M2 = Apple8, M3/M4 = Apple9, M5 = Apple10) and
+`MTLDevice.maxThreadgroupMemoryLength` reports it at run time. The other numbers
+do not come from Apple. The microarchitecture was reverse engineered by the
+community, chiefly in
 [philipturner/metal-benchmarks](https://github.com/philipturner/metal-benchmarks)
 (MIT), which is this section's primary source and the reference to return to
 whenever a kernel underperforms for no visible reason.

@@ -38,14 +38,24 @@ dimensions, so it assumes the maximum unless the kernel promises otherwise with
 `max_total_threads_per_threadgroup`. In CUDA, `__launch_bounds__` is a tuning
 hint; here its Metal twin is [routinely worth integer factors](../machine/registers.md)
 and every production kernel in the [case studies](../kernels/steel-gemm-fused.md)
-carries it.
+carries it. The contract runs both ways: the built pipeline state reports its
+own `maxTotalThreadsPerThreadgroup`, which Apple computes from the device and the
+kernel's register and memory use and which can come back lower than the device
+maximum for a register-heavy kernel, so read it after building and launch within
+it; the host-side `MTLComputePipelineDescriptor.maxTotalThreadsPerThreadgroup`
+must match the attribute. Metal 4 adds a stricter promise,
+`[[required_threads_per_threadgroup]]`, and
+`threadGroupSizeIsMultipleOfThreadExecutionWidth` tells the compiler every
+simdgroup is full
+([Calculating threadgroup and grid sizes](https://developer.apple.com/documentation/metal/calculating-threadgroup-and-grid-sizes)).
 
 Sizing instincts that transfer: threadgroup sizes are multiples of 32; 128 threads
 (4 simdgroups) is the workhorse size in every GEMM and attention kernel this
 glossary reads; [occupancy](../machine/occupancy.md) saturates at lower residency
 than on an SM, so you rarely chase giant threadgroups. Grid-stride loops exist here
 too but are rarer, since dispatches are cheap to size exactly and
-[non-uniform threadgroups](dispatch-geometry.md) cover the ragged case.
+[non-uniform threadgroups](dispatch-geometry.md) (GPU family Apple4 and later,
+so every Apple silicon Mac) cover the ragged case.
 
 The index-attribute vocabulary
 ([`[[thread_position_in_grid]]` and friends](msl.md)) replaces CUDA's

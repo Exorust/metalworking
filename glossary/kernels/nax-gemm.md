@@ -31,20 +31,27 @@ moved, and the loader (no threadgroup staging) and epilogue moved with them.
 **flash-moe's standalone kernel**
 ([`metal_infer/nax_gemm.metal`](https://github.com/gorroai/flash-moe/blob/4df3af8278c4bef2e7f6b34f61e4e2596b58e93b/metal_infer/nax_gemm.metal),
 ~230 lines) shows the API without the framework: it declares an
-`mpp::tensor_ops::matmul2d_descriptor` with the problem shape, chooses an
+`mpp::tensor_ops::matmul2d_descriptor` with its tile shape (32 by 32 by 32, not
+the problem's M, N and K), chooses an
 `execution_simdgroups<4>` scope (four cooperating simdgroups, the analogue of
 a threadgroup-wide warp-specialized MMA), obtains the accumulator via
 `get_destination_cooperative_tensor`, and iterates K. Its comments document
-the part that bites porters: the tensor ops think in column-major layouts,
-and getting row-major LLM weights through them is layout gymnastics that the
-descriptor does not hide.
+the part that bites porters: a Metal tensor lists its contiguous dimension
+first (the spec fixes stride 0 at 1), so a row-major M by K matrix is described
+as extents {K, M} with strides {1, K} and indexed column first, which reads as
+column-major to anyone used to NumPy shapes; get the order or the transpose
+flags wrong and the op silently multiplies the transpose. Apple's MPP guide
+gives M5 starting points for 16-bit operands: a 2 by 2 grid of simdgroups per
+threadgroup, a 32 by 32 output tile per simdgroup, BK of 128, an execution-only
+barrier per K step, and a Morton-order walk over output tiles.
 
 What distinguishes the school, against the other three case-study lineages:
 
 - **vs [hand-placed steel](steel-gemm-fused.md)**: no `simdgroup_load`
   choreography. The descriptor states one operation's shape and the library
-  executes it; the tile size, accumulator grid and lane layout (`get_coord()`)
-  are still the kernel's, so the
+  executes it; the tile size, accumulator grid and lane layout (`get_coord()`,
+  which hard-codes a mapping the spec calls "device specific" and offers
+  `get_multidimensional_index()` to avoid assuming) are still the kernel's, so the
   [register-blocking](../techniques/register-blocking.md) choices remain. What
   you give up is the multiply itself; what you buy is the matrix unit.
 - **vs [MFA codegen](mfa-codegen.md)**: specialization moves from generated

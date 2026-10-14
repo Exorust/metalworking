@@ -20,8 +20,8 @@ one about timing.
 `dispatchThreadgroups(gridSize, threadsPerThreadgroup:)` counts the grid in
 threadgroups, exactly like CUDA's `<<<numBlocks, blockDim>>>`. But
 `dispatchThreads(gridSize, threadsPerThreadgroup:)` counts the grid in threads,
-and it handles a ragged edge by making partial threadgroups, a device feature
-every Apple GPU has. A kernel that indexes its data directly by thread position
+and it handles a ragged edge by making partial threadgroups, a feature of GPU
+family Apple4 and later, so every Apple silicon Mac. A kernel that indexes its data directly by thread position
 therefore needs no guard of the form `if (i < n)`. It also loses any guarantee that every simdgroup is full, which
 breaks any kernel that needs a fixed number of participating threads, such as a
 cooperative load across the whole threadgroup. Framework code uses both calls,
@@ -39,18 +39,19 @@ choose the dimensions at launch, but Chapters 1 and 2 said what happens before
 that: the compiler allocates registers when it builds the pipeline state, before
 it knows your launch dimensions, so it assumes the hardware maximum unless the
 kernel declares a smaller one with `max_total_threads_per_threadgroup`. The launch
-must then stay within the declared maximum. CUDA's `__launch_bounds__` caps
-registers to raise occupancy. Metal's attribute runs the other way: declaring
-the real size raises each thread's register grant, since the compiler otherwise
-plans for the hardware maximum. The matrix multiply this book follows
+must stay within the declared maximum and within the pipeline state's own
+`maxTotalThreadsPerThreadgroup`, which Metal derives from the kernel's register
+and memory use and can set lower than the device maximum. CUDA's
+`__launch_bounds__` caps registers to raise occupancy. Metal's attribute runs
+the other way: declaring the real size raises each thread's register grant. The
+matrix multiply this book follows
 declares it, and Chapter 12 reads it.
 
 Some sizing instincts transfer. Size threadgroups in multiples of 32; 128 threads,
 four simdgroups, is the size of the matrix multiply this book follows and of
 MLX's attention kernel. Occupancy saturates at lower residency than on an SM
 (Chapter 4), so you rarely chase giant threadgroups. Grid-stride loops are rarer,
-because dispatches are cheap to size exactly, and the ragged edge is a partial
-threadgroup when the kernel tolerates one and a guard when it does not.
+because dispatches are cheap to size exactly.
 
 ## Command buffers: the batching model
 
@@ -63,18 +64,17 @@ A launch in Metal is not a function call. The objects, from the outside in:
             endEncoding
 
 Encoding happens on the CPU; the encoder is ended, then the buffer is committed,
-and the queue runs buffers in commit order. `commit()` hands the whole batch to
+and the queue starts buffers in enqueue order, which is commit order unless you
+call `enqueue()` early. `commit()` hands the whole batch to
 the GPU, which executes it asynchronously. `waitUntilCompleted` blocks until it
 is done; a completion handler is a notification instead. Until one of the two
 has fired, the CPU must not overwrite the batch's inputs or read its outputs,
 though a later command buffer on the same queue may consume them with no CPU
 wait.
 
-The queue orders work the way a CUDA stream does. In CUDA you think in
-launches, the stream preserves their order, and CUDA Graphs record a batch for
-resubmission. In Metal the batch, the command buffer, is the only submission
-path, you build it yourself, and how you batch is one of the biggest
-performance levers on the platform that costs no kernel code.
+The queue orders work the way a CUDA stream does, and CUDA Graphs are the
+nearest thing to a batch you record for resubmission. In Metal the command
+buffer is the only submission path, and you build it yourself.
 
 ![Two submission patterns: chatty per-op commit and wait leaves the GPU idle between ops; one command buffer per forward pass keeps it continuously busy](../diagrams/command-buffers.svg)
 
@@ -104,8 +104,7 @@ size, and at the scale of a framework graph
 that adds up. The census measured one bf16 decode step of a model with
 DeepSeek-V4-Flash's structure at reduced widths: 19,809 dispatches in 384 command
 buffers, with host encoding at 56 to 59 milliseconds against 32 to 35 milliseconds
-of GPU execution. Host encoding took longer than GPU execution, so
-its cost was exposed rather than hidden. The fix was structural: a collapsed normalization chain and one
+of GPU execution. The fix was structural: a collapsed normalization chain and one
 shared `mx.compile` tape cut dispatches by 26 percent, which saved about 15
 milliseconds of host encoding per token.
 Batching hides per-buffer overhead, but a graph that emits tens of thousands of
@@ -131,23 +130,25 @@ command-buffer granularity, one more reason to make buffers meaningful units.
 ## Synchronization inside a kernel
 
 Inside a kernel, Metal has the same two synchronization levels as CUDA, but one
-cost is inverted. The table gives the closest equivalents; the Metal memory flag has
-to name the memory the barrier must order, which the CUDA calls imply.
+cost is inverted. The table gives the closest equivalents.
 
 | CUDA | Metal |
 |---|---|
 | `__syncthreads()`, which orders shared and global memory | `threadgroup_barrier(mem_flags::mem_threadgroup \| mem_flags::mem_device)`; `mem_threadgroup` alone when only threadgroup memory is shared |
-| `__threadfence_block()` | `threadgroup_barrier(mem_flags::mem_device)`, approximately; it also waits for every thread |
-| `__syncwarp()` | `simdgroup_barrier` with a memory flag; `mem_none` fences nothing and is only a scheduling hint |
+| `__threadfence_block()`, `__threadfence()` | `atomic_thread_fence(mem_flags::mem_device, memory_order_seq_cst, thread_scope_threadgroup)`, or `thread_scope_device`, MSL 3.2 and later |
+| `__syncwarp()` | `simdgroup_barrier(mem_flags::mem_threadgroup)`; `mem_none` is an execution barrier with no memory fence |
 | a grid-wide barrier | none; end the dispatch, as in CUDA without cooperative launch |
 
 The `mem_flags` argument states which memory the barrier orders: threadgroup
 memory, device memory, or none for a pure execution barrier. A barrier with
 `mem_threadgroup` does not order writes to device memory, so a producer-consumer
-step through a device buffer needs `mem_device`, and no flag publishes writes to
-other threadgroups. As in CUDA, every thread of the threadgroup must reach every
-barrier; a barrier inside `if (i < n)` is a hang. The kernels in this book pick
-the flag precisely.
+step through a device buffer needs `mem_device`, and no flag by itself publishes
+writes to other threadgroups; that takes the fence in the table, and there is
+still no grid-wide barrier. As in CUDA, if any thread executes a barrier inside
+a conditional, every thread must; a barrier under `if (i < n)` is undefined
+behavior, not a guaranteed hang. One difference helps: a thread that has already
+returned no longer blocks a barrier on Apple silicon. The kernels in this book
+pick the flag precisely.
 
 The inverted cost is the barrier. A threadgroup barrier costs about 2
 cycles of instruction overhead in the metal-benchmarks measurement, on M1- and

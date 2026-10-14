@@ -60,7 +60,8 @@ The two hierarchies meet at four points.
 threadgroup uses is physically inside the core it runs on. It is also the reason
 threadgroups share nothing with each other. Two threadgroups in the same grid can
 both read and write device memory, and integer atomic operations on device memory
-can combine counts inside one dispatch (float atomics are emulated, Chapter 5),
+can combine counts inside one dispatch (float atomic add exists from M1 on but
+is slow, Chapter 5),
 but no threadgroup can read a finished total within that dispatch: there is no
 grid-wide barrier and no promise that both are resident at the same time, so a
 threadgroup must never wait for another one. Work that needs everything finished goes in the next dispatch.
@@ -87,7 +88,11 @@ at the edge; Chapter 7 covers both.
 
 Your warp intuition transfers, with one exception noted below. The width is 32,
 the execution model is lockstep, and the simdgroup is where divergence costs you
-and where threads exchange register values without going through memory.
+and where threads exchange register values without going through memory. The
+width is 32 on every Apple GPU in this book, but Apple's porting guide says not
+to assume it: read `threadExecutionWidth` from the pipeline state, or declare a
+`[[threads_per_simdgroup]]` argument in the kernel, and assert 32 if your code
+depends on it.
 
 | CUDA | Metal |
 |---|---|
@@ -124,9 +129,11 @@ follows and of MLX's steel attention kernel.
 The launch call that counts in
 threads can make a partial threadgroup at the edge of the grid, the common case
 where a simdgroup is not full; a threadgroup size that is not a multiple of 32 is
-the other. Simdgroup operations, shuffles, reductions and `simdgroup_matrix`,
-assume every lane takes part, so a short simdgroup breaks them rather than merely
-wasting lanes.
+the other. Only the last simdgroup of a threadgroup can be short, and the spec
+defines reductions such as `simd_sum` over the active lanes, so those still give
+the right answer for the lanes present. A shuffle that reads a missing lane is
+undefined, and `simdgroup_matrix` needs all 32 lanes in uniform control flow, so
+a short simdgroup breaks those two rather than merely wasting lanes.
 
 The compiler allocates registers when it builds the pipeline, before it knows the
 launch dimensions. Unless the kernel declares a maximum threadgroup size with the

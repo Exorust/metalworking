@@ -121,7 +121,9 @@ which is why production libraries dispatch different variants per shape
 
 The README's section "things that did not help" is worth reading for its method
 (Chapter 9): offline compilation with `-O3 -ffast-math`, measured identical to
-runtime compilation; bigger simdgroup tiles, the 10 times slower spill of Chapter
+runtime compilation, which the specification predicts, since runtime compilation
+already defaults to fast math and the documented optimization levels are `-O2`
+and `-Os`; bigger simdgroup tiles, the 10 times slower spill of Chapter
 12; and `SW` = 3 threadgroups. The author measured these negative results and
 published them, which is the norm that the failures in Chapter 25 argue the whole
 ecosystem should follow.

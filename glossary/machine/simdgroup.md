@@ -6,7 +6,11 @@ matrix operations happen.**
 
 CUDA equivalent: the warp, exactly. Same width (32), same lockstep model, same role
 as the granularity of divergence and of register-level data exchange. Your warp
-intuition transfers whole.
+intuition transfers whole. One caveat from Apple: the spec does not fix the
+width, so read `threadExecutionWidth` from the pipeline state or declare a
+`[[threads_per_simdgroup]]` argument rather than hard-coding 32, and remember
+the last simdgroup of a threadgroup can be partial (reductions are defined over
+the active lanes; shuffles from a missing lane are not).
 
 What Metal calls things:
 

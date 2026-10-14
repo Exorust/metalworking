@@ -91,8 +91,11 @@ values; `fp4.h` and `fp8.h` kernels implement them. In the nvfp4 and mxfp8
 modes, `quantize_input=True` quantizes activations as well as weights. These are the
 block-scaled formats that arrived with the M5 neural accelerators (Chapter 28);
 in the pinned MLX, the fp4 and fp8 NAX kernels dequantize the codes to 16-bit
-values before loading them into the matrix unit's tiles. The examples here stay
-with the affine mode.
+values before loading them into the matrix unit's tiles. The macOS 27 SDK adds
+Metal tensor element types for exactly these formats, fp4 E2M1, fp8 E4M3 and
+E5M2 values and the E8M0 scale type, and macOS 26.4 added `int4`, so later
+kernels may feed them to the matrix unit without the 16-bit step; Apple has not
+published their throughput. The examples here stay with the affine mode.
 
 ## One trap for intuition
 

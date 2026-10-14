@@ -52,6 +52,9 @@ spent. [metal-flash-attention](../kernels/mfa-codegen.md) stakes out the extreme
 position: it sometimes *chooses* tile shapes that spill, on the theory that a
 predictable spill of the right operand beats a smaller tile. It's the boldest
 register-pressure bet in the case studies, and evidence the cliff edge is worth
-mapping precisely.
+mapping precisely. One footnote on the primitive underneath: Apple's spec now
+recommends tensors and Metal Performance Primitives over `simdgroup_matrix` for
+new matrix code; the [NAX GEMM](../kernels/nax-gemm.md) shows the same
+register-blocking shape on 16×16 fragments.
 
 Next: [Double buffering](double-buffering.md)

@@ -31,7 +31,7 @@ matmul. So the vec kernels change species entirely:
   fill the GPU, it **splits the KV cache across simdgroups** and merges the
   partial softmaxes in a second kernel (`_vec_reduce`), using the
   [online-softmax correction identity](online-softmax.md) for the merge: the
-  two-pass shape that [emulated float atomics](../machine/special-paths.md) force.
+  two-pass shape that [slow float atomics](../machine/special-paths.md) force.
 - The [quantized matmul family](../mlx/quantization.md) splits identically:
   QMV (decode: matrix-vector, dequantize-in-registers) vs QMM (prefill: tiled
   GEMM). The [MTPLX war story](../war-stories/three-questions.md) lives in

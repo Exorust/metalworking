@@ -24,10 +24,12 @@ CUTLASS as a vendor library.
 
 On the host, an `MTLTensor` is a multidimensional resource with rank, extents and
 strides, and it replaces the buffer plus stride arithmetic you would otherwise
-hand-roll. Auxiliary planes carry block-scaling metadata, the scales per block,
-for the fp4 and fp8 formats of Chapter 23. In the shader, `tensor_inline` gives
-you views over device memory or threadgroup memory, indexed and sliced in the
-shading language.
+hand-roll; extents list the innermost dimension first. From macOS 27, an
+auxiliary plane can carry the per-block scales for the MX formats of Chapter 23,
+E8M0 scales over blocks of 32; NVFP4's 16-element blocks with fp8 scales have no
+shader-side plane. In the shader, a `tensor` is a non-owning view: host tensors
+arrive as kernel arguments, and `tensor<..., tensor_inline>` builds one from a
+pointer over device, threadgroup or thread memory, indexed and sliced in MSL.
 
 A cooperative tensor goes further. Its storage is distributed across an execution
 group's registers, the way `simdgroup_matrix` fragments are, Chapter 12, but a
@@ -35,23 +37,32 @@ descriptor sizes and shapes it rather than fixing it at 8 by 8.
 
 MPP is where the multiply lives: `mpp::tensor_ops::matmul2d` and its relatives.
 You declare a `matmul2d_descriptor` with the shape of one operation, its M, N and
-K, the transpose flags and the accumulate mode; the element types come from the
-tensor types and template arguments, not from the descriptor. You pick an
-execution scope, `execution_thread`, `execution_simdgroup`,
-`execution_simdgroups<N>` or `execution_threadgroup`. You create the destination
-as a cooperative tensor with `get_destination_cooperative_tensor()`, and then you
-call `run`, which writes into it. The primary references are session 262 of WWDC
-2025, session 330 of WWDC 2026, and chapter 7 of the Metal Shading Language 4.1
-specification.
+K, the two transpose flags, a `relaxed_precision` flag that lets fp32 inputs be
+truncated before the multiply, and the multiply or multiply-accumulate mode; the
+element types come from the tensor types and template arguments, not from the
+descriptor. You pick an execution scope: `execution_thread`,
+`execution_simdgroup`, or `execution_simdgroups<N>`, where the specification
+allows N to be only 1 or the number of simdgroups in the threadgroup, so a
+threadgroup-wide multiply is written with N equal to that count. You create the
+destination as a cooperative tensor with `get_destination_cooperative_tensor()`,
+and then you call `run`, which writes into it; every thread in the scope must
+call it. The primary references are session 262 of WWDC 2025, session 330 of
+WWDC 2026, and, in the Metal Shading Language 4.1 specification, section 2.22
+for the tensor types and chapter 7 for Metal Performance Primitives, plus
+Apple's Metal Performance Primitives Programming Guide.
 
 What happens to the staging you built by hand? This
 model belongs next to the copy engine of Chapter 14, because it continues that
-story. Cooperative tensors can take operands from device memory or from
-threadgroup memory and keep results in distributed registers. How much of the
-staging of Chapter 11 that removes depends on the kernel, and the two
-implementations below disagree: MLX's NAX loader reads device memory straight
-into fragments and keeps a K loop and fragment loops, while flash-moe's kernel
-still copies tiles into threadgroup arrays behind barriers. The
+story. The tensor operation can take its operands as tensors in device or
+threadgroup memory and keep its result in a cooperative tensor, whose storage is
+spread across the threads' registers. How much of the staging of Chapter 11
+that removes depends on the kernel, and the two implementations below disagree:
+MLX's NAX loader reads device memory straight into fragments and keeps a K loop
+and fragment loops, while flash-moe's kernel still copies tiles into threadgroup
+arrays behind barriers. Apple's guidance takes MLX's side: its Metal Performance
+Primitives guide says threadgroup staging is not necessary for the fastest
+tensor-op matrix multiplies, and its M5 starting point is a 2 by 2 grid of
+simdgroups with a 32 by 32 output tile each. The
 descriptor-and-scope model replaces the multiply. By itself it does not replace
 the loader. Parts 4 and 5 describe the shape every shipped pre-NAX tiled matrix
 multiply uses; what you are reading here is the fork to watch.
@@ -86,8 +97,10 @@ The tile is still yours. `NAXTile` holds a grid of fragments sized by template
 parameters, `tile_matmad_nax` loops over that grid, and the fused kernel is
 instantiated for six tile shapes, four transpose combinations and three element
 types, the same enumeration as plain steel. Inside a fragment the lane mapping is
-explicit too: `get_coord()` computes which rows and columns each lane owns. What
-the library takes over is the multiply itself.
+explicit too: `get_coord()` computes which rows and columns each lane owns. That
+mapping is MLX's assumption, not an API promise; the specification calls a
+cooperative tensor's layout device specific. What the library takes over is the
+multiply itself.
 
 flash-moe's standalone kernel, `metal_infer/nax_gemm.metal`, about 230 lines,
 shows you the API without the framework. It declares an
@@ -100,11 +113,13 @@ of K copies the A and B tiles into threadgroup arrays, zero-filling past the
 matrix edges, waits at a barrier, and calls `run` on tensors that view those
 arrays.
 
-Its comments document the part that causes porters trouble. The tensor operations
-assume column-major layouts, so getting row-major language-model weights through
-them is layout work the descriptor does not hide, and the output comes back
-column-major too; the file ships a helper, `nax_extract_row0`, just to read the
-first row out.
+Its comments document the part that causes porters trouble. A Metal tensor lists
+its contiguous dimension first, with stride 0 fixed at 1, so a row-major M by K
+weight matrix is described as extents K by M with strides 1 and K and indexed
+column first, which reads as column-major to anyone used to NumPy shapes; get
+the order or the transpose flags wrong and the operation silently multiplies the
+transpose. The file treats this as column-major and ships a helper,
+`nax_extract_row0`, just to read the first row out.
 
 ## The fourth school against the other three
 

@@ -39,11 +39,22 @@ Two behavioral notes that differ from a modern SM:
   see [synchronization](../metal/synchronization.md).
 - **Scattered access is comparatively expensive.** Bank behavior is less forgiving
   than an SM's; the fast pattern is straight-line, contiguous, vectorized access.
+  Apple publishes no bank mapping but
+  [does give a rule](https://developer.apple.com/documentation/xcode/reducing-shader-bottlenecks):
+  align threadgroup allocations to 16 bytes, have neighboring threads in each
+  quad touch neighboring elements, and avoid many threads reading one location.
   Combined with cheap barriers, this is why Metal kernels look the way they do:
   simple coalesced staging, frequent syncs, no clever scatter tricks.
 
-There is no `cudaFuncAttributePreferredSharedMemoryCarveout` equivalent. The 32 KB
-cap is fixed. When a working set won't fit, the answer is almost always "keep more
-of it in registers," not "get more shared memory."
+There is no `cudaFuncAttributePreferredSharedMemoryCarveout` equivalent. Apple's
+[Feature Set Tables](https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf)
+fix the cap at 32 KB per threadgroup on every Apple-silicon GPU family, counting
+static `threadgroup` arrays and host-set `setThreadgroupMemoryLength` blocks
+(each a multiple of 16 bytes) together; query `maxThreadgroupMemoryLength` at
+run time rather than hard-coding it. The same tables give 1,024 threads per
+threadgroup as a theoretical maximum (a built pipeline reports its own, lower
+limit), 31 buffer argument slots, and 4 KB for `setBytes`. When a working set
+won't fit, the answer is almost always "keep more of it in registers," not "get
+more shared memory."
 
 Next: [Unified memory](unified-memory.md)

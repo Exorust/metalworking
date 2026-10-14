@@ -1,12 +1,18 @@
 # Unified Memory
 
 **Apple Silicon has one physical memory pool shared by CPU and GPU. There is no
-device memory, no host memory, and no transfer between them.**
+separate VRAM and no transfer across a bus between them.**
 
 CUDA equivalent: none, really. CUDA's "unified memory" (`cudaMallocManaged`) is a
 software illusion over PCIe with page migration; this is the actual thing. The
-same LPDDR silicon, the same physical addresses, zero-copy in both directions. A
-`MTLBuffer` and a NumPy array can be views of the same bytes.
+same LPDDR silicon, the same physical addresses, zero-copy in both directions.
+Buffers are CPU-visible by default (`storageModeShared` is the
+[default on Apple GPUs](https://developer.apple.com/documentation/metal/choosing-a-resource-storage-mode-for-apple-gpus));
+`storageModePrivate` still exists for GPU-only data. A `MTLBuffer` and a NumPy
+array can be views of the same bytes, in both directions: wrapping an existing
+allocation without a copy (`makeBuffer(bytesNoCopy:)`) requires a page-aligned
+pointer and length in one virtual-memory region, so a NumPy array usually needs
+an aligned allocation first.
 
 What this buys:
 
@@ -35,7 +41,12 @@ arithmetic tricks. For LLM inference, memory bandwidth predicts decode tokens/se
 almost linearly across chip tiers; check the spec sheet before profiling anything.
 
 Practical notes: not all of RAM is GPU-wirable by default, but a sysctl raises the
-ceiling (see [cheap tricks](../war-stories/cheap-tricks.md)); and because the pool
+ceiling (see [cheap tricks](../war-stories/cheap-tricks.md); the device reports
+its budget as `MTLDevice.recommendedMaxWorkingSetSize`, current use as
+`currentAllocatedSize`, and the separate per-buffer cap as `maxBufferLength`);
+Metal 4 residency sets let you make the weights resident once at load
+(`requestResidency()`) instead of paying that work at each commit; and because
+the pool
 is shared, GPU allocations compete with the OS and your browser tabs, which is why
 serious inference rigs treat the machine as an appliance.
 

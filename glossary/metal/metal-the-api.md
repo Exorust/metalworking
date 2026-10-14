@@ -35,8 +35,10 @@ this mostly means the documentation, tooling, and half the API surface
 (render passes, textures) are about someone else's problems, and the compute story
 is comparatively under-documented. That gap is why this glossary exists.
 
-**One device per box; the topology is between boxes.** No NVLink, no
-multi-GPU on one machine, no peer access; single-box scaling is
+**One device per Apple silicon Mac; the topology is between boxes.** The API
+can enumerate several GPUs and peer groups, a legacy of Intel Macs with discrete
+and external GPUs, but an Apple silicon machine has one: no NVLink, no second
+card, no peer access; single-box scaling is
 [buy more unified memory](../machine/unified-memory.md), not add cards. Across
 boxes, [mx.distributed over Thunderbolt 5 RDMA](../mlx/distributed.md) clusters
 Macs at microsecond latencies.

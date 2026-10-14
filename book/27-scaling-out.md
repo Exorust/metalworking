@@ -7,7 +7,7 @@ second card or an NVLink connection, because there is one GPU per Apple Silicon
 machine (Chapter 6), and inside one machine the way to scale is to buy more
 unified memory (Chapter 3). When your
 model does not fit in one machine, you go the other direction: `mx.distributed`
-runs it across several. With macOS 26.3 and Thunderbolt 5 the connection between
+runs it across several. With macOS 26.2 and Thunderbolt 5 the connection between
 them is remote direct memory access at microsecond latencies, so the lack of
 NVLink no longer ends the scaling story. The performance intuition you need was
 already built in Chapter 22.
@@ -22,28 +22,36 @@ node brings up to 512 GB of unified memory, so two Mac Studios hold a
 trillion-parameter model resident in GPU-addressable memory, which no single
 consumer NVIDIA card can do; a machine with such a card can still run the model
 by paging weights through host memory, slowly. Kimi K2, a trillion-parameter model running across two M3 Ultra
-machines through `mx.distributed`, is the public proof.
+machines through `mx.distributed`, is the public proof. Apple's own
+demonstration, in session 233 of WWDC 2026, runs Kimi 2.6 across four M3 Ultras:
+at 8 bits the weights alone are about a terabyte, which is why two machines need
+a narrower format.
 
 The pieces come from the MLX distributed documentation and session 233 of WWDC
 2026, and the first one you choose is the backend. `ring` runs over TCP on any
 network, works everywhere, and is slow. JACCL does RDMA over Thunderbolt 5, needs
-macOS 26.3 or later, and sits in the class of about 3 microseconds of latency.
+macOS 26.2 or later, and sits in the class of about 3 microseconds of latency.
 MLX's release notes track it as a fast-moving component: a standalone library,
 multi-ring refactors, and bandwidth improvements tied to macOS point releases.
 
 The API provides `mx.distributed.init()`, `all_sum`,
-`all_gather`, `send` and `recv`, and you launch it with `mlx.launch --hosts`. The
+`all_gather`, `send` and `recv`, and you launch it with `mlx.launch --hosts` or
+`--hostfile`. The
 lazy model of Chapter 16 carries over: communication operations are graph nodes,
 scheduled and overlapped with the rest of the graph. They are not Metal kernels,
 though. In the pinned MLX, every distributed primitive's GPU evaluator throws
 "has no GPU implementation", so the collectives run on the CPU stream and the
-overlap you get is between that stream and the GPU's.
+overlap you get is between that stream and the GPU's. Apple's own setup in
+session 233 of WWDC 2026 sets `MLX_METAL_FAST_SYNCH=1` on every node for exactly
+this reason: the GPU-to-CPU handoff is on every collective's path.
 
 The sharding strategies are the ones you know. Pipeline parallelism splits the
-layers across nodes, with one activation crossing per boundary per token, and
-suits decode's serial nature. Tensor parallelism splits the matrix multiplies
-across nodes, with collectives per layer; it runs over TCP, but it is only worth
-running over the RDMA path. Mixture-of-experts models shard naturally by expert
+layers across nodes, with one activation crossing per boundary per token; it
+lets a larger model run but, as Apple puts it, does not speed up inference,
+because each token still passes through the stages in order. Tensor parallelism
+splits the matrix multiplies across nodes, with collectives per layer; it is the
+MLX LM default, it runs over TCP, but it is only worth running over the RDMA
+path. Mixture-of-experts models shard naturally by expert
 placement, which is the placement question of Chapter 24.
 
 llama.cpp reached the same place independently: you choose `--split-mode layer`
@@ -67,10 +75,15 @@ The law of Chapter 3 still applies, and it tells you when a split pays. Put
 the time to stream a model's weights through one machine at W divided by B,
 bytes over bandwidth. A tensor split across p machines streams W divided by pB
 per machine and adds communication time T. Splitting wins only when T is less
-than the time it saved, W over B times (1 minus 1 over p). With links at tens
-of gigabytes per second against local memory in the hundreds, that condition
-is hard to meet for a model that fits in one machine, which is why the usual
-advice is that a cluster pays off when the alternative is not fitting at all.
+than the time it saved, W over B times (1 minus 1 over p). Over a TCP ring that
+condition is hard to meet for a model that fits in one machine. Over the RDMA
+mesh it can hold, because a decode step's collectives carry only a hidden-size
+vector per layer, so T is roughly the per-collective latency times the number
+of collectives, against tens of milliseconds of weight streaming saved. Apple's
+demonstration in session 233 of WWDC 2026 runs a 27-billion-parameter model,
+which fits on one M3 Ultra, at nearly three times the single-machine token rate
+on four of them with tensor parallelism. Measure T on your link before deciding
+the split cannot pay.
 
 "Not fitting" needs care too: Chapter 24's flash-moe runner serves a 209 GB
 model from 128 GB of RAM by streaming experts from disk, so one machine can
@@ -106,9 +119,15 @@ machine, with its own operating system, its own wired-memory ceiling (Chapter
 ## Setup realities
 
 You need to know three things before you buy cables. RDMA over Thunderbolt must be enabled
-once from the Recovery environment. JACCL wants the Thunderbolt 5 mesh wired
-directly, with no hub. The order of hosts in the `hostfile` defines the ring.
-For the cables, the Recovery step and the host file, follow the public write-up
+once on every machine, followed by a reboot: a System Settings toggle, Enable
+RDMA over Thunderbolt, in session 233, or `rdma_ctl enable` from the Recovery
+environment's Terminal on macOS 26 builds without that pane. JACCL runs over
+Thunderbolt 5 links wired directly between machines, as a full mesh
+(`--backend jaccl`, lowest latency) or a ring (`--backend jaccl-ring`, fewer
+cables), and `mlx.distributed_config` probes the ports, writes the host file
+and, with `--auto-setup`, configures each link for RDMA. The order of hosts in
+the `hostfile` defines the ring. For the cables, the enabling step and the host
+file, follow the public write-up
 of clustering two Mac Studios for local inference, listed in the book's sources;
 it walks a real build end to end.
 
@@ -132,9 +151,10 @@ it walks a real build end to end.
    time is dominated by weight streaming rather than by waiting on the link,
    fits it well.
 2. When the communication time is less than the streaming time saved: with two
-   machines, less than half of the single-machine time W over B. Thunderbolt's
-   tens of gigabytes per second against local memory's hundreds make that
-   saving small relative to the collectives a tensor split needs per layer.
+   machines, less than half of the single-machine time W over B. Over TCP the
+   per-layer collectives usually cost more than that; over the RDMA mesh, where
+   each decode collective is a small latency-bound message, the condition can
+   hold, and Apple shows about three times on four machines for a 27B model.
 3. A trillion parameters at 2 bytes each is 2 times 10 to the 12 bytes, 2 TB.
    Two machines at 512 GB hold 1,024 GB, about half. So the weights were
    quantized (Chapter 23). Raw 8-bit codes would take 1,000 GB and leave 24 GB,

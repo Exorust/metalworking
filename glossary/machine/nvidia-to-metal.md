@@ -60,13 +60,15 @@ The last column uses three words:
 | Matrix unit | Tensor Core | none before M5, where [`simdgroup_matrix`](../metal/simdgroup-matrix.md) runs on the regular FP32 pipes; [neural accelerators](neural-accelerators.md) on M5 | Unlearn before M5 |
 | Reason to use 16-bit floats | unlocks Tensor Core throughput | [shorter stalls and half the register pressure](f16.md) | Resized: same advice, different reason |
 | Fast exponent | the SFU's `MUFU.EX2` | [`fast::exp2`](special-paths.md) | Transfers |
-| Float atomics | `atomicAdd(float*)` is a cheap hardware instruction | [emulated](special-paths.md) | Unlearn |
+| Float atomics | `atomicAdd(float*)` is a cheap hardware instruction | `atomic_float` exists (Metal 3, device memory only before Metal 4.1) but is [slow](special-paths.md) | Unlearn |
 | Copy engine that overlaps with compute | `cp.async` / TMA | [in the hardware but not exposed](../metal/simdgroup-async-copy.md); the Metal 4 compiler rejects it | Unlearn |
 | Cost of a block-wide barrier | high enough that avoiding `__syncthreads()` is an optimization | [~2 cycles](../metal/synchronization.md) | Unlearn: barriers are nearly free |
 | Largest part | datacenter GPU (H100) | laptop and desktop chip (M5 Max, 40 cores); there is no datacenter part | An H100 wins on raw FLOPs; Apple wins on memory capacity and efficiency |
 | More than one GPU | NVLink inside one chassis | one device per machine; [Thunderbolt 5 RDMA](../mlx/distributed.md) between machines | Unlearn |
 
-None of the Apple numbers come from Apple. The community measured them, chiefly in
+Apart from the 32 KB threadgroup-memory cap, which is Apple's published limit
+(Metal Feature Set Tables), none of the Apple numbers come from Apple. The
+community measured them, chiefly in
 [philipturner/metal-benchmarks](https://github.com/philipturner/metal-benchmarks).
 
 ## The kernel code
@@ -80,9 +82,9 @@ that you can read one if you can read the other.
 | `__global__ void f(...)` | `kernel void f(...)` | [MSL](../metal/msl.md) |
 | `threadIdx`, `blockIdx`, `blockDim` | attribute-tagged parameters such as `[[thread_position_in_threadgroup]]` | [MSL](../metal/msl.md) |
 | `__shared__ float s[N];` | `threadgroup float s[N];` | [Threadgroup memory](threadgroup-memory.md) |
-| `__launch_bounds__(n)` | `__attribute__((max_total_threads_per_threadgroup(n)))` | [Registers](registers.md) |
+| `__launch_bounds__(n)` | `[[max_total_threads_per_threadgroup(n)]]` | [Registers](registers.md) |
 | `__syncthreads()` | `threadgroup_barrier(mem_flags::mem_threadgroup)` | [Synchronization](../metal/synchronization.md) |
-| `__syncwarp()` | `simdgroup_barrier(mem_flags::mem_none)` | [Synchronization](../metal/synchronization.md) |
+| `__syncwarp()` | `simdgroup_barrier(mem_flags::mem_threadgroup)`; `mem_none` is an execution barrier with no memory fence | [Synchronization](../metal/synchronization.md) |
 | `wmma` fragments, `mma.sync` | `simdgroup_matrix`, in 8×8 tiles | [simdgroup_matrix](../metal/simdgroup-matrix.md) |
 | `cp.async` | no supported equivalent | [simdgroup_async_copy](../metal/simdgroup-async-copy.md) |
 | TMA plus `wmma` descriptors | `MTLTensor` and MPP (Metal 4) | [MTLTensor and MPP](../metal/mtltensor-and-mpp.md) |
@@ -99,8 +101,8 @@ that you can read one if you can read the other.
 | nvcc | the `metal` frontend (`xcrun metal`), or compile at runtime | [Compilation pipeline](../metal/compilation-pipeline.md) |
 | PTX | AIR, Apple's portable intermediate representation | [Compilation pipeline](../metal/compilation-pipeline.md) |
 | fatbin | metallib | [Compilation pipeline](../metal/compilation-pipeline.md) |
-| cubin, SASS | the GPU binary inside a pipeline state, always built on the user's machine | [Compilation pipeline](../metal/compilation-pipeline.md) |
-| Nsight Compute | nothing comparable | [Profiling](../metal/profiling.md) |
+| cubin, SASS | the GPU binary inside a pipeline state, built on the user's machine by default (binary archives can ship it per GPU) | [Compilation pipeline](../metal/compilation-pipeline.md) |
+| Nsight Compute | Xcode's Metal debugger and Instruments, which cannot run inside a scripted loop | [Profiling](../metal/profiling.md) |
 | `cuobjdump`, `nvdisasm` | applegpu, a community disassembler | [Disassembly](../metal/disassembly.md) |
 
 ## The libraries
@@ -127,8 +129,8 @@ The rows marked Unlearn and Resized become these habits:
    [10× slower](../techniques/register-blocking.md) in the measured case.
 2. **Use barriers freely.** A barrier costs ~2 cycles, so choose the algorithm with
    the cleaner staging pattern even if it [syncs more often](../metal/synchronization.md).
-3. **Do not accumulate with float atomics.** They are
-   [emulated](special-paths.md), and kernels that depend on them need a different
+3. **Do not accumulate with float atomics.** They exist but are
+   [slow](special-paths.md), and kernels that depend on them need a different
    structure.
 4. **Do not plan on copy and compute overlap.** Without `cp.async`, tiles move by
    [cooperative loads](../techniques/cooperative-load.md), and

@@ -25,7 +25,7 @@ operations, though Metal groups them under one API.
 | CUDA C++ | the Metal Shading Language, MSL | this chapter |
 | nvcc, PTX, cubin, JIT | the metal compiler, AIR, a metallib, pipeline states | this chapter |
 | template instantiation per configuration | templates plus function constants | Chapter 8 |
-| NVRTC | `makeLibrary(source:)`, run-time compilation of a source string | this chapter |
+| NVRTC | `makeLibrary(source:options:)`, run-time compilation of a source string | this chapter |
 | cuBLAS, cuDNN | MPS, with caveats | Chapter 9 |
 | Nsight Compute | nothing comparable | Chapter 9 |
 
@@ -61,8 +61,9 @@ and views the output buffer after the command buffer completes.
 ## The language: CUDA C++ with an accent
 
 How far is the kernel language from the CUDA C++ you already write? MSL is the
-C++ dialect that Metal kernels are written in: C++14 with GPU address spaces,
-kernel attributes, and a SIMD standard library. If you can read CUDA C++ you can
+C++ dialect that Metal kernels are written in: C++17 from Metal 4 on, C++14
+before that, with GPU address spaces, kernel attributes, and a SIMD standard
+library. If you can read CUDA C++ you can
 read it. Here is the signature of the kernel this book follows.
 
 ```metal
@@ -91,7 +92,7 @@ Read it against CUDA.
 | pointer arguments | address-spaced pointers: `device` for global memory, `constant` for uniform cached data, `threadgroup`, `thread` |
 | `threadIdx`, `blockIdx`, `blockDim` | attribute-tagged parameters: `[[thread_position_in_threadgroup]]`, `[[threadgroup_position_in_grid]]`, `[[threads_per_threadgroup]]`, `[[thread_position_in_grid]]` |
 | `__shared__ float s[N];` | `threadgroup float s[N];`, in the kernel, static size |
-| `__launch_bounds__(n)` | `__attribute__((max_total_threads_per_threadgroup(n)))`, Chapter 1 |
+| `__launch_bounds__(n)` | `[[max_total_threads_per_threadgroup(n)]]`; the kernel above uses the `__attribute__` spelling, Chapter 1 |
 | `#pragma unroll` | `#pragma clang loop unroll(full)` |
 | `-D` compile defines | the same, plus function constants for specialization after compilation, Chapter 8 |
 
@@ -117,14 +118,18 @@ MLX's whole steel library is built, Part 5; `half` and `bfloat` as first-class
 types with `vec<T, N>` vectors; the `simdgroup_matrix` types of Chapter 12; and a
 `fast::` math namespace that gives you fast math per call, such as the
 `fast::exp2` of Chapter 5, in addition to the whole-program fast-math option,
-which is on by default.
+which is on by default. Fast math lets the compiler assume no value is ever INF
+or NaN, which a masked softmax that writes minus infinity violates; the
+`mathMode` compile option, or `-fmetal-math-mode=relaxed`, keeps the speed while
+honoring both.
 
 Coming from CUDA, you will find several things missing: no printf-debugging culture to speak of (it
-exists, and it is painful); no cooperative groups beyond the simdgroup and threadgroup barriers of Chapter
+exists since Metal 3.2 as `os_log`, and it is painful); no cooperative groups beyond the simdgroup and threadgroup barriers of Chapter
 1; no dynamic parallelism, though a kernel can write a later dispatch's grid size
 for an indirect dispatch to read; no sizing of threadgroup memory from inside
-the kernel, since the host sets it with `setThreadgroupMemoryLength` or you declare
-it statically; and no inline assembly equivalent to PTX. There used to be one
+the kernel, since the host sets it with `setThreadgroupMemoryLength`, in
+multiples of 16 bytes, or you declare it statically, and static and dynamic
+together must fit the device's `maxThreadgroupMemoryLength`; and no inline assembly equivalent to PTX. There used to be one
 escape hatch, compiler intrinsics reached through inline-assembly linkage,
 `__asm("air.*")`, and Metal 4 closed it; Chapter 14 tells that story.
 
@@ -142,7 +147,7 @@ PTX. Where does Metal make it? Here is the compilation path, stage by stage agai
 | CUDA C++ | MSL | |
 | nvcc | the `metal` frontend, `xcrun metal`, or compilation at run time | |
 | PTX | AIR, Apple's intermediate representation, based on LLVM bitcode | portable across GPU generations |
-| cubin, SASS | the GPU binary inside a pipeline state | built on the device at pipeline creation; a binary archive can cache that device's build between runs |
+| cubin, SASS | the GPU binary inside a pipeline state | built on the device at pipeline creation by default; a binary archive can carry prebuilt slices per GPU |
 | a fatbin, or JIT from PTX | a metallib, loaded as a `MTLLibrary`; get a `MTLFunction` by name; make a `MTLComputePipelineState` from it | the on-device compile is the normal path |
 | the `-arch=sm_90` matrix | nothing | AIR is finalized per device when the pipeline is created |
 
@@ -157,10 +162,14 @@ The difference every later chapter depends on: creating the pipeline state
 turns AIR into instructions for your GPU. The normal path to machine code runs on the device. You can and should compile MSL to a
 metallib ahead of time for application startup, but the last step, from AIR to the
 instruction set of the GPU in the machine, happens inside the call that makes the
-pipeline state. Metal does offer binary archives, but they are a cache of a binary already
-built on that machine for that GPU and OS build, not a portable cubin: Draw
-Things' MFA uses one and falls back to compiling on a miss, MLX does not use one,
-and the applegpu compile tool of Chapter 26 builds one to get at the binary. Two
+pipeline state. Metal also offers binary archives. An app can record one on the
+device, or build one ahead of time with Apple's Metal translator, `metal-tt`,
+which compiles AIR for a list of GPU generations; each archive holds one slice
+per GPU plus the AIR, and Metal recompiles the AIR when the archive
+misses or an OS update invalidates a slice. So an archive is a shipped cache
+keyed to GPU and OS, not a portable cubin: Draw Things' MFA uses one and falls
+back to compiling on a miss, MLX does not use one, and the applegpu compile tool
+of Chapter 26 builds one to get at the binary. Two
 consequences follow.
 
 First, pipeline creation is the expensive step, and it is a host-side call. Create
@@ -175,9 +184,10 @@ compile. That is what Chapter 8 is about: values the final compiler treats as
 literals, so that branches on them disappear from the binary instead of being
 evaluated at run time.
 
-Compiling a source string at run time is a first-class workflow. `device.makeLibrary(source:)` compiles an MSL string through the same
+Compiling a source string at run time is a first-class workflow. `device.makeLibrary(source:options:)` compiles an MSL string through the same
 backend as the offline compiler, and the m5-gemm README measured no performance
-difference between the two with `-O3 -ffast-math`. This is why
+difference between the two with `-O3 -ffast-math`, which the specification
+predicts, since run-time compilation already defaults to fast math. This is why
 metal-flash-attention generates its kernels as Swift strings, Chapter 21, MLX
 compiles specialized kernels at run time, Chapter 17, and a Python harness
 needs no Xcode at all.
@@ -210,7 +220,8 @@ it.
 
 1. A metallib holding AIR, the portable intermediate representation. On the
    normal path, the machine code is made on the user's device when the pipeline
-   state is created. A binary archive can cache that device's build between runs.
+   state is created. A binary archive, recorded on the device or built offline
+   with `metal-tt`, can supply the GPU binary instead.
 2. In the host-side call that creates the pipeline state, before any dispatch.
    The GPU timestamps bracket GPU execution of one command buffer, so they
    exclude it by construction; the harness also creates its pipelines before the

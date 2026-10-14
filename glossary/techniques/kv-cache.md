@@ -48,6 +48,10 @@ world exists on Metal: the official vLLM plugin ships a paged varlen
 attention kernel, and MTPLX carries a
 [paged-attention Metal kernel family](https://github.com/youssofal/MTPLX/tree/ed1c8eea501689b744c13bec6a99ee2d36d26ab5/vllm_metal/metal/kernels_v2)
 (`pagedattention.metal`, `reshape_and_cache.metal`, `gather_kv_cache.metal`).
+Metal 4 offers a third option the pinned projects do not use: a
+[placement sparse buffer](https://developer.apple.com/documentation/metal/mtldevice/makebuffer(length:options:placementsparsepagesize:))
+(M2 and later), whose pages you map from a placement heap on demand, so the
+kernel sees one contiguous cache while memory is committed block by block.
 Serving-grade batching is its own topic; for single-user decode, the
 contiguous cache plus the [split-KV decode
 kernels](../techniques/decode-vs-prefill.md) is the whole story.

@@ -12,10 +12,12 @@ through the scratch memory without staying there.
 
 ## Three memories, measured
 
-Before you build on the numbers below, know where they come from: none of them
-come from Apple. The community measured them, chiefly in
-philipturner's metal-benchmarks, on M1- and M2-class chips (Apple GPU families 7
-and 8). The glossary and this book use them as the design budget for every M-series
+Before you build on the numbers below, know where they come from. One of them
+is Apple's: the 32 KB that any one threadgroup may use is a published limit, the
+same on every Apple GPU family from M1 through M5, and
+`maxThreadgroupMemoryLength` reports it at run time. The rest do not come from
+Apple. The community measured them, chiefly in philipturner's metal-benchmarks,
+on M1- and M2-class chips (Apple GPU families 7 and 8). The glossary and this book use them as the design budget for every M-series
 chip. That is an assumption: on M3 and later, a feature Apple calls Dynamic Caching
 allocates the per-core memories on demand from one pool, and the sources hold no
 measurement of its effect on these limits.
@@ -46,7 +48,9 @@ patch of the output, and each simdgroup owns a 32 by 32 quarter of it.
 
 A 32 by 32 patch of 32-bit floats is 1,024 values, which is 4 KB. Spread over the
 32 threads of the simdgroup, that is 32 floats per thread, 128 bytes of register
-payload per thread, held for the whole life of the kernel. Four simdgroups hold
+payload per thread, held for the whole life of the kernel. Apple's spec leaves
+the assignment of matrix elements to lanes unspecified; the even two-per-lane
+split is what current hardware does, not a promise. Four simdgroups hold
 16 KB of accumulators between them, and none of it ever touches the scratch memory.
 That figure is the accumulator payload only. Input fragments, addresses, loop
 counters and epilogue temporaries also live in registers, and the compiler decides
@@ -90,7 +94,10 @@ staged, consumed and replaced on every iteration.
 Two behaviors of the scratch memory keep kernels in this shape. Scattered access to
 it is comparatively expensive, and the fast pattern is straight-line, contiguous,
 vectorized access. The sources give no bank mapping, so treat this as a rule of
-thumb and measure it yourself. The barrier instruction itself is nearly free on this hardware,
+thumb and measure it yourself. Apple's own guidance points the same way without
+a mapping: align threadgroup allocations to 16 bytes, have neighboring threads
+in each group of four touch neighboring elements, and avoid many threads reading
+one location. The barrier instruction itself is nearly free on this hardware,
 so the two barriers per iteration cost almost nothing beyond the time spent waiting
 for the slowest simdgroup; Chapter 7 gives the measured instruction cost. Kernels
 therefore stage with simple coalesced copies, put a barrier at every hazard, and
@@ -126,7 +133,11 @@ and only the compiler's output shows where that share runs out (Chapter 26).
 The number is a measurement; Chapter 12 reads the loop it came from.
 
 When an Apple kernel is unexpectedly slow, suspect spills first, the way you would suspect uncoalesced loads first on NVIDIA. Confirming
-them takes the compiler's output, and Chapter 26 shows how to read it. Two levers
+them for certain takes the compiler's output, and Chapter 26 shows how to read
+it. A cheaper first sign is Apple's: spilled values travel to device memory and
+back, so they show up as unexplained activity in the Metal debugger's buffer
+read and write counters, and Apple warns that indexing a thread-local array with
+a run-time index has the same effect. Two levers
 reduce register pressure, and both appear in the kernels this book reads. The
 first is the attribute above, which lets the allocator commit to a per-thread
 budget for the real threadgroup size. The second is 16-bit values, which halve

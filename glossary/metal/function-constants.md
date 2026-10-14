@@ -1,16 +1,20 @@
 # Function Constants
 
-**Function constants are values bound at pipeline-creation time that the final
-compile treats as literals: Metal's mechanism for specializing one shipped kernel
-into many optimized variants.**
+**Function constants are values bound when you ask a library for a specialized
+function, which the final compile at pipeline creation treats as literals:
+Metal's mechanism for specializing one shipped kernel into many optimized
+variants.**
 
 CUDA equivalent: the *effect* of template instantiation or JIT-compiling per
 configuration, without paying for either. CUDA specialization means compiling many
 kernels (fatbins full of template instantiations) or NVRTC at runtime. Metal's
-[compilation pipeline](compilation-pipeline.md) always finishes on-device, so it
-can afford a middle path: ship *one* AIR function with declared constant slots,
-bind values when building the pipeline state, and let the backend compiler fold
-them, resolving branches and deleting dead code before the GPU ever sees it.
+[compilation pipeline](compilation-pipeline.md) finishes on-device by default,
+so it can afford a middle path: ship *one* AIR function with declared constant
+slots, bind values to the slots with `MTLFunctionConstantValues` when asking the
+library for a specialized function (`makeFunction(name:constantValues:)`), and
+let the backend compiler fold them when the pipeline state is built, resolving
+branches and deleting dead code before the GPU ever sees it. A value bound to a
+constant index the function does not declare is silently ignored.
 
 The canonical use, from MLX's fused GEMM:
 

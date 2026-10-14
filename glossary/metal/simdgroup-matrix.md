@@ -40,13 +40,21 @@ Rules of use, all matching your `wmma` instincts:
 - **Types:** `simdgroup_float8x8`, `simdgroup_half8x8`, `simdgroup_bfloat8x8`.
   [F16 fragments halve the register cost](../machine/f16.md); serious kernels take
   16-bit inputs and [accumulate in fp32](../machine/f16.md).
+- **Uniform control flow only.** The spec says every `simdgroup_matrix`
+  operation must be reached by the whole simdgroup; a per-lane branch around a
+  load, store or multiply is undefined behavior, so edge guards must be uniform
+  across the simdgroup. The spec also leaves the element-to-lane mapping
+  unspecified; `thread_elements()` is a header member, not documented API.
 
 **On M5, this story forks.** The M5 generation adds a real per-core matrix
 unit (the [neural accelerators](../machine/neural-accelerators.md)) reached
 through [Metal 4 tensor ops](mtltensor-and-mpp.md), with Apple reporting
-multi-x prefill gains. `simdgroup_matrix` remains the portable primitive: it
-runs on every M-series chip, and it is still what most shipped kernels use.
-Read this page as the baseline; the NAX pages cover the fork.
+multi-x prefill gains. `simdgroup_matrix` remains the primitive most shipped
+kernels use and the one that runs on macOS releases before 26. Both it and
+tensor ops reach every M-series chip (GPU family Apple7 and later); Apple's
+specification now recommends tensors and MPP as the portable path, while
+measured gains so far appear only on M5. Read this page as the baseline; the
+NAX pages cover the fork.
 
 Everything above `simdgroup_matrix` is composition: MLX's
 [`BlockMMA`](../kernels/steel-blockmma.md) tiles these 8×8 fragments into

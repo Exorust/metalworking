@@ -184,7 +184,7 @@ Source: [MLX `scaled_dot_product_attention.cpp:796-803`](https://github.com/ml-e
 
 Training falls back to the unfused graph. The one open-source backward on the
 platform, metal-flash-attention's split dQ and dK, dV design, forced by the
-emulated float atomics of Chapter 5, ships in the Draw Things application rather
+slow float atomics of Chapter 5, ships in the Draw Things application rather
 than in a framework. If you are looking for the ecosystem's most valuable
 unwritten kernel, it is this one.
 

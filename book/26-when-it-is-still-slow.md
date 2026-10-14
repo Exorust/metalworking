@@ -8,16 +8,21 @@ differential benchmarking, and the hygiene rules carry most kernels to an
 answer. Yours did not. Changing one thing at a time has not found the lever either. What
 remains is the third step in Chapter 9's list, disassembly when the arithmetic
 says impossible, and it is the last resort: reading what the compiler emitted.
-Apple ships no tool for that. You do it with the reverse-engineered applegpu
-toolchain, which is also how the community learned most of what Part 1 reported.
+Apple ships no disassembler. The closest Apple tool is the Metal debugger's
+shader cost graph, M3 and later, which breaks each source line into executed
+instructions by type next to the shader's compiler statistics; check it first,
+because it is supported. For the instructions themselves you use the
+reverse-engineered applegpu toolchain, which is also how the community learned
+most of what Part 1 reported.
 
 ## What you have, compared with CUDA
 
 On NVIDIA, you read SASS with `cuobjdump` and `nvdisasm`, the vendor documents the tool,
 and about half of the instruction set is documented. Here the community reverse engineered the instruction set of
 the Apple G13 family, the M1 generation, with coverage of later generations
-growing, and the on-device final compile of Chapter 6 means that the binary you inspect was built on your own
-machine, for your chip, from your source.
+growing, and on the normal path the on-device final compile of Chapter 6 means that the binary you inspect was built on your own
+machine, for your chip, from your source; Apple's `metal-tt` can also build
+slices for other GPU generations offline.
 
 The toolchain lives at the pinned commit of dougallj/applegpu, and you start with
 `compiler_explorer.py`, which takes Metal Shading Language and prints
@@ -46,14 +51,21 @@ The first find is register spills you did not know you had. The cliff of
 Chapter 2 shows up here as loads and stores wrapped around arithmetic that should
 have been register-only. It is the single most common finding.
 It is why the attribute of Chapter 12 and the 16-bit rule of Chapter 4 exist.
+On M3 and later, check the counters before the disassembly: registers and
+threadgroup memory are allocated from the L1 cache there, and the Metal
+debugger's Occupancy Manager Target and L1 Eviction Rate counters show the GPU
+cutting occupancy to keep that data on chip, or evicting it, which is the
+counter-side signature of a spill.
 
 Next in frequency come loops that did not unroll the way the source suggests. The
 matrix multiply of Part 4 asks for its fragment loop and its load loop to become
 straight-line code: the bounds are compile-time constants and the loops carry a
 full-unroll pragma. A compiler can still decline, or unroll partially and leave a
 remainder loop, and when it does the kernel pays loop overhead and loses some of
-the scheduling freedom of Chapter 4. The disassembly is the only place you can
-see which happened.
+the scheduling freedom of Chapter 4. On an M3 or later Mac, the Metal
+debugger's per-line count of executed instructions and its loop detection can
+show which happened; on older chips, or when you need the instructions
+themselves, the disassembly is the place to look.
 
 Last come instruction-selection surprises. Expect one every time you look.
 

@@ -61,7 +61,9 @@ This is the complete timing code in the m5-gemm harness.
 ```
 Source: [m5-gemm `metal.py:139-143`](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/metal.py#L139-L143)
 
-The granularity is the command buffer, Chapter 7, which sets three rules.
+These two properties give command-buffer granularity, Chapter 7; counter sample
+buffers and Metal 4's counter heaps can timestamp single encoders, but the
+command buffer is the simplest unit, and it sets three rules.
 Isolate what you are measuring in its own command buffer, so the time contains
 nothing else. Create the pipeline state before the timed loop, Chapter 6, so that
 compilation never lands in a timing, and discard the first runs, which start with
@@ -80,11 +82,15 @@ floating point operations, so 4096 by 4096 is 2 × 4096³ = 137.4 GFLOP, and
 
 ## What else exists, and why it is not the feedback loop
 
-Is there no profiler at all, then? Xcode's GPU capture, the Metal Debugger, is the closest thing to a real profiler:
-per-encoder timings, an occupancy estimate, memory-bandwidth counters, shader
-profiling. Capture can be started from code, which the
-m5-gemm harness does through `MTLCaptureManager`, but reading its counters is a
-GUI job, so there is no scripted regression check on them. And capture perturbs
+Is there no profiler at all, then? Xcode's Metal debugger, which replays a captured GPU trace, is the closest thing to a real profiler:
+per-encoder timings, measured occupancy counters plus each shader's maximum
+theoretical occupancy, memory-bandwidth and limiter counters, and per-line
+shader profiling; Instruments records the same counter families on a live run.
+Capture can be started from code, which the m5-gemm harness does through
+`MTLCaptureManager` with `MTL_CAPTURE_ENABLED=1` in the environment, and it
+can write a `.gputrace` file that Apple's `gpudebug` command-line tool opens
+from a script, but the counter views are built for Xcode, so there is no
+scripted regression check on them yet. And capture perturbs
 heavily on big machine-learning workloads: inference projects report slowdowns of 50 to 100
 times and traces of several gigabytes. You can use it to study one dispatch,
 but not as a feedback loop.
@@ -98,11 +104,13 @@ conversion from bf16 scale and bias values, a 93.4 percent L1 hit rate, and 2.4
 percent GPU utilization, 747 microseconds of GPU time in a 31.5 millisecond
 step, which told them their model was bound by input and output, not by compute.
 
-This is changing: macOS 27 adds always-on performance metrics, a
-`metalperftrace` command-line tool, and a state-reporting API, announced in
-session 388 of WWDC 2026, which would give this platform its first scriptable
-hardware-counter loop; the timestamp loop above is scriptable already. Until that
-ships and proves itself, use timestamps and change one thing at a time.
+Apple is adding more. In macOS 27 the system records Metal performance metrics
+all the time, a `metalperftrace` command-line tool summarizes them with JSON
+output, and a StateReporting API labels what the app was doing, announced in
+session 388 of WWDC 2026. Those metrics are frame-level ones, frames per
+second, GPU time and memory per Metal layer, aimed at games, not per-kernel
+hardware counters, so for a compute harness the timestamp loop above stays the
+feedback loop. Use timestamps and change one thing at a time.
 
 ## The methodology
 
@@ -122,9 +130,14 @@ The third is disassembly when the arithmetic says impossible. The
 reverse-engineered applegpu tools show what the compiler emitted. They are the
 tool of last resort for hunting spills, Chapter 26.
 
-The fourth is hygiene, because no tool will catch you. Decide how you handle
-clocks: in one measured case, locking the fans changed the long-run throughput
-decay from 50 percent to 6.7 percent, Chapter 25. Report end-to-end numbers next
+The fourth is hygiene, because no tool will catch you. Before you trust a
+correctness check, run the harness once with `MTL_SHADER_VALIDATION=1`, which
+instruments every kernel to catch out-of-bounds reads and writes, and once with
+`MTL_DEBUG_LAYER=1` for API misuse; never time with either on. Decide how you
+handle clocks: Apple's profiler can pin the GPU performance state for a capture,
+and for the timestamp harness you control it yourself. In one measured case,
+locking the fans changed the long-run throughput decay from 50 percent to 6.7
+percent, Chapter 25. Report end-to-end numbers next
 to kernel numbers, because a synthetic win that vanishes end to end is the common
 failure that Chapter 25 describes. And state the matrix sizes, because the winner
 flips with size, Chapter 14.
@@ -155,10 +168,11 @@ TFLOPS at 4096 by 4096.
    runs, and take several trials.
 2. Yes. MPS is 11.7, so 12 beats the baseline at that shape. At 11 it does not,
    and the rule is to ship MPS.
-3. Because its counters can only be read in the GUI, even though a capture can
-   be started from code, and because capturing a large machine-learning
-   workload perturbs it by 50 to 100 times and produces traces of
-   several gigabytes, so it cannot run on every change the way a benchmark can.
+3. Because capturing a large machine-learning workload perturbs it by 50 to 100
+   times and produces traces of several gigabytes, so it cannot run on every
+   change the way a benchmark can, and because its counter views are built for
+   Xcode rather than for a script, even though a capture can be started from
+   code and a saved trace can be opened from the command line.
 
 A time and a rate are not yet a verdict; the next chapter builds the chart that
 turns them into one.

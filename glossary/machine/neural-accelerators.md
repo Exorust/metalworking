@@ -10,8 +10,9 @@ pre-M5 story on purpose: [`simdgroup_matrix`](../metal/simdgroup-matrix.md)
 executes on the regular FP32 pipes, and the reverse-engineered
 [Rigel](https://arxiv.org/abs/2606.12765) work confirmed no dedicated matrix
 datapath as late as M4. On M5 that changed. Apple's own numbers for MLX on M5:
-[~3.97× time-to-first-token and 1.19-1.27× decode over
-M4](https://machinelearning.apple.com/research/exploring-llms-mlx-m5), with
+[3.3-4.1× time-to-first-token and 1.19-1.27× decode over M4 across six models
+at a 4,096-token prompt](https://machinelearning.apple.com/research/exploring-llms-mlx-m5),
+with
 the prefill gain landing exactly where a matrix unit should land
 ([compute-bound](../techniques/arithmetic-intensity.md) territory; decode
 stays [bandwidth-bound](unified-memory.md), so it moves with the memory spec
@@ -38,7 +39,10 @@ intrinsics.
   [mxfp4/nvfp4/mxfp8 quantization modes](../mlx/quantization.md) arrived with
   this unit and have NAX kernels, though the pinned ones dequantize to 16-bit
   before loading tiles; the
-  [fp8-is-emulated caveat](f16.md) is an M4-era fact.
+  [fp8-is-emulated caveat](f16.md) is an M4-era fact. From macOS 27 a quantized
+  `MTLTensor` can carry its E8M0 scales as a second plane and TensorOps
+  dequantize on the way in ([WWDC26 330](https://developer.apple.com/videos/play/wwdc2026/330/)),
+  so that 16-bit step may be a stopgap.
 - **It is not programmed like a tensor core.** No `mma.sync` descent: you
   describe a matmul with a descriptor and cooperative tensors, and the
   compiler and hardware pick the datapath. The

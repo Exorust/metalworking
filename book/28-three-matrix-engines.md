@@ -16,8 +16,8 @@ program them, and the third is the new one.
 
 ![One die, three matrix engines: the CPU cluster with AMX, the GPU cores, and the Neural Engine, sharing the unified memory fabric, each reachable through a different API](../diagrams/three-engines.svg)
 
-*Where the engines sit. Three share one bandwidth budget; Metal talks to the
-middle one, and the API rows at the bottom are the only ways to reach each.*
+*Where the engines sit. Three share one bandwidth budget; Metal shaders run on
+the middle one, and the API rows at the bottom are the only ways to reach each.*
 
 **AMX, on the CPU.** When Accelerate beats your GPU kernel on a small matrix,
 AMX is often the reason. It is Apple's undocumented CPU matrix coprocessor,
@@ -26,7 +26,7 @@ performance, and it explains small-matrix CPU throughput that NEON alone could
 not deliver. There is
 no CUDA counterpart; the closest analogies are Intel's AMX and ARM's SME, toward
 which Apple's AMX has been evolving. The point for you is negative:
-when you benchmark Apple's Accelerate, BNNS or MPS small-matrix performance and
+when you benchmark Apple's Accelerate or BNNS small-matrix performance and
 the numbers look too good for a CPU, you are not looking at the CPU's NEON units.
 You are looking at a dedicated multiply-accumulate grid hanging off the CPU
 cluster, fed by its own register pools, executing an outer product per
@@ -56,7 +56,13 @@ can cut the bandwidth a bandwidth-bound GPU kernel achieves.
 
 **The Neural Engine.** The third engine is also undocumented, and you can reach it
 only through Apple's model frameworks or private interfaces. It delivers about 6.6
-TFLOPS per watt against about 1 for the GPU (Chapter 25). Metal does not talk to it.
+TFLOPS per watt against about 1 for the GPU (Chapter 25). No shader you write
+runs on it. You reach it through Core ML, Core AI or MPSGraph, or through a
+Metal 4 machine learning pass, which runs a converted Core ML model on the Metal
+command timeline and lets the system place it on the GPU or the Neural Engine;
+you do not get to choose. Core AI, new in macOS 27, makes the preference
+explicit with a `ComputeUnitKind`, and its `ComputeStream` can encode inference
+onto your own command queue.
 
 **The GPU's own matrix unit, from M5.** The M5 generation adds a dedicated matrix
 unit to every GPU core: the neural accelerators, NAX in MLX's source, reached
@@ -68,9 +74,11 @@ the first real Tensor Core counterpart on the GPU.
 What did M5 add under your kernels? The `simdgroup_matrix` kernels of the
 earlier chapters execute on the regular 32-bit pipes, and the reverse-engineered Rigel work
 confirmed no dedicated matrix datapath as late as M4. On M5 that changed, and
-Apple's own numbers for MLX on M5 say where: about 3.97 times faster time to
-first token and 1.19 to 1.27 times faster decode than M4, end-to-end numbers
-that fold in everything else that changed between the chips. The prefill gain
+Apple's own numbers for MLX on M5 say where: 3.3 to 4.1 times faster time to
+first token across six models and 1.19 to 1.27 times faster decode than M4, on
+base chips with a 4,096-token prompt, end-to-end numbers that fold in everything
+else that changed between the chips, and Apple credits the decode gain to the
+28 percent higher memory bandwidth. The prefill gain
 is where a matrix unit should show, in the compute-bound territory of
 Chapter 3. Decode stays bandwidth bound, so it moves with the memory spec
 instead (Chapter 22).
@@ -122,9 +130,11 @@ On a 40-core M5 Max, the running example has a second route: the tiled matrix
 multiply of Part 4 still runs on the regular pipes at the 13.5 TFLOPS Chapter 10
 measured in 32-bit, and the same multiply described to the neural accelerators
 runs on a dedicated unit with 16 by 16 fragments. If you compare the two with
-32-bit inputs, state the precision and check the error: the second route
-multiplies in TF32, which changes the numerics, Chapter 17. The next
-chapter reads the code for the second route.
+32-bit inputs, state the precision and check the error. The tensor operation
+multiplies fp32 at full precision unless its descriptor sets `relaxed_precision`,
+which lets it truncate the mantissa, TF32-style, and changes the numerics; MLX
+takes this route only with TF32 enabled, Chapter 17. The next chapter reads the
+code for the second route.
 
 ## Review the content
 

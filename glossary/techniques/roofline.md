@@ -2,8 +2,11 @@
 
 **A roofline is the two-ceiling model (peak bandwidth and peak compute) that
 turns a kernel's measured time into a verdict: how far from the physical limit,
-and which limit. On a platform [without a profiler](../metal/profiling.md), it's
-the primary analysis tool, and you build it yourself.**
+and which limit. On a platform whose profiler
+[cannot run inside a scripted benchmark loop](../metal/profiling.md), it's the
+primary analysis tool, and you build it yourself; the profiler's GPU read and
+write bandwidth and memory limiter counters (a percentage of peak) are the
+cross-check on the bandwidth roof you measure.**
 
 CUDA equivalent: the roofline chart Nsight Compute draws for you automatically.
 Here you assemble it from two measurements:
@@ -42,7 +45,9 @@ Platform-specific hygiene, learned the hard way in the
 
 - **Thermals are part of the model.** Fanless and laptop chips decay under
   sustained load. One project measured long-run throughput decay dropping from
-  50% to 6.7% just by locking fans to max. Report sustained numbers, not
+  50% to 6.7% just by locking fans to max. Instruments' Thermal State
+  instrument records the device's thermal state next to the GPU timeline, which
+  tells you whether a slow stretch was throttled. Report sustained numbers, not
   first-second numbers.
 - **The ceilings move with problem size** in ways spec sheets hide: the
   [GEMM ladder's winner flips at three different sizes](../kernels/gemm-double-buffered.md)

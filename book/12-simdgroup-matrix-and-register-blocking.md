@@ -46,9 +46,12 @@ accumulate into `acc`, advance 8 along the shared dimension, repeat. Three rules
 of use follow, and all of them match what you expect from `wmma`.
 
 First, fragments are opaque. A `simdgroup_float8x8` holds 64 elements distributed
-across the 32 threads in an undocumented layout. `thread_elements()` gives each
-thread its own two, and steel uses it (Chapter 18), but which matrix coordinate
-a lane holds is not something you can rely on. `simdgroup_load` and
+across the 32 threads in a layout the spec calls unspecified. `thread_elements()`,
+a member the header exposes but the spec does not document, gives each thread its
+own two, and steel uses it (Chapter 18), but which matrix coordinate a lane holds
+is not something you can rely on. Every `simdgroup_matrix` operation must also be
+reached by the whole simdgroup; a per-lane branch around a load, store or
+multiply is undefined behavior, so an edge guard has to be uniform. `simdgroup_load` and
 `simdgroup_store` move whole tiles between a fragment and threadgroup or device
 memory.
 

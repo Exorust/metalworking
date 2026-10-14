@@ -60,11 +60,12 @@ registers, which reduces spills at the price of fewer resident threadgroups, dow
 to the floor of 24 simdgroups. On this kernel the trade is worth it, because 6
 threadgroups already saturate the core; Chapter 12 reads the attribute in place.
 
-There is no `cudaOccupancyMaxActiveBlocksPerMultiprocessor` on this platform, and
-no scriptable profiler that reports achieved occupancy; Xcode's GPU capture shows
-an occupancy estimate for one dispatch at a time. You reason from resource
-arithmetic, threadgroup memory bytes and a register estimate, and then confirm by
-measuring. Part 3 covers the measuring.
+There is no `cudaOccupancyMaxActiveBlocksPerMultiprocessor` here, and no
+scriptable profiler that reports achieved occupancy; Xcode's Metal debugger
+shows a measured occupancy counter and each shader's theoretical maximum, not
+to your program. You reason from resource arithmetic,
+threadgroup memory bytes and a register estimate, then confirm by measuring,
+which Part 3 covers.
 
 ## The stall side: why precision matters here
 
@@ -130,9 +131,9 @@ operands to 32-bit in registers and its author describes the emulation cost.
 fp8 had no native execution path on
 M4-class hardware. Reverse engineering of Metal 4.1's tensor API, tested on an
 M4 Max, found fp8 emulated in software at about 0.94 times fp16 throughput: it
-halved the bytes without any speedup. On M5 the neural accelerators change this,
-and block-scaled fp8 and fp4 paths ship with macOS 27's Metal; Chapter 28 covers
-them.
+halved the bytes without any speedup. macOS 27's Metal adds fp8 and fp4 operands
+with block scales; whether M5's neural accelerators run them natively is
+unpublished, and Chapter 28 covers them.
 
 16-bit integers get the same stall advantage over
 32-bit integers. Index arithmetic in `ushort` is a standing micro-optimization in

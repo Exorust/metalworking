@@ -159,8 +159,8 @@ fan control or a desktop chip is part of measurement methodology.
 
 The Neural Engine is the third matrix engine on the die after the GPU and AMX, Chapter 28, reaches about 6.6 TFLOPS per watt
 against about 1 for the GPU, and speaks only Apple's model frameworks, Core ML
-and, for generative workloads in the macOS 27 cycle, Core AI, which adds a
-documented hook for custom Metal kernels. The community has tried to train on it
+and, from macOS 27, Core AI, Apple's new framework for neural-network models,
+whose converter can bundle custom Metal 4 kernels into a model. The community has tried to train on it
 through private interfaces, which is impressive work and also a warning. If your
 workload is quantized convolution-shaped inference at low power, it may have a
 better home than the GPU, and Apple's own frameworks may route it there without

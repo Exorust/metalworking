@@ -88,6 +88,11 @@ kernel, it interleaves prefill with decode by bounding each prefill chunk's
 duration and making the chunk repay half that time in decode steps before the
 next one runs.
 
+One cost is easy to miss: making buffers resident, which Metal does at the
+first commit that uses them. A residency set holding the weights and cache,
+attached to the queue once with `requestResidency()` called at load time, takes
+that work off every command buffer.
+
 You test a question-3 win by starting with a count, command buffers per step,
 dispatches per step and waits per step, before and after. You end with a
 measurement of exposed encoding time and GPU idle time. Counts alone are

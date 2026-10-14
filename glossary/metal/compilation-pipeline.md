@@ -1,7 +1,7 @@
 # Compilation Pipeline
 
 **MSL source compiles to AIR (portable IR), AIR ships in a metallib, and the GPU
-binary is generated when you build a pipeline state on the user's machine.**
+binary is, by default, generated when you build a pipeline state on the user's machine.**
 
 CUDA equivalent, stage by stage:
 
@@ -10,11 +10,11 @@ CUDA equivalent, stage by stage:
 | CUDA C++ | [MSL](msl.md) | |
 | nvcc | `metal` frontend (`xcrun metal`) or runtime compile | |
 | PTX | **AIR** (Apple IR, LLVM-bitcode-based) | portable across GPU generations |
-| cubin / SASS | GPU binary inside a **pipeline state** | never shipped; always built on-device |
-| fatbin / JIT-from-PTX | **metallib** → `MTLLibrary` → `MTLComputePipelineState` | the JIT path is the *only* path |
+| cubin / SASS | GPU binary inside a **pipeline state** | built on-device by default; can ship precompiled per GPU in a binary archive |
+| fatbin / JIT-from-PTX | **metallib** → `MTLLibrary` → `MTLComputePipelineState` | the on-device compile is the default path |
 | `-arch=sm_90` matrix | none needed | AIR finalizes per-device at pipeline creation |
 
-![Two compilation toolchains: CUDA ships machine code ahead of time, Metal ships portable AIR and always builds the GPU binary on the user's device, where function constants join the final compile](../../diagrams/compilation-pipeline.svg)
+![Two compilation toolchains: CUDA ships machine code ahead of time, Metal ships portable AIR and by default builds the GPU binary on the user's device, where function constants join the final compile](../../diagrams/compilation-pipeline.svg)
 
 *The dashed line is the ship boundary. CUDA crosses it with machine code;
 Metal crosses it with portable IR and finishes compiling on the user's device,
@@ -22,23 +22,38 @@ which is what lets function constants participate in the final compile.*
 
 The practical differences from CUDA-land:
 
-**There is no offline path to machine code.** You can compile MSL → metallib ahead
-of time (and should, for app startup), but the last mile, AIR → the actual
-[G-series ISA](https://github.com/dougallj/applegpu), always happens on-device,
-inside `makeComputePipelineState`. Consequences: pipeline creation is the expensive
-step (cache pipeline states the way you'd cache cuBLAS handles), and
+**The default path to machine code runs on the device, but it is not the only
+one.** You compile MSL → metallib ahead of time (and should, for app startup), and
+by default the last mile, AIR → the actual
+[G-series ISA](https://github.com/dougallj/applegpu), happens on-device, inside
+`makeComputePipelineState`. Consequences: pipeline creation is the expensive step
+(cache pipeline states the way you'd cache cuBLAS handles), and
 [function constants](function-constants.md) get to participate in that final
 compile, which is what makes them real dead-code elimination rather than runtime
-branching.
+branching. Apple also documents an offline route: the Metal translator, `metal-tt`,
+compiles AIR plus a JSON pipeline description into a
+[binary archive](https://developer.apple.com/documentation/metal/metal-binary-archives)
+holding one precompiled slice per GPU generation (`metal-lipo -archs` lists them;
+an M1 Pro reports `applegpu_g13g`), which an app ships and loads through
+`MTLBinaryArchive`. Each slice is keyed to a GPU and can be invalidated by an OS
+update, in which case Metal recompiles from the AIR kept in the archive, so an
+archive is a shipped cache, not a portable cubin. The rest of the toolchain:
+`metal-ar` bundles AIR files, `metal-lipo -thin` extracts one slice, and
+`metal-source` unpacks an archive.
 
 **Runtime string compilation is a first-class workflow.**
-`device.makeLibrary(source:)` compiles an MSL string at runtime through the same
-backend as the offline compiler, with measured bit-identical performance
+`device.makeLibrary(source:options:)` compiles an MSL string at runtime through the
+same backend as the offline compiler, with measured bit-identical performance
 ([m5-gemm's README](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/README.md)
-tested `-O3 -ffast-math` offline vs runtime: no difference). This is why
+tested `-O3 -ffast-math` offline vs runtime: no difference, which the spec
+predicts, since runtime compilation already defaults to fast math and the
+documented optimization levels are `-O2`, the default, and `-Os`). This is why
 [metal-flash-attention generates kernels as Swift strings](../kernels/mfa-codegen.md),
 why [MLX JIT-compiles specialized kernels](../mlx/how-an-op-becomes-a-kernel.md),
-and why Python harnesses need no Xcode at all.
+and why Python harnesses need no Xcode at all. If you compile offline and want
+Xcode's per-line shader profiling, add `-frecord-sources` to the `xcrun metal`
+command (or `-frecord-sources=flat` for a separate `.metallibsym` file), because
+the shader editor needs the source.
 
 **Inspecting what the compiler actually emitted is community tooling, not vendor
 tooling.** There is no `cuobjdump`. The reverse-engineered

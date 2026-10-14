@@ -10,15 +10,21 @@ matters. In CUDA, each `kernel<<<>>>` is its own submission and the driver
 amortizes; you think about launches. In Metal you explicitly build the batch:
 
 ```
-MTLCommandQueue                  — ordered lane of work (make one, keep it)
-  MTLCommandBuffer               — one batch: create → encode → commit
-    MTLComputeCommandEncoder     — writes dispatches into the buffer:
+MTLCommandQueue                  an ordered lane of work (make one, keep it)
+  MTLCommandBuffer               one batch: create → encode → commit
+    MTLComputeCommandEncoder     writes dispatches into the buffer:
         setComputePipelineState, setBuffer, dispatchThreadgroups, ...
 ```
 
 Encoding happens on the CPU; `commit()` hands the whole batch to the GPU;
-`waitUntilCompleted` (or a completion handler) is the sync point. Two rules of
-thumb carry most of the value:
+`waitUntilCompleted` (or a completion handler) is the sync point. The queue
+schedules buffers in enqueue order (commit order unless you call `enqueue()`
+early to reserve a slot), and a default queue allows 64 uncompleted buffers:
+asking for a 65th blocks the CPU until the GPU finishes one. Metal 4 replaces
+these objects with `MTL4CommandQueue`, reusable `MTL4CommandBuffer`s backed by a
+`MTL4CommandAllocator`, and argument tables
+([Understanding the Metal 4 core API](https://developer.apple.com/documentation/metal/understanding-the-metal-4-core-api)).
+Two rules of thumb carry most of the value:
 
 ![Two submission patterns: chatty per-op commit and wait leaves the GPU idle between ops; one command buffer per forward pass keeps it continuously busy](../../diagrams/command-buffers.svg)
 
@@ -57,9 +63,13 @@ nothing but halving GPU→CPU syncs per decode step (one `mx.eval()` instead of 
 
 What you don't manage, coming from CUDA: events for cross-stream ordering (a
 single queue is ordered; multi-queue is rare in compute work), copy engines
-(no transfers exist), and stream priorities. Timestamps you *do* get:
-`GPUStartTime`/`GPUEndTime` on a completed command buffer are the platform's
-[simplest programmatic GPU timing](profiling.md). Measure at command-buffer
+(shared buffers need no host-to-device transfer; blit encoders copy between GPU
+resources as ordinary ordered commands), and stream priorities. Timestamps you
+*do* get: `gpuStartTime`/`gpuEndTime` (`GPUStartTime`/`GPUEndTime` in
+Objective-C and PyObjC) on a completed command buffer are the platform's
+[simplest programmatic GPU timing](profiling.md): host seconds on the mach clock,
+0.0 until the buffer completes, with `kernelStartTime`/`kernelEndTime` recording
+the CPU driver's scheduling of the same buffer. Measure at command-buffer
 granularity, one more reason to make command buffers meaningful units of work.
 
 Next: [Synchronization](synchronization.md)

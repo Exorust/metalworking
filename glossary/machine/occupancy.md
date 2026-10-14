@@ -27,10 +27,17 @@ Moderate occupancy fills this machine. The practical consequences:
   the [GEMM ladder's benchmark table](../kernels/gemm-double-buffered.md) is the
   cleanest demonstration.
 
-There's no `cudaOccupancyMaxActiveBlocksPerMultiprocessor` here, and
-[no profiler](../metal/profiling.md) that reports achieved occupancy directly.
-You reason about it from resource arithmetic (threadgroup memory bytes and a
-register estimate) and confirm by measuring. One more latency-hiding channel exists
+There's no `cudaOccupancyMaxActiveBlocksPerMultiprocessor` call here. Xcode's
+Metal debugger and Instruments do report a
+[Compute occupancy counter](https://developer.apple.com/documentation/xcode/finding-your-metal-apps-gpu-occupancy)
+(the percentage of the GPU's thread capacity in use), and the Performance
+timeline's compiler statistics show each shader's Max Theoretical Occupancy,
+which is the number to read when you suspect register or threadgroup-memory
+pressure; Apple's own guidance adds that neither high nor low occupancy is
+automatically a problem. Neither number is available inside a
+[scripted benchmark loop](../metal/profiling.md), so day to day you reason
+about it from resource arithmetic (threadgroup memory bytes and a register
+estimate) and confirm by measuring. One more latency-hiding channel exists
 alongside occupancy: ILP within a simdgroup, which is what
 [double buffering](../techniques/double-buffering.md) actually exploits, since the
 hardware happily reorders independent instructions from one instruction stream.

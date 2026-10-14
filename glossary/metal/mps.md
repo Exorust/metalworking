@@ -20,17 +20,30 @@ repeatedly matched or beaten it with open kernels:
 - [MLX](../mlx/mlx-overview.md) uses its own [steel library](../mlx/steel.md), not
   MPS, for core ops.
 
-Why beatable: MPS kernels are general and opaque. No
-[function-constant](function-constants.md) specialization for *your* shapes, no
-[fusion](../techniques/fusion-and-epilogues.md) with your surrounding ops, no
-quantized paths for LLM weight formats. The places frameworks still lean on MPS
+Why beatable: classic MPS kernels are general and opaque. Each call opens,
+fills and ends its own compute encoder (so you must end yours before calling it
+and start a new one after, and an MPS call between two custom kernels always
+costs an encoder boundary), with no
+[function-constant](function-constants.md) specialization for *your* shapes and
+no [fusion](../techniques/fusion-and-epilogues.md) with your surrounding ops.
+Quantized paths do exist: since macOS 15, `MPSNDArrayQuantizedMatrixMultiplication`
+and MPSGraph's `dequantize` cover int4, int8 and lookup-table weights, and
+macOS 27 adds MX and fp4 formats. MPSGraph, the graph layer above MPS, compiles
+a whole graph into an `MPSGraphExecutable`, fuses inside it, targets the Neural
+Engine as well as the GPU, and has a `scaledDotProductAttention` op (macOS 15;
+causal masks and attention sinks in macOS 27) plus a TF32 switch
+(`allowConvertingOperandsFromFP32ToFP19`, macOS 26). Even so, none of these use
+the LLM engines' own packed layouts, and a custom kernel still owns its tiling
+and epilogue. The places frameworks still lean on MPS
 are where its coverage is genuinely hard to replicate (convolution variants, some
 reductions, small-matrix cases where [AMX](../machine/amx.md)-backed CPU paths and
 MPS-tuned dispatch beat naive GPU kernels).
 
 For the kernel reader, MPS's main role is **the benchmark floor**:
-`MPSMatrixMultiplication` is a three-object setup (matrix descriptors + the op)
-and gives honest GPU-time numbers via
+`MPSMatrixMultiplication` takes three kinds of object (an `MPSMatrixDescriptor`
+per operand, an `MPSMatrix` wrapping each operand's buffer, row-major, and the
+kernel itself, computing C = alpha op(A) op(B) + beta C) and gives honest
+GPU-time numbers via
 [command-buffer timestamps](profiling.md); the
 [m5-gemm harness](https://github.com/yaroslavvb/m5-gemm/blob/29414bebb522ddacaa009959f2bcdad9f5b3e5cf/mps_matmul.py)
 is a compact PyObjC example. If your custom kernel doesn't beat MPS at your shapes,
