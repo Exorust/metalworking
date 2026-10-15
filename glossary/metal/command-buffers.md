@@ -26,7 +26,7 @@ keep it; in CUDA terms it is roughly a stream.
 The command buffer is one to-do list. You create it from the queue, fill it, and
 hand it over. CUDA has no object for this: each `kernel<<<>>>` is its own
 submission and the driver groups launches behind your back. In Metal you build
-the batch yourself, which is the part that matters.
+the batch yourself.
 
 The encoder is what you fill the list with. You open one on the buffer, then
 write entries: use this compiled kernel (`setComputePipelineState`), here are its
